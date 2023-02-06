@@ -1,1 +1,1 @@
-# ui-pointer.es
+# @i-xi-dev/ui-pointer
