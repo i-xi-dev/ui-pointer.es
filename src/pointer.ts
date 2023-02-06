@@ -1,11 +1,17 @@
-import { GenericGeometry } from "./generic_geometry";
+import { Geometry2d } from "./geometry_2d";
 import { BoundingBox } from "./bounding_box";
 import { Viewport } from "./viewport";
 
 // 対象要素はtouch-actionでパン無効を推奨
 // 対象要素の子孫でのpointerイベントが必要ない場合は、子孫はpointer-events:none推奨
 
-//TODO-1 スクロールバー上でpointerdownしたときエラーになる 要調査
+//TODO-1 _PointerCaptureTarget.elementにスクロールバーがある場合に、
+//       スクロールバー上でpointerdonしたとき、pointerup後にpointermoveするとエラーになる
+//       →おそらくスクロールバー自体もpointercaptureしている関係で
+//        pointercaptureのリリース時に_PointerCaptureTarget.elementのlostpointercaptureのリスナが呼ばれない
+//        （pointerenterとかは発生するようになるのでreleasepointercaptureはされている）
+//       →chrome,edgeで発生して firefoxで発生しないのでchromiumの問題と推測するが。
+//       →
 
 //XXX 非pontercaptureのトラッカーを追加
 
@@ -40,7 +46,8 @@ class _PointerCapture implements Pointer.Capture {
   }
 
   //XXX ReadableStream#[Symbol.asyncIterator]がブラウザでなかなか実装されないので…
-  async *[Symbol.asyncIterator](): AsyncGenerator<Pointer.CaptureTrack, void, void> {
+  async * tracks(): AsyncGenerator<Pointer.CaptureTrack, void, void> {
+  //async *[Symbol.asyncIterator](): AsyncGenerator<Pointer.CaptureTrack, void, void> {
     try {
       let firstTrack: Pointer.CaptureTrack | undefined = undefined;
       let lastTrack: Pointer.CaptureTrack | undefined = undefined;
@@ -59,22 +66,22 @@ class _PointerCapture implements Pointer.Capture {
         duration = (lastTrack.timestamp - firstTrack.timestamp);
         const firstTrackPoint = firstTrack.geometry.point;
         const lastTrackPoint = lastTrack.geometry.point;
-        relativeX = (lastTrackPoint.left - firstTrackPoint.left);
-        relativeY = (lastTrackPoint.top - firstTrackPoint.top);
+        relativeX = (lastTrackPoint.x - firstTrackPoint.x);
+        relativeY = (lastTrackPoint.y - firstTrackPoint.y);
       }
-      const startPoint = { left: Number.NaN, top: Number.NaN };
+      const startPoint = { x: Number.NaN, y: Number.NaN };
       if (!!firstTrack) {
         const firstTrackPoint = firstTrack.geometry.point;
-        startPoint.left = firstTrackPoint.left;
-        startPoint.top = firstTrackPoint.top;
+        startPoint.x = firstTrackPoint.x;
+        startPoint.y = firstTrackPoint.y;
       }
-      const endPoint = { left: Number.NaN, top: Number.NaN };
+      const endPoint = { x: Number.NaN, y: Number.NaN };
       let terminatedByPointerLost = false;
       let endPointIntersectsTarget = false;
       if (!!lastTrack) {
         const lastTrackPoint = lastTrack.geometry.point;
-        endPoint.left = lastTrackPoint.left;
-        endPoint.top = lastTrackPoint.top;
+        endPoint.x = lastTrackPoint.x;
+        endPoint.y = lastTrackPoint.y;
         terminatedByPointerLost = (lastTrack.pointerState === Pointer.State.LOST);
         endPointIntersectsTarget = !terminatedByPointerLost && (this.#target.containsPoint(endPoint) === true);
       }
@@ -163,6 +170,10 @@ class _PointerCaptureTarget {
       this.#pushLastTrack(event);
     }) as EventListener, listenerOptions);
 
+    // this.#element.addEventListener("pointerleave", ((event: PointerEvent): void => {
+    //   console.log(event)
+    // }) as EventListener, listenerOptions);
+
     this.#element.addEventListener("pointercancel", ((event: PointerEvent): void => {
       if (event.isTrusted !== true) {
         return;
@@ -196,7 +207,7 @@ class _PointerCaptureTarget {
   }
 
   containsPoint(point: Viewport.Inset): boolean {
-    return this.#rootNode.elementsFromPoint(point.left, point.top).includes(this.#element);
+    return this.#rootNode.elementsFromPoint(point.x, point.y).includes(this.#element);
   }
 
   // event.buttonsの判定はpointerdown特化なので注意
@@ -287,8 +298,13 @@ class _PointerCaptureTarget {
       this.#internalsMap.set(event.pointerId, internals);
 
       // pointerdownのtargetはthis.#elementの子孫である可能性（すなわちevent.offsetX/Yがthis.#elementの座標ではない可能性）
-      const adjustment = (this.#element !== event.target) ? BoundingBox.geometryOf(this.#element, (event.target as Element)) : undefined;
-      const firstTrack = this.#eventToTrack(internals, event, true, adjustment?.offset);
+      let adjustment: Geometry2d.Point | undefined = undefined;
+      if (this.#element !== event.target) {
+        const thisElementBoundingBox = BoundingBox.of(this.#element);
+        const eventTargetBoundingBox = BoundingBox.of(event.target as Element);
+        adjustment = Geometry2d.Point.distanceBetween(thisElementBoundingBox, eventTargetBoundingBox);
+      }
+      const firstTrack = this.#eventToTrack(internals, event, true, adjustment);
       controller.enqueue(firstTrack);
     };
     const cancel = () => {};
@@ -301,15 +317,15 @@ class _PointerCaptureTarget {
     callback(new _PointerCapture(this, trackStream));
   }
 
-  #eventToTrack(internals: _PointerCaptureInternals, event: PointerEvent, exteriaGeometry: boolean = false, adjustment?: GenericGeometry.PointOffset): Pointer.CaptureTrack {
+  #eventToTrack(internals: _PointerCaptureInternals, event: PointerEvent, exteriaGeometry: boolean = false, adjustment?: Geometry2d.Point): Pointer.CaptureTrack {
     const geometry = Pointer.Geometry.fromPointerEvent(event);
     const offsetFromTarget = {
-      left: event.offsetX,
-      top: event.offsetY,
+      x: event.offsetX,
+      y: event.offsetY,
     };
-    if (!!adjustment && Number.isFinite(adjustment?.left) && Number.isFinite(adjustment?.top)) {
-      offsetFromTarget.left = offsetFromTarget.left - adjustment.left;
-      offsetFromTarget.top = offsetFromTarget.top - adjustment.top;
+    if (!!adjustment && Number.isFinite(adjustment?.x) && Number.isFinite(adjustment?.y)) {
+      offsetFromTarget.x = offsetFromTarget.x - adjustment.x;
+      offsetFromTarget.y = offsetFromTarget.y - adjustment.y;
     }
 
     const pointerState = (event.type === "pointercancel") ? Pointer.State.LOST : Pointer.State.ACTIVE;
@@ -341,8 +357,8 @@ class _PointerCaptureTarget {
         pointerState,
         capturePhase,
         exteriaGeometry: {
-          viewport: Viewport.geometryOf(event.view as Window),
-          target: BoundingBox.geometryOf(this.#element),
+          viewport: Viewport.from(event.view as Window),
+          target: BoundingBox.of(this.#element),
         },
       };
     }
@@ -411,18 +427,16 @@ namespace Pointer {
     }
   }
 
-  export type Size = GenericGeometry.RectSize;
-
   export type Geometry = {
     readonly point: Viewport.Inset,
-    readonly size: Size,
+    readonly size: Geometry2d.Area,
   };
   export namespace Geometry {
     export function fromPointerEvent(event: PointerEvent): Geometry {
       return Object.freeze({
         point: Object.freeze({
-          left: event.clientX,
-          top: event.clientY,
+          x: event.clientX,
+          y: event.clientY,
         }),
         size: Object.freeze({
           width: event.width,
@@ -459,8 +473,8 @@ namespace Pointer {
     readonly pointerState: State,
     readonly capturePhase: CapturePhase,
     readonly exteriaGeometry?: {
-      viewport: Viewport.Geometry,
-      target: BoundingBox.Geometry,
+      viewport: Viewport,
+      target: BoundingBox,
     };//XXX とりあえず、最初と最後のみ //XXX CaptureResultに移す
   };
 
@@ -478,7 +492,8 @@ namespace Pointer {
 
   export interface Capture {
     get result(): Promise<CaptureResult>;
-    [Symbol.asyncIterator](): AsyncGenerator<CaptureTrack, void, void>;
+    //[Symbol.asyncIterator](): AsyncGenerator<CaptureTrack, void, void>;
+    tracks(): AsyncGenerator<CaptureTrack, void, void>;
   }
 
   export type CaptureCallback = (capture: Capture) => (void | Promise<void>);

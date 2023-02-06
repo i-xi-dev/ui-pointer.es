@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Test-4</title>
+    <style>
+*.p1 {
+  background-color: #f008;
+  border-radius: 50%;
+  pointer-events: none;
+  position: absolute;
+}
+*#test {
+  background-color: #8f9a96;
+  height: 500px;
+  overflow: scroll;
+  width: 500px;
+}
+    </style>
+    <template id="template1">
+      <div class="p1"></div>
+    </template>
+    <script type="module">
+import { Pointer } from "../dist/index.js";
+const test = document.getElementById("test");
+Pointer.CaptureTarget.register(test, async (capture) => {
+  const pi1 = document.getElementById("template1").content.cloneNode(true).firstElementChild;
+
+  for await (const track of capture.tracks()) {
+  }
+  const result = await capture.result;
+  console.log(result);
+});
+    </script>
+  </head>
+  <body>
+    <div id="test"><div style="height:200vh;pointer-events:none;"></div></div>
+  </body>
+</html>

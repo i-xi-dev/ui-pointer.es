@@ -488,12 +488,12 @@ createApp({
       this.dragYInBoundingBox = -1000;
       this.dragXScrollContent = -1000;
       this.dragYScrollContent = -1000;
-      for await (const track of capture) {
+      for await (const track of capture.tracks()) {
         const gridElt = this.$refs.ref1;
-        this.dragXInBoundingBox = track.offsetFromTarget.left;
-        this.dragYInBoundingBox = track.offsetFromTarget.top;
-        this.dragXScrollContent = track.offsetFromTarget.left + gridElt.scrollLeft;
-        this.dragYScrollContent = track.offsetFromTarget.top + gridElt.scrollTop;
+        this.dragXInBoundingBox = track.offsetFromTarget.x;
+        this.dragYInBoundingBox = track.offsetFromTarget.y;
+        this.dragXScrollContent = track.offsetFromTarget.x + gridElt.scrollLeft;
+        this.dragYScrollContent = track.offsetFromTarget.y + gridElt.scrollTop;
 
         if (track.capturePhase === "before-capture") {
           continue;
@@ -567,7 +567,7 @@ createApp({
     });
 
 
-    //TODO chromeでクリックしたままpointerを上下動させると勝手にscrollされる問題 $29
+    //TODO-X chromeでクリックしたままpointerを上下動させると勝手にscrollされる問題 $29
     // →結果:overflow:hiddenにして、スクロールバーは自前にするしかない？ →hiddenにしても同じだった
     //       おそらくクリック中にscrollportの境界を超えた状態で1pxでもスクロールさせると、その後は
     //       勝手に上下移動量でスクロールするモードになる（中クリックと同じ？）
@@ -580,7 +580,7 @@ createApp({
     // →他をいじってるうちに発生しなくなった（行列ヘッダをつけたあたり？から？？）
     //  再現条件が不明
 
-    //TODO pointerdownで即座にモード変更すると単なるclickの場合に一瞬だけモード変更が見えることになる
+    //TODO-V pointerdownで即座にモード変更すると単なるclickの場合に一瞬だけモード変更が見えることになる
     //     表示の遅延が必要
   },
 }).mount("#app");

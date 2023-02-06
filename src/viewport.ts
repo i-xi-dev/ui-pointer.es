@@ -1,27 +1,30 @@
-//TODO 外に出す
+//TODO-2 外に出す
 
-import { GenericGeometry } from "./generic_geometry";
+import { Geometry2d } from "./geometry_2d";
 
+type Viewport = Geometry2d.Rect/* & {
+  scrollX: number, rtlの場合Window.scrollXをそのまま取ると、スクロールしてない状態で0、左にスクロールすると負の値になる
+  scrollY: number,
+}*/;
 namespace Viewport {
-  // coord from left and top edge of viewport
-  export type Inset = GenericGeometry.PointOffset;
+  /**
+   * The point with the origin at the top left corner of the viewport.
+   */
+  export type Inset = Geometry2d.Point;
 
-  export type Geometry = GenericGeometry.RectSize & {
-    //scrollLeft: number,//XXX rtlの場合の算出法が違う
-    //scrollTop: number,//XXX 
-  };
-
-  export function geometryOf(view: Window): Geometry {
+  export function from(view: Window): Readonly<Viewport> {
     if ((view instanceof Window) !== true) {
       throw new TypeError("view");
     }
 
-    return {
+    return Object.freeze({
+      x: 0,
+      y: 0,
       width: view.innerWidth,
       height: view.innerHeight,
-      //scrollLeft: view.scrollX,
-      //scrollTop: view.scrollY,
-    };
+      //scrollX: view.scrollX,
+      //scrollY: view.scrollY,
+    });
   }
 }
 
