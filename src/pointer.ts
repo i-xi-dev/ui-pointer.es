@@ -5,13 +5,12 @@ import { Viewport } from "./viewport";
 // 対象要素はtouch-actionでパン無効を推奨
 // 対象要素の子孫でのpointerイベントが必要ない場合は、子孫はpointer-events:none推奨
 
-//TODO-1 _PointerCaptureTarget.elementにスクロールバーがある場合に、
-//       スクロールバー上でpointerdonしたとき、pointerup後にpointermoveするとエラーになる
-//       →おそらくスクロールバー自体もpointercaptureしている関係で
-//        pointercaptureのリリース時に_PointerCaptureTarget.elementのlostpointercaptureのリスナが呼ばれない
-//        （pointerenterとかは発生するようになるのでreleasepointercaptureはされている）
-//       →chrome,edgeで発生して firefoxで発生しないのでchromiumの問題と推測するが。
-//       →
+//XXX 既知の問題-1
+//    Chromium系のブラウザでマウスで、_PointerCaptureTarget.elementのスクロールバー上でpointerdownした場合、pointer captureはスクロールバーに奪われる
+//    この状態では_PointerCaptureTarget.elementではpointermoveは発火しない。gotpointercaptureも発火しない
+//    ただ、pointerupは_PointerCaptureTarget.elementから離れていても発火するので、中途半端にpointer captureしている状態と思われる
+//    pointerup後のlostpointercaptureも発火しない
+
 
 //XXX 非pontercaptureのトラッカーを追加
 
@@ -152,7 +151,8 @@ class _PointerCaptureTarget {
       this.#requestCapture(event, callback);
     }) as EventListener, listenerOptions);
 
-    //XXX gotpointercapture ここで座標が変わることあるのか
+    // gotpointercaptureは使用しないことにする
+    // setPointerCapture後、Firefoxは即座にgotpointercaptureが発火するのに対して、Chromeは次にpointermoveなどが発火する直前まで遅延される為
 
     this.#element.addEventListener("pointermove", ((event: PointerEvent): void => {
       if (event.isTrusted !== true) {
@@ -168,6 +168,7 @@ class _PointerCaptureTarget {
         return;
       }
       this.#pushLastTrack(event);
+      this.#onRelease(event);
     }) as EventListener, listenerOptions);
 
     // this.#element.addEventListener("pointerleave", ((event: PointerEvent): void => {
@@ -179,14 +180,19 @@ class _PointerCaptureTarget {
         return;
       }
       this.#pushLastTrack(event);
-    }) as EventListener, listenerOptions);
-
-    this.#element.addEventListener("lostpointercapture", ((event: PointerEvent): void => {
-      if (event.isTrusted !== true) {
-        return;
-      }
       this.#onRelease(event);
     }) as EventListener, listenerOptions);
+
+    // lostpointercaptureは使用しないことにする
+    // Chrome,EdgeでpointerTypeがmouseのとき、スクロールバー上でpointerdownしたときに問題になる為
+    // （スクロールバーがpointer captureを奪うので要素ではgotpointercaptureもlostpointercaptureも発火しない）
+    // Firefoxはうまくやってるので、Chromiumの問題な気もするが
+    // this.#element.addEventListener("lostpointercapture", ((event: PointerEvent): void => {
+    //   if (event.isTrusted !== true) {
+    //     return;
+    //   }
+    //   this.#onRelease(event); pointerup, pointercancel に移す
+    // }) as EventListener, listenerOptions);
   }
 
   get element(): Element {
@@ -286,8 +292,9 @@ class _PointerCaptureTarget {
 
     const pointer = Pointer.Identification.fromPointerEvent(event);
 
-    //TODO 自動pointercaptureはpointerdown時にhasPointerCaptureで判別できる　ただしtargetがわかっていれば
-    //     解除した方が良いのか、放っておいて問題ないのか要確認
+    //XXX 暗黙のpointercaptureは、pointerdown時にhasPointerCaptureで判別できる
+    //    と、仕様には記載があるが従っている実装はあるのか？（ChromeもFirefoxもpointerdownでhasPointerCaptureしても暗黙のpointercaptureを検出できない）
+    //    検出できなくても問題なさげなので、一旦放置
     this.#element.setPointerCapture(event.pointerId);
 
     const start = (controller: ReadableStreamDefaultController<Pointer.CaptureTrack>) => {

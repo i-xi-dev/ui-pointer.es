@@ -27,6 +27,7 @@ Pointer.CaptureTarget.register(test, async (capture) => {
   const pi1 = document.getElementById("template1").content.cloneNode(true).firstElementChild;
 
   for await (const track of capture.tracks()) {
+    console.log(track);
   }
   const result = await capture.result;
   console.log(result);
