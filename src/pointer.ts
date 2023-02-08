@@ -2,15 +2,7 @@ import { Geometry2d } from "./geometry_2d";
 import { BoundingBox } from "./bounding_box";
 import { Viewport } from "./viewport";
 
-// 対象要素はtouch-actionでパン無効を推奨
 // 対象要素の子孫でのpointerイベントが必要ない場合は、子孫はpointer-events:none推奨
-
-//XXX 既知の問題-1
-//    Chromium系のブラウザでマウスで、_PointerCaptureTarget.elementのスクロールバー上でpointerdownした場合、pointer captureはスクロールバーに奪われる
-//    この状態では_PointerCaptureTarget.elementではpointermoveは発火しない。gotpointercaptureも発火しない
-//    ただ、pointerupは_PointerCaptureTarget.elementから離れていても発火するので、中途半端にpointer captureしている状態と思われる
-//    pointerup後のlostpointercaptureも発火しない
-
 
 //XXX 非pontercaptureのトラッカーを追加
 
@@ -23,19 +15,25 @@ type _PointerCaptureInternals = {
 };
 
 class _PointerCapture implements Pointer.Capture {
+  readonly #pointer: Pointer.Identification;
   readonly #target: _PointerCaptureTarget;
   readonly #task: Promise<Pointer.CaptureResult>;
   #onCaptureComplete: (value: Pointer.CaptureResult) => void = (): void => undefined;
   #onCaptureFail: (reason?: any) => void = (): void => undefined;
   readonly #trackStream: ReadableStream<Pointer.CaptureTrack>;
 
-  constructor(target: _PointerCaptureTarget, trackStream: ReadableStream<Pointer.CaptureTrack>) {
+  constructor(pointer: Pointer.Identification, target: _PointerCaptureTarget, trackStream: ReadableStream<Pointer.CaptureTrack>) {
+    this.#pointer = pointer;
     this.#target = target;
     this.#task = new Promise((resolve, reject) => {
       this.#onCaptureComplete = resolve;
       this.#onCaptureFail = reject;
     });
     this.#trackStream = trackStream;
+  }
+
+  get pointer(): Pointer.Identification {
+    return this.#pointer;
   }
 
   //TODO-1st これだとstreamを消費しないかぎりPromiseが永遠に未解決になる
@@ -58,33 +56,32 @@ class _PointerCapture implements Pointer.Capture {
         yield track;
       }
 
+      if (!firstTrack || !lastTrack) {
+        throw new Error("TODO");
+      }
+
       let duration: milliseconds = 0;
       let relativeX: number = 0;
       let relativeY: number = 0;
-      if (!!firstTrack && !!lastTrack) {
-        duration = (lastTrack.timestamp - firstTrack.timestamp);
-        const firstTrackPoint = firstTrack.geometry.point;
-        const lastTrackPoint = lastTrack.geometry.point;
-        relativeX = (lastTrackPoint.x - firstTrackPoint.x);
-        relativeY = (lastTrackPoint.y - firstTrackPoint.y);
-      }
+
+      duration = (lastTrack.timestamp - firstTrack.timestamp);
+      const firstTrackPoint = firstTrack.geometry.point;
+      const lastTrackPoint = lastTrack.geometry.point;
+      relativeX = (lastTrackPoint.x - firstTrackPoint.x);
+      relativeY = (lastTrackPoint.y - firstTrackPoint.y);
+
       const startPoint = { x: Number.NaN, y: Number.NaN };
-      if (!!firstTrack) {
-        const firstTrackPoint = firstTrack.geometry.point;
-        startPoint.x = firstTrackPoint.x;
-        startPoint.y = firstTrackPoint.y;
-      }
+      startPoint.x = firstTrackPoint.x;
+      startPoint.y = firstTrackPoint.y;
+
       const endPoint = { x: Number.NaN, y: Number.NaN };
-      let terminatedByPointerLost = false;
-      let endPointIntersectsTarget = false;
-      if (!!lastTrack) {
-        const lastTrackPoint = lastTrack.geometry.point;
-        endPoint.x = lastTrackPoint.x;
-        endPoint.y = lastTrackPoint.y;
-        terminatedByPointerLost = (lastTrack.pointerState === Pointer.State.LOST);
-        endPointIntersectsTarget = !terminatedByPointerLost && (this.#target.containsPoint(endPoint) === true);
-      }
+      endPoint.x = lastTrackPoint.x;
+      endPoint.y = lastTrackPoint.y;
+      const terminatedByPointerLost = (lastTrack.pointerState === Pointer.State.LOST);
+      const endPointIntersectsTarget = !terminatedByPointerLost && (this.#target.containsPoint(endPoint) === true);
+
       this.#onCaptureComplete({
+        pointer: firstTrack.pointer,
         duration,
         startPoint,
         endPoint,
@@ -123,7 +120,7 @@ class _PointerCaptureTarget {
   readonly #filterMouseButtons: Array<Pointer.MouseButton>;
   readonly #filterPenButton: Array<Pointer.PenButton>;
   readonly #customFilter: (event: PointerEvent) => boolean;
-  readonly #maxConcurrentCaptures: number;
+  //readonly #maxConcurrentCaptures: number;
   readonly #highPrecision: boolean;
 
   constructor(element: Element, callback: Pointer.CaptureCallback, options: Pointer.CaptureOptions) {
@@ -134,8 +131,10 @@ class _PointerCaptureTarget {
     this.#filterMouseButtons = (!!options.filter && Array.isArray(options.filter.mouseButtons)) ? [...options.filter.mouseButtons] : [];
     this.#filterPenButton = (!!options.filter && Array.isArray(options.filter.penButtons)) ? [...options.filter.penButtons] : [];
     this.#customFilter = (typeof options.filter?.custom === "function") ? options.filter.custom : () => true;
-    this.#maxConcurrentCaptures = Number.isSafeInteger(options.maxConcurrentCaptures) ? (options.maxConcurrentCaptures as number) : 1;
+    //this.#maxConcurrentCaptures = Number.isSafeInteger(options.maxConcurrentCaptures) ? (options.maxConcurrentCaptures as number) : 1;
     this.#highPrecision = (options.highPrecision === true) && !!(new PointerEvent("test")).getCoalescedEvents;//XXX safariが未実装:getCoalescedEvents
+
+    (this.#element as unknown as ElementCSSInlineStyle).style.setProperty("touch-action", "none", "important");// タッチの場合にpointerupやpointercancelしなくても暗黙にreleasepointercaptureされるので強制設定する //XXX 値は設定可にする
 
     const listenerOptions = {
       passive: true,
@@ -148,7 +147,21 @@ class _PointerCaptureTarget {
       if (event.isTrusted !== true) {
         return;// 受け付けるようにする場合は、pointerdownがtrustedでpointermoveが非trustedの場合の挙動をどうするか
       }
-      this.#requestCapture(event, callback);
+      if (this.#filter(event) !== true) {
+        return;
+      }
+      // if (this.#internalsMap.size >= this.#maxConcurrentCaptures) {
+      //   return;
+      // }
+
+      this.#element.setPointerCapture(event.pointerId);
+      if (this.#element.hasPointerCapture(event.pointerId) === true) {
+        console.log(555)
+        // キャプチャできた場合のみ処理開始
+        // キャプチャされない例
+        // - Chromium系でマウスでthis.#elementのスクロールバーをpointerdownしたとき
+        this.#afterCaptured(event, callback);
+      }
     }) as EventListener, listenerOptions);
 
     // gotpointercaptureは使用しないことにする
@@ -158,6 +171,7 @@ class _PointerCaptureTarget {
       if (event.isTrusted !== true) {
         return;
       }
+      //XXX hasPointerCaptureがfalseなら#release()呼ぶ？ pointermove以外でも
       this.#pushTrack(event);
     }) as EventListener, listenerOptions);
 
@@ -168,7 +182,7 @@ class _PointerCaptureTarget {
         return;
       }
       this.#pushLastTrack(event);
-      this.#onRelease(event);
+      this.#release(event);
     }) as EventListener, listenerOptions);
 
     // this.#element.addEventListener("pointerleave", ((event: PointerEvent): void => {
@@ -180,19 +194,13 @@ class _PointerCaptureTarget {
         return;
       }
       this.#pushLastTrack(event);
-      this.#onRelease(event);
+      this.#release(event);
     }) as EventListener, listenerOptions);
 
     // lostpointercaptureは使用しないことにする
     // Chrome,EdgeでpointerTypeがmouseのとき、スクロールバー上でpointerdownしたときに問題になる為
     // （スクロールバーがpointer captureを奪うので要素ではgotpointercaptureもlostpointercaptureも発火しない）
     // Firefoxはうまくやってるので、Chromiumの問題な気もするが
-    // this.#element.addEventListener("lostpointercapture", ((event: PointerEvent): void => {
-    //   if (event.isTrusted !== true) {
-    //     return;
-    //   }
-    //   this.#onRelease(event); pointerup, pointercancel に移す
-    // }) as EventListener, listenerOptions);
   }
 
   get element(): Element {
@@ -282,20 +290,13 @@ class _PointerCaptureTarget {
     return true;
   }
 
-  #requestCapture(event: PointerEvent, callback: Pointer.CaptureCallback): void {
-    if (this.#filter(event) !== true) {
-      return;
-    }
-    if (this.#internalsMap.size >= this.#maxConcurrentCaptures) {
-      return;
-    }
-
+  #afterCaptured(event: PointerEvent, callback: Pointer.CaptureCallback): void {
     const pointer = Pointer.Identification.fromPointerEvent(event);
 
     //XXX 暗黙のpointercaptureは、pointerdown時にhasPointerCaptureで判別できる
     //    と、仕様には記載があるが従っている実装はあるのか？（ChromeもFirefoxもpointerdownでhasPointerCaptureしても暗黙のpointercaptureを検出できない）
     //    検出できなくても問題なさげなので、一旦放置
-    this.#element.setPointerCapture(event.pointerId);
+    //this.#element.setPointerCapture(event.pointerId);
 
     const start = (controller: ReadableStreamDefaultController<Pointer.CaptureTrack>) => {
       const internals = {
@@ -321,7 +322,7 @@ class _PointerCaptureTarget {
       cancel,
     });
 
-    callback(new _PointerCapture(this, trackStream));
+    callback(new _PointerCapture(pointer, this, trackStream));
   }
 
   #eventToTrack(internals: _PointerCaptureInternals, event: PointerEvent, exteriaGeometry: boolean = false, adjustment?: Geometry2d.Point): Pointer.CaptureTrack {
@@ -405,7 +406,8 @@ class _PointerCaptureTarget {
     }
   }
 
-  #onRelease(event: PointerEvent): void {
+  //XXX 明示的にreleasePointerCaptureする？ いまのところgotpointercaptureが発生するのにlostpointercaptureが発生しないケースにはあったことは無い
+  #release(event: PointerEvent): void {
     if (this.#internalsMap.has(event.pointerId) === true) {
       //const internals = this.#internalsMap.get(event.pointerId) as _PointerCaptureInternals;
       this.#internalsMap.delete(event.pointerId);
@@ -486,6 +488,7 @@ namespace Pointer {
   };
 
   export type CaptureResult = {
+    pointer: Identification;//XXX 要る？
     duration: milliseconds,
     startPoint: Viewport.Inset,
     endPoint: Viewport.Inset,
@@ -498,6 +501,7 @@ namespace Pointer {
   };
 
   export interface Capture {
+    pointer: Identification;
     get result(): Promise<CaptureResult>;
     //[Symbol.asyncIterator](): AsyncGenerator<CaptureTrack, void, void>;
     tracks(): AsyncGenerator<CaptureTrack, void, void>;
@@ -532,8 +536,9 @@ namespace Pointer {
       custom?: (event: PointerEvent) => boolean,// 位置でフィルタとか、composedPath()でフィルタとか、いろいろできるようにevent自体を渡す
     },
 
-    //TODO そもそも同時captureできるのか？
-    maxConcurrentCaptures?: number,
+    // そもそも同時captureできるのか？ →できることは出来るが、基本的に後からcaptureした方のmousemoveだけ発生する。あとからcaptureした方がreleaseすると。先にcaptureしていた方のmousemoveが再び発生するようになる
+    // よって、ほとんど無意味と考えられるので廃止する
+    // maxConcurrentCaptures?: number,
 
     //XXX 命名が違う気がする
     highPrecision?: boolean,
@@ -543,6 +548,8 @@ namespace Pointer {
     //XXX target,viewport他のscrollを監視するか →要らないのでは
     //XXX targetやviewport以外の任意の基準要素 →要らないのでは
     //TODO event.button,buttonsの変化を監視するか
+    //TODO captureするかしないか Capture～の命名をTracker～とかに変える
+    //TODO pointermoveしなくても一定時間ごとにpushするかしないか
   };
 
   export namespace CaptureTarget {
