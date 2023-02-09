@@ -9,25 +9,117 @@ import { Viewport } from "./viewport";
 type pointerid = number;// integer
 type milliseconds = number;
 
-type _PointerCaptureInternals = {
+namespace _PointerIdentification {
+  export function fromPointerEvent(event: PointerEvent): Pointer.Identification {
+    return Object.freeze({
+      id: event.pointerId,
+      type: event.pointerType,
+      isPrimary: event.isPrimary,
+    });
+  }
+}
+
+namespace _PointerGeometry {
+  export function fromPointerEvent(event: PointerEvent): Pointer.Geometry {
+    return Object.freeze({
+      point: Object.freeze({
+        x: event.clientX,
+        y: event.clientY,
+      }),
+      size: Object.freeze({
+        width: event.width,
+        height: event.height,
+      }),
+    });
+  }
+}
+
+namespace _PointerTrack {
+  export function fromPointerEvent(event: PointerEvent): Pointer.Track {
+    const pointer = _PointerIdentification.fromPointerEvent(event);
+    const geometry = _PointerGeometry.fromPointerEvent(event);
+    const offsetFromTarget = {
+      x: event.offsetX,
+      y: event.offsetY,
+    };
+
+    // targetはcurrentTargetの子孫である可能性（すなわちevent.offsetX/YがcurrentTargetの座標ではない可能性）
+    if (!!event.target && !!event.currentTarget && (event.currentTarget !== event.target)) {
+      const currentTargetBoundingBox = BoundingBox.of(event.currentTarget as Element);
+      const targetBoundingBox = BoundingBox.of(event.target as Element);
+      const { x, y } = Geometry2d.Point.distanceBetween(currentTargetBoundingBox, targetBoundingBox);
+      offsetFromTarget.x = offsetFromTarget.x - x;
+      offsetFromTarget.y = offsetFromTarget.y - y;
+    }
+
+    const pointerState = (event.type === "pointercancel") ? Pointer.State.LOST : Pointer.State.ACTIVE;
+    let trackingPhase: Pointer.TrackingPhase;
+    switch (event.type) {
+      case "pointerdown":
+        trackingPhase = Pointer.TrackingPhase.START;
+        break;
+      case "pointermove":
+        trackingPhase = Pointer.TrackingPhase.PROGRESS;
+        break;
+      case "pointerup":
+      case "pointercancel":
+        trackingPhase = Pointer.TrackingPhase.END;
+        break;
+      default:
+        trackingPhase = Pointer.TrackingPhase.UNDEFINED;
+        // pointerup,pointercancelの後は_PointerTrack.fromPointerEventを呼んでいないのでありえない
+        break;
+    }
+
+    return {
+      pointer,
+      timestamp: event.timeStamp,
+      geometry,
+      offsetFromTarget,
+      pointerState,
+      trackingPhase,
+    };
+  }
+}
+
+type _ExtraRecord = {
+  readonly timestamp: number,
+  readonly exteriaGeometry: {
+    target: Readonly<BoundingBox>,
+    viewport: Readonly<Viewport>,
+  },
+};
+namespace _ExtraRecord {
+  export function fromPointerEvent(event: PointerEvent): _ExtraRecord {
+    return Object.freeze({
+      timestamp: event.timeStamp,
+      exteriaGeometry: Object.freeze({
+        viewport: Viewport.from(event.view as Window),
+        target: BoundingBox.of(event.currentTarget as Element),
+      }),
+    });
+  }
+}
+
+type _PointerTrackerInternals = {
   readonly pointer: Pointer.Identification,
-  readonly controller: ReadableStreamDefaultController<Pointer.CaptureTrack>,
+  readonly controller: ReadableStreamDefaultController<Pointer.Track>,
 };
 
-class _PointerCapture implements Pointer.Capture {
+class _PointerTracking implements Pointer.Tracking {
   readonly #pointer: Pointer.Identification;
-  readonly #target: _PointerCaptureTarget;
-  readonly #task: Promise<Pointer.CaptureResult>;
-  #onCaptureComplete: (value: Pointer.CaptureResult) => void = (): void => undefined;
-  #onCaptureFail: (reason?: any) => void = (): void => undefined;
-  readonly #trackStream: ReadableStream<Pointer.CaptureTrack>;
+  readonly #tracker: _PointerTracker;
+  readonly #task: Promise<Pointer.TrackingResult>;
+  #onTrackingComplete: (value: Pointer.TrackingResult) => void = (): void => undefined;
+  #onTrackingFail: (reason?: any) => void = (): void => undefined;
+  readonly #trackStream: ReadableStream<Pointer.Track>;
 
-  constructor(pointer: Pointer.Identification, target: _PointerCaptureTarget, trackStream: ReadableStream<Pointer.CaptureTrack>) {
+  constructor(pointer: Pointer.Identification, tracker: _PointerTracker, trackStream: ReadableStream<Pointer.Track>) {
     this.#pointer = pointer;
-    this.#target = target;
+    this.#tracker = tracker;
     this.#task = new Promise((resolve, reject) => {
-      this.#onCaptureComplete = resolve;
-      this.#onCaptureFail = reject;
+      this.#onTrackingComplete = resolve;
+      this.#onTrackingFail = reject;
     });
     this.#trackStream = trackStream;
   }
@@ -38,16 +130,16 @@ class _PointerCapture implements Pointer.Capture {
 
   //TODO-1st これだとstreamを消費しないかぎりPromiseが永遠に未解決になる
   //        結果だけほしい場合に対応できない
-  get result(): Promise<Pointer.CaptureResult> {
+  get result(): Promise<Pointer.TrackingResult> {
     return this.#task;
   }
 
   //XXX ReadableStream#[Symbol.asyncIterator]がブラウザでなかなか実装されないので…
-  async * tracks(): AsyncGenerator<Pointer.CaptureTrack, void, void> {
-  //async *[Symbol.asyncIterator](): AsyncGenerator<Pointer.CaptureTrack, void, void> {
+  async * tracks(): AsyncGenerator<Pointer.Track, void, void> {
+  //async *[Symbol.asyncIterator](): AsyncGenerator<Pointer.Track, void, void> {
     try {
-      let firstTrack: Pointer.CaptureTrack | undefined = undefined;
-      let lastTrack: Pointer.CaptureTrack | undefined = undefined;
+      let firstTrack: Pointer.Track | undefined = undefined;
+      let lastTrack: Pointer.Track | undefined = undefined;
       for await (const track of this.#tracks()) {
         if (!firstTrack) {
           firstTrack = track;
@@ -78,9 +170,9 @@ class _PointerCapture implements Pointer.Capture {
       endPoint.x = lastTrackPoint.x;
       endPoint.y = lastTrackPoint.y;
       const terminatedByPointerLost = (lastTrack.pointerState === Pointer.State.LOST);
-      const endPointIntersectsTarget = !terminatedByPointerLost && (this.#target.containsPoint(endPoint) === true);
+      const endPointIntersectsTarget = !terminatedByPointerLost && (this.#tracker.containsPoint(endPoint) === true);
 
-      this.#onCaptureComplete({
+      this.#onTrackingComplete({
         pointer: firstTrack.pointer,
         duration,
         startPoint,
@@ -89,15 +181,16 @@ class _PointerCapture implements Pointer.Capture {
         relativeX,
         relativeY,
         endPointIntersectsTarget,
+        extras: this.#tracker.extras,
       });
       return;
     }
     catch (exception) {
-      this.#onCaptureFail(exception);
+      this.#onTrackingFail(exception);
     }
   }
 
-  async * #tracks(): AsyncGenerator<Pointer.CaptureTrack, void, void> {
+  async * #tracks(): AsyncGenerator<Pointer.Track, void, void> {
     const streamReader = this.#trackStream.getReader();
     try {
       for (let i = await streamReader.read(); (i.done !== true); i = await streamReader.read()) {
@@ -111,30 +204,33 @@ class _PointerCapture implements Pointer.Capture {
   }
 }
 
-class _PointerCaptureTarget {
+class _PointerTracker {
   readonly #element: Element;
   readonly #eventListenerAborter: AbortController;
-  readonly #internalsMap: Map<pointerid, _PointerCaptureInternals>;
+  readonly #extras: Array<_ExtraRecord>;
+  readonly #internalsMap: Map<pointerid, _PointerTrackerInternals>;
   readonly #filterPointerTypes: Array<string>;
   readonly #filterPrimaryPointer: boolean;
   readonly #filterMouseButtons: Array<Pointer.MouseButton>;
   readonly #filterPenButton: Array<Pointer.PenButton>;
   readonly #customFilter: (event: PointerEvent) => boolean;
-  //readonly #maxConcurrentCaptures: number;
+  //readonly #maxConcurrentTrackings: number;
   readonly #highPrecision: boolean;
 
-  constructor(element: Element, callback: Pointer.CaptureCallback, options: Pointer.CaptureOptions) {
+  constructor(element: Element, callback: Pointer.DetectedCallback, options: Pointer.TrackerOptions) {
     this.#element = element;
     this.#eventListenerAborter = new AbortController();
+    this.#extras = [];
     this.#filterPointerTypes = (!!options.filter && Array.isArray(options.filter.pointerType)) ? [...options.filter.pointerType] : ["mouse", "pen", "touch"];
     this.#filterPrimaryPointer = (typeof options.filter?.primaryPointer === "boolean") ? options.filter.primaryPointer : true;
     this.#filterMouseButtons = (!!options.filter && Array.isArray(options.filter.mouseButtons)) ? [...options.filter.mouseButtons] : [];
     this.#filterPenButton = (!!options.filter && Array.isArray(options.filter.penButtons)) ? [...options.filter.penButtons] : [];
     this.#customFilter = (typeof options.filter?.custom === "function") ? options.filter.custom : () => true;
-    //this.#maxConcurrentCaptures = Number.isSafeInteger(options.maxConcurrentCaptures) ? (options.maxConcurrentCaptures as number) : 1;
+    //this.#maxConcurrentTrackings = Number.isSafeInteger(options.maxConcurrentTrackings) ? (options.maxConcurrentTrackings as number) : 1;
     this.#highPrecision = (options.highPrecision === true) && !!(new PointerEvent("test")).getCoalescedEvents;//XXX safariが未実装:getCoalescedEvents
 
-    (this.#element as unknown as ElementCSSInlineStyle).style.setProperty("touch-action", "none", "important");// タッチの場合にpointerupやpointercancelしなくても暗黙にreleasepointercaptureされるので強制設定する //XXX 値は設定可にする
+    // タッチの場合にpointerupやpointercancelしなくても暗黙にreleasepointercaptureされるので強制設定する //XXX 値は設定可にする
+    (this.#element as unknown as ElementCSSInlineStyle).style.setProperty("touch-action", "none", "important");
 
     const listenerOptions = {
       passive: true,
@@ -150,17 +246,20 @@ class _PointerCaptureTarget {
       if (this.#filter(event) !== true) {
         return;
       }
-      // if (this.#internalsMap.size >= this.#maxConcurrentCaptures) {
+      // if (this.#internalsMap.size >= this.#maxConcurrentTrackings) {
       //   return;
       // }
 
+      //XXX 暗黙のpointercaptureは、pointerdown時にhasPointerCaptureで判別できる
+      //    と、仕様には記載があるが従っている実装はあるのか？（ChromeもFirefoxもpointerdownでhasPointerCaptureしても暗黙のpointercaptureを検出できない）
+      //    検出できないと何か問題あるか？
+
       this.#element.setPointerCapture(event.pointerId);
       if (this.#element.hasPointerCapture(event.pointerId) === true) {
-        console.log(555)
         // キャプチャできた場合のみ処理開始
         // キャプチャされない例
         // - Chromium系でマウスでthis.#elementのスクロールバーをpointerdownしたとき
-        this.#afterCaptured(event, callback);
+        this.#startTracking(event, callback);
       }
     }) as EventListener, listenerOptions);
 
@@ -213,6 +312,10 @@ class _PointerCaptureTarget {
       return root;
     }
     throw new Error("invalid state: element is not connected");
+  }
+
+  get extras(): Array<_ExtraRecord> {
+    return this.#extras;
   }
 
   disconnect(): void {
@@ -290,118 +393,52 @@ class _PointerCaptureTarget {
     return true;
   }
 
-  #afterCaptured(event: PointerEvent, callback: Pointer.CaptureCallback): void {
-    const pointer = Pointer.Identification.fromPointerEvent(event);
+  #startTracking(event: PointerEvent, callback: Pointer.DetectedCallback): void {
+    const pointer = _PointerIdentification.fromPointerEvent(event);
+    const extras: Array<_ExtraRecord> = [];
 
-    //XXX 暗黙のpointercaptureは、pointerdown時にhasPointerCaptureで判別できる
-    //    と、仕様には記載があるが従っている実装はあるのか？（ChromeもFirefoxもpointerdownでhasPointerCaptureしても暗黙のpointercaptureを検出できない）
-    //    検出できなくても問題なさげなので、一旦放置
-    //this.#element.setPointerCapture(event.pointerId);
-
-    const start = (controller: ReadableStreamDefaultController<Pointer.CaptureTrack>) => {
+    const start = (controller: ReadableStreamDefaultController<Pointer.Track>) => {
       const internals = {
         pointer,
         controller,
       };
       this.#internalsMap.set(event.pointerId, internals);
 
-      // pointerdownのtargetはthis.#elementの子孫である可能性（すなわちevent.offsetX/Yがthis.#elementの座標ではない可能性）
-      let adjustment: Geometry2d.Point | undefined = undefined;
-      if (this.#element !== event.target) {
-        const thisElementBoundingBox = BoundingBox.of(this.#element);
-        const eventTargetBoundingBox = BoundingBox.of(event.target as Element);
-        adjustment = Geometry2d.Point.distanceBetween(thisElementBoundingBox, eventTargetBoundingBox);
-      }
-      const firstTrack = this.#eventToTrack(internals, event, true, adjustment);
+      this.#extras.push(_ExtraRecord.fromPointerEvent(event));
+      const firstTrack = _PointerTrack.fromPointerEvent(event);
       controller.enqueue(firstTrack);
     };
     const cancel = () => {};
 
-    const trackStream: ReadableStream<Pointer.CaptureTrack> = new ReadableStream({
+    const trackStream: ReadableStream<Pointer.Track> = new ReadableStream({
       start,
       cancel,
     });
 
-    callback(new _PointerCapture(pointer, this, trackStream));
-  }
-
-  #eventToTrack(internals: _PointerCaptureInternals, event: PointerEvent, exteriaGeometry: boolean = false, adjustment?: Geometry2d.Point): Pointer.CaptureTrack {
-    const geometry = Pointer.Geometry.fromPointerEvent(event);
-    const offsetFromTarget = {
-      x: event.offsetX,
-      y: event.offsetY,
-    };
-    if (!!adjustment && Number.isFinite(adjustment?.x) && Number.isFinite(adjustment?.y)) {
-      offsetFromTarget.x = offsetFromTarget.x - adjustment.x;
-      offsetFromTarget.y = offsetFromTarget.y - adjustment.y;
-    }
-
-    const pointerState = (event.type === "pointercancel") ? Pointer.State.LOST : Pointer.State.ACTIVE;
-    let capturePhase: Pointer.CapturePhase;
-    switch (event.type) {
-      case "pointerdown":
-        capturePhase = Pointer.CapturePhase.BEFORE_CAPTURE;
-        break;
-      case "pointermove":
-        capturePhase = Pointer.CapturePhase.CAPTURED;
-        break;
-      case "pointerup":
-      case "pointercancel":
-        capturePhase = Pointer.CapturePhase.BEFORE_RELEASE;
-        break;
-      default:
-        capturePhase = Pointer.CapturePhase.RELEASED;
-        // pointerup,pointercancelの後は#eventToTrackを呼んでいないのでありえない
-        break;
-    }
-
-    if (exteriaGeometry === true) {
-      return {
-        pointer: internals.pointer,
-        timestamp: event.timeStamp,
-        geometry,
-        offsetFromTarget,
-
-        pointerState,
-        capturePhase,
-        exteriaGeometry: {
-          viewport: Viewport.from(event.view as Window),
-          target: BoundingBox.of(this.#element),
-        },
-      };
-    }
-
-    return {
-      pointer: internals.pointer,
-      timestamp: event.timeStamp,
-      geometry,
-      offsetFromTarget,
-
-      pointerState,
-      capturePhase,
-    };
+    callback(new _PointerTracking(pointer, this, trackStream));
   }
 
   #pushTrack(event: PointerEvent): void {
     if (this.#internalsMap.has(event.pointerId) === true) {
-      const internals = this.#internalsMap.get(event.pointerId) as _PointerCaptureInternals;
+      const internals = this.#internalsMap.get(event.pointerId) as _PointerTrackerInternals;
 
       if (this.#highPrecision === true) {
         for (const coalesced of event.getCoalescedEvents()) {
-          internals.controller.enqueue(this.#eventToTrack(internals, coalesced));
+          internals.controller.enqueue(_PointerTrack.fromPointerEvent(coalesced));
         }
       }
       else {
-        internals.controller.enqueue(this.#eventToTrack(internals, event));
+        internals.controller.enqueue(_PointerTrack.fromPointerEvent(event));
       }
     }
   }
 
   #pushLastTrack(event: PointerEvent): void {
     if (this.#internalsMap.has(event.pointerId) === true) {
-      const internals = this.#internalsMap.get(event.pointerId) as _PointerCaptureInternals;
+      const internals = this.#internalsMap.get(event.pointerId) as _PointerTrackerInternals;
 
-      internals.controller.enqueue(this.#eventToTrack(internals, event, true));//XXX いる？（最後のpointermoveから座標が変化することがありえるか）
+      this.#extras.push(_ExtraRecord.fromPointerEvent(event));
+      internals.controller.enqueue(_PointerTrack.fromPointerEvent(event));//XXX いる？（最後のpointermoveから座標が変化することがありえるか）
       internals.controller.close();
     }
   }
@@ -409,13 +446,12 @@ class _PointerCaptureTarget {
   //XXX 明示的にreleasePointerCaptureする？ いまのところgotpointercaptureが発生するのにlostpointercaptureが発生しないケースにはあったことは無い
   #release(event: PointerEvent): void {
     if (this.#internalsMap.has(event.pointerId) === true) {
-      //const internals = this.#internalsMap.get(event.pointerId) as _PointerCaptureInternals;
       this.#internalsMap.delete(event.pointerId);
     }
   }
 }
 
-const _pointerCaptureTargetRegistry: WeakMap<Element, _PointerCaptureTarget> = new WeakMap();
+const _pointerTrackerRegistry: WeakMap<Element, _PointerTracker> = new WeakMap();
 
 namespace Pointer {
   /**
@@ -426,35 +462,11 @@ namespace Pointer {
     readonly type: string,
     readonly isPrimary: boolean,
   };
-  export namespace Identification {
-    export function fromPointerEvent(event: PointerEvent): Identification {
-      return Object.freeze({
-        id: event.pointerId,
-        type: event.pointerType,
-        isPrimary: event.isPrimary,
-      });
-    }
-  }
 
   export type Geometry = {
     readonly point: Viewport.Inset,
     readonly size: Geometry2d.Area,
   };
-  export namespace Geometry {
-    export function fromPointerEvent(event: PointerEvent): Geometry {
-      return Object.freeze({
-        point: Object.freeze({
-          x: event.clientX,
-          y: event.clientY,
-        }),
-        size: Object.freeze({
-          width: event.width,
-          height: event.height,
-        }),
-      });
-    }
-  }
-
 
   export const State = {
     ACTIVE: "active", // おおむねpointer events仕様のactive pointerのこと
@@ -465,30 +477,24 @@ namespace Pointer {
   export interface Track {
     readonly pointer: Identification;
     readonly timestamp: number;
+    readonly pointerState: State,
+    readonly trackingPhase: TrackingPhase,
     readonly geometry: Geometry;
     readonly offsetFromTarget: BoundingBox.Inset; // offset from target bounding box
     //XXX pressure,tangentialPressure,tiltX,tiltY,twist,altitudeAngle,azimuthAngle,getPredictedEvents, ctrlKey,shiftKey,altKey,metaKey,button,buttons, isTrusted,composedPath, ...
   };
 
-  export const CapturePhase = {
-    BEFORE_CAPTURE: "before-capture",
-    CAPTURED: "captured",
-    BEFORE_RELEASE: "before-release",
-    RELEASED: "released",
+  //TODO 消す
+  export const TrackingPhase = {
+    START: "start",
+    PROGRESS: "progress",
+    END: "end",
+    UNDEFINED: "undefined",
   } as const;
-  export type CapturePhase = typeof CapturePhase[keyof typeof CapturePhase];
+  export type TrackingPhase = typeof TrackingPhase[keyof typeof TrackingPhase];
 
-  export interface CaptureTrack extends Track {
-    readonly pointerState: State,
-    readonly capturePhase: CapturePhase,
-    readonly exteriaGeometry?: {
-      viewport: Viewport,
-      target: BoundingBox,
-    };//XXX とりあえず、最初と最後のみ //XXX CaptureResultに移す
-  };
-
-  export type CaptureResult = {
-    pointer: Identification;//XXX 要る？
+  export type TrackingResult = {
+    pointer: Identification;//XXX 要る？ trackingを参照すれば？
     duration: milliseconds,
     startPoint: Viewport.Inset,
     endPoint: Viewport.Inset,
@@ -498,16 +504,17 @@ namespace Pointer {
     //XXX 絶対移動量 要る？（要る場合、PointerEvent#movementX/Yはブラウザによって単位が違うので、pointermove毎に前回pointermoveとのviewport座標の差分絶対値を取得し、それを合計する）
     endPointIntersectsTarget: boolean,// 終点は要素のヒットテストにヒットするか
     //XXX viewportResized,viewportScrolled,targetResized,targetScrolled,任意の祖先要素Scrolled,...
+    extras: Array<_ExtraRecord>,
   };
 
-  export interface Capture {
+  export interface Tracking {
     pointer: Identification;
-    get result(): Promise<CaptureResult>;
-    //[Symbol.asyncIterator](): AsyncGenerator<CaptureTrack, void, void>;
-    tracks(): AsyncGenerator<CaptureTrack, void, void>;
+    get result(): Promise<TrackingResult>;
+    //[Symbol.asyncIterator](): AsyncGenerator<Track, void, void>;
+    tracks(): AsyncGenerator<Track, void, void>;
   }
 
-  export type CaptureCallback = (capture: Capture) => (void | Promise<void>);
+  export type DetectedCallback = (tracking: Tracking) => (void | Promise<void>);
 
   export const MouseButton = {
     LEFT: "left",
@@ -525,7 +532,7 @@ namespace Pointer {
   } as const;
   export type PenButton = typeof PenButton[keyof typeof PenButton];
 
-  export type CaptureOptions = {
+  export type TrackerOptions = {
     filter?: {
       // trustedPointer?: boolean,
       pointerType?: Array<string>,
@@ -536,33 +543,41 @@ namespace Pointer {
       custom?: (event: PointerEvent) => boolean,// 位置でフィルタとか、composedPath()でフィルタとか、いろいろできるようにevent自体を渡す
     },
 
-    // そもそも同時captureできるのか？ →できることは出来るが、基本的に後からcaptureした方のmousemoveだけ発生する。あとからcaptureした方がreleaseすると。先にcaptureしていた方のmousemoveが再び発生するようになる
-    // よって、ほとんど無意味と考えられるので廃止する
-    // maxConcurrentCaptures?: number,
-
     //XXX 命名が違う気がする
     highPrecision?: boolean,
+
+
+    //TODO pointerTypeとbuttonなしを再編する 接近はGlobalTrackerでviewportのpointermoveで四角をpointerに追随させてintersection監視すれば取れる（四角はpointer-events:noneでもok 不可視は？）
+    // hover接近 mouse_hover mouse_contact, buttons...
+    // hover接近 pen_hover   pen_contact    buttons...
+    // -         -           touch_contact  -
 
     //TODO 全trackにboundingboxから外れているかいないかを持たせるか
     //XXX target他のresizeを監視するか →要らないのでは
     //XXX target,viewport他のscrollを監視するか →要らないのでは
     //XXX targetやviewport以外の任意の基準要素 →要らないのでは
     //TODO event.button,buttonsの変化を監視するか
-    //TODO captureするかしないか Capture～の命名をTracker～とかに変える
+    //XXX pointerenterからも追跡開始する（pointerdownまでcaptureはしない）
     //TODO pointermoveしなくても一定時間ごとにpushするかしないか
+
+    // 廃止
+    // useCapture?: boolean, pointercaptureを使用するか否か
+    //   → falseの対応がきつい（event.targetがcurrentTargetと異なる場合pointermoveの度にcurrentTarget座標の算出が必要）
+    // maxConcurrentTrackings?: number, 1 trackerでの同時追跡数
+    //   → pointercaptureは基本的に後からセットした方がpointermoveを発火するのでほぼ無意味（後からsetした方がreleaseすれば前にsetしていた方からpointermoveが発火）
   };
 
-  export namespace CaptureTarget {
-    export function register(element: Element, callback: CaptureCallback, options: CaptureOptions = {}): void {
-      const target = new _PointerCaptureTarget(element, callback, options);
-      _pointerCaptureTargetRegistry.set(element, target);
+  export namespace Tracker {
+    export function register(element: Element, callback: DetectedCallback, options: TrackerOptions = {}): void {
+      const tracker = new _PointerTracker(element, callback, options);
+      _pointerTrackerRegistry.set(element, tracker);
     }
-  
+
     export function unregister(element: Element): void {
-      const target = _pointerCaptureTargetRegistry.get(element);
-      if (!!target) {
-        target.disconnect();
-        _pointerCaptureTargetRegistry.delete(element);
+      const tracker = _pointerTrackerRegistry.get(element);
+      if (!!tracker) {
+        tracker.disconnect();
+        _pointerTrackerRegistry.delete(element);
       }
     }
   }

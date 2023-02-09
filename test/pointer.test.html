@@ -24,13 +24,13 @@
     <script type="module">
 import { Pointer } from "../dist/index.js";
 const test = document.getElementById("test");
-Pointer.CaptureTarget.register(test, async (capture) => {
+Pointer.Tracker.register(test, async (tracking) => {
   const pi1 = document.getElementById("template1").content.cloneNode(true).firstElementChild;
 
-  for await (const track of capture.tracks()) {
+  for await (const track of tracking.tracks()) {
     console.log(track);
   }
-  const result = await capture.result;
+  const result = await tracking.result;
   console.log(result);
 });
     </script>

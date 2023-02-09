@@ -456,10 +456,10 @@ createApp({
     },
   },
   mounted() {
-    Pointer.CaptureTarget.register(this.$refs.ref1, async (capture) => {
+    Pointer.Tracker.register(this.$refs.ref1, async (tracking) => {
       const clearance = 60;
 
-      const { pointerId, item } = this.pointerdownedTempItems.find((i) => i.pointerId === capture.pointer.id);
+      const { pointerId, item } = this.pointerdownedTempItems.find((i) => i.pointerId === tracking.pointer.id);
       this.selections.push({
         pointerId,
         item,
@@ -472,10 +472,10 @@ createApp({
         dragoverColNum: Number.NaN,
         dragoverRowNum: Number.NaN,
       });//XXX 子コンポーネントにすべき（ほとんどcomputedにできる）
-      const selection = this.selections.find((item) => item.pointerId === capture.pointer.id);
+      const selection = this.selections.find((item) => item.pointerId === tracking.pointer.id);
       const selectedItem = selection.item;
 
-      for await (const track of capture.tracks()) {
+      for await (const track of tracking.tracks()) {
         const gridElt = this.$refs.ref1;
         selection.dragXInBoundingBox = track.offsetFromTarget.x;console.log(track.offsetFromTarget.x)
         selection.dragYInBoundingBox = track.offsetFromTarget.y;
@@ -488,10 +488,10 @@ createApp({
         selection.dragoverColNum = selection.dragoverColIndex + 1;
         selection.dragoverRowNum = selection.dragoverRowIndex + 1;
 
-        if (track.capturePhase === "before-capture") {
+        if (track.trackingPhase === "start") {
           continue;
         }
-        if (track.capturePhase === "before-release") {
+        if (track.trackingPhase === "end") {
           continue;
         }
 
@@ -525,7 +525,7 @@ createApp({
         }
 
       }
-      const result = await capture.result;
+      const result = await tracking.result;
       console.log(result);
       //const selection = this.selections.find((item) => item.pointerId === result.pointer.id);
       if (result.terminatedByPointerLost !== true && result.endPointIntersectsTarget === true) {
