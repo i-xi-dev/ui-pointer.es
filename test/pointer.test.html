@@ -22,15 +22,15 @@
       <div class="p1"></div>
     </template>
     <script type="module">
-import { Pointer } from "../dist/index.js";
+import { PointerCapture } from "../dist/index.js";
 const test = document.getElementById("test");
-Pointer.Tracker.register(test, async (tracking) => {
-  const pi1 = document.getElementById("template1").content.cloneNode(true).firstElementChild;
-
-  for await (const track of tracking.tracks()) {
+PointerCapture.setAutoCapture(test, async (capturedPointerTracking) => {
+  console.log(`pointerdown: pointerId:${capturedPointerTracking.pointer.id}, setPointerCapture() succeeded`);
+  for await (const track of capturedPointerTracking.tracks()) {
     console.log(track);
   }
-  const result = await tracking.result;
+  console.log(`pointerup or pointercancel: pointerId:${capturedPointerTracking.pointer.id}`);
+  const result = await capturedPointerTracking.result();
   console.log(result);
 });
     </script>
