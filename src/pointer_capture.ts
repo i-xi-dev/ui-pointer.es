@@ -1,7 +1,5 @@
 import { Geometry2d } from "@i-xi-dev/ui-utils";
-import { Pointer } from "./pointer";
-
-type pointerid = number;// integer
+import { type pointerid, Pointer } from "./pointer";
 
 class _PointerCaptureFilter {
   readonly #pointerTypes: Array<string>;
@@ -34,14 +32,20 @@ class _PointerCaptureFilter {
   }
 }
 
+function _elementContainsPoint(element: Element, { x, y }: Geometry2d.Point): boolean {// x,yはviewport座標
+  const root = element.getRootNode();
+  if ((root instanceof Document) || (root instanceof ShadowRoot)) {
+    return root.elementsFromPoint(x, y).includes(element);
+  }
+  throw new Error("invalid state: element is not connected");
+}
+
 class _PointerCaptureTarget {
   readonly #target: Element;
   readonly #filter: _PointerCaptureFilter;
   readonly #highPrecision: boolean;
   readonly #eventListenerAborter: AbortController;
-  readonly #trackingMap: Map<pointerid, Pointer.Tracking>;
-
-  //TODO readonly #boundingBox: BoundingBox;// 開始時点の 追跡中の変更には関知しない
+  readonly #trackingMap: Map<pointerid, PointerCapture.Tracking>;
 
   constructor(target: Element, callback: PointerCapture.AutoCapturedCallback, options: PointerCapture.AutoCaptureOptions) {
     this.#target = target;
@@ -81,21 +85,17 @@ class _PointerCaptureTarget {
         return;
       }
 
-      event.preventDefault();// 中クリックの自動スクロールがpointerdown
+      // event.preventDefault();// 中クリックの自動スクロールがpointerdown
 
-      //XXX 暗黙のpointercaptureは、pointerdown時にhasPointerCaptureで判別できる
-      //    と、仕様には記載があるが従っている実装はあるのか？（ChromeもFirefoxもpointerdownでhasPointerCaptureしても暗黙のpointercaptureを検出できない）
-      //    検出できないと何か問題あるか？
+      //XXX 暗黙のpointercaptureは放置で問題ない？
 
       this.#target.setPointerCapture(event.pointerId);
       if (this.#target.hasPointerCapture(event.pointerId) === true) {
-        // キャプチャできた場合のみ処理開始
-        // キャプチャされない例
-        // - Chromium系でマウスでthis.#targetのスクロールバーをpointerdownしたとき
+        // gotpointercaptureは遅延される場合があるのでここで行う
         this.#afterCapture(event, callback);
         this.#pushTrack(event);
       }
-    }) as EventListener, activeOptions);
+    }) as EventListener, passiveOptions);
 
     this.#target.addEventListener("pointermove", ((event: PointerEvent): void => {
       if (event.isTrusted !== true) {
@@ -120,19 +120,6 @@ class _PointerCaptureTarget {
       this.#pushLastTrack(event);
       this.#afterRelease(event);
     }) as EventListener, passiveOptions);
-
-    // this.#target.addEventListener("contextmenu", ((event: MouseEvent): void => {
-    //   event.preventDefault();
-    // }) as EventListener, activeOptions);
-  }
-
-  // 参照先が変わった場合の検出が困難なので、実行ごとに取得しなおす
-  get #rootNode(): (Document | ShadowRoot) {
-    const root = this.#target.getRootNode();
-    if ((root instanceof Document) || (root instanceof ShadowRoot)) {
-      return root;
-    }
-    throw new Error("invalid state: target is not connected");
   }
 
   disconnect(): void {
@@ -140,21 +127,16 @@ class _PointerCaptureTarget {
     this.#trackingMap.clear();
   }
 
-  // x,yはviewport座標
-  containsPoint({ x, y }: Geometry2d.Point): boolean {
-    return this.#rootNode.elementsFromPoint(x, y).includes(this.#target);
-  }
-
   #afterCapture(event: PointerEvent, callback: PointerCapture.AutoCapturedCallback): void {
     const pointer = Pointer.Identification.of(event);
-    const tracking = new Pointer.Tracking(pointer, this.#eventListenerAborter.signal);
+    const tracking = new PointerCapture.Tracking(pointer, this.#target, this.#eventListenerAborter.signal);
     this.#trackingMap.set(event.pointerId, tracking);
     callback(tracking);
   }
 
   #pushTrack(event: PointerEvent): void {
     if (this.#trackingMap.has(event.pointerId) === true) {
-      const tracking = this.#trackingMap.get(event.pointerId) as Pointer.Tracking;
+      const tracking = this.#trackingMap.get(event.pointerId) as PointerCapture.Tracking;
 
       if (this.#highPrecision === true) {
         for (const coalesced of event.getCoalescedEvents()) {
@@ -169,9 +151,9 @@ class _PointerCaptureTarget {
 
   #pushLastTrack(event: PointerEvent): void {
     if (this.#trackingMap.has(event.pointerId) === true) {
-      const tracking = this.#trackingMap.get(event.pointerId) as Pointer.Tracking;
+      const tracking = this.#trackingMap.get(event.pointerId) as PointerCapture.Tracking;
 
-      tracking.append(PointerCapture.Track.from(event));//XXX いる？（最後のpointermoveから座標が変化することがありえるか）
+      tracking.append(PointerCapture.Track.from(event));
       tracking.terminate();
     }
   }
@@ -208,6 +190,7 @@ namespace PointerCapture {
 
       // targetはcurrentTargetの子孫である可能性（すなわちevent.offsetX/YがcurrentTargetの座標ではない可能性）
       if (!!event.target && !!event.currentTarget && (event.currentTarget !== event.target)) {
+        // ここに分岐するのは、pointerdownの時のみ（pointer captureを使用しているので）
         const currentTargetBoundingBox = (event.currentTarget as Element).getBoundingClientRect();
         const targetBoundingBox = (event.target as Element).getBoundingClientRect();
         const { x, y } = Geometry2d.Point.distanceBetween(currentTargetBoundingBox, targetBoundingBox);
@@ -241,7 +224,33 @@ namespace PointerCapture {
     }
   }
 
-  export type AutoCapturedCallback = (tracking: Pointer.Tracking) => (void | Promise<void>);
+  export type TrackingResult = Pointer.TrackingResult & {
+    wentOutOfBoundingBox: boolean, // 終了時点でbounding boxの外に出ているか
+    wentOutOfHitRegion: boolean,
+  };
+
+  export class Tracking extends Pointer.Tracking {
+    readonly #target: Element;
+    readonly #boundingBox: DOMRect;
+
+    constructor(pointer: Pointer.Identification, target: Element, signal: AbortSignal) {
+      super(pointer, signal);
+      this.#target = target;
+      this.#boundingBox = target.getBoundingClientRect();
+    }
+
+    override async result(): Promise<TrackingResult> {
+      const baseResult = await super.result();
+      const { endPoint } = baseResult;
+      return Object.assign({
+        wentOutOfBoundingBox: ((endPoint.x < this.#boundingBox.x) || (endPoint.y < this.#boundingBox.y) || (endPoint.x > this.#boundingBox.right) || (endPoint.y > this.#boundingBox.bottom)),
+        wentOutOfHitRegion: (_elementContainsPoint(this.#target, endPoint) !== true),
+      }, baseResult);
+    }
+
+  }
+  
+  export type AutoCapturedCallback = (tracking: Tracking) => (void | Promise<void>);
 
   export type AutoCaptureFilterSource = {
     pointerType?: Array<string>,
@@ -286,12 +295,6 @@ namespace PointerCapture {
 
 //将来検討
 // - pointerrawupdate設定可にする
-// - resultもしくは最終trackにendPointIntersectsTarget: boolean,// 終点は要素のヒットテストにヒットするか
-// - resultもしくは最終trackにviewportサイズ,viewportResized,viewportScrolled,targetResized,,任意の祖先要素Scrolled,...
-
-//XXX
-        //const terminatedByPointerLost = (lastTrack.pointerState === Pointer.State.LOST);
-      //const endPointIntersectsTarget = !terminatedByPointerLost && (this.#tracker.containsPoint(endPoint) === true);
 
 export {
   PointerCapture,

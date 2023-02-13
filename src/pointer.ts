@@ -1,4 +1,4 @@
-import { Geometry2d } from "@i-xi-dev/ui-utils";
+import { Geometry2d, Keyboard } from "@i-xi-dev/ui-utils";
 
 /**
  * The identifier for the pointer.
@@ -119,10 +119,10 @@ namespace Pointer {
   export type State = typeof State[keyof typeof State];
 
   export const Modifier = {
-    ALT: "Alt",
-    CONTROL: "Control",
-    META: "Meta",
-    SHIFT: "Shift",
+    ALT: Keyboard.Key.ALT,
+    CONTROL: Keyboard.Key.CONTROL,
+    META: Keyboard.Key.META,
+    SHIFT: Keyboard.Key.SHIFT,
   } as const;
   export type Modifier = typeof Modifier[keyof typeof Modifier];
 
@@ -196,7 +196,7 @@ namespace Pointer {
     readonly #task: Promise<TrackingResult>;
     #onTrackingComplete: (value: TrackingResult) => void = (): void => undefined;
     #onTrackingFail: (reason?: any) => void = (): void => undefined;
-  
+
     constructor(pointer: Identification, signal: AbortSignal) {
       this.#pointer = pointer;
       const start = (controller: ReadableStreamDefaultController<Track>) => {
@@ -229,7 +229,7 @@ namespace Pointer {
       }
       return this.#task;
     }
-  
+
     // append(event: PointerEvent): void {
     // }
 
@@ -262,30 +262,31 @@ namespace Pointer {
           lastTrack = track;
           yield track;
         }
-  
+
         if (!firstTrack || !lastTrack) {
           throw new Error("TODO");
         }
-  
+
         let duration: milliseconds = 0;
         let relativeX: number = 0;
         let relativeY: number = 0;
-  
+
         duration = (lastTrack.timestamp - firstTrack.timestamp);
         const firstTrackPoint = firstTrack.geometry.point;
         const lastTrackPoint = lastTrack.geometry.point;
-        relativeX = (lastTrackPoint.x - firstTrackPoint.x);
-        relativeY = (lastTrackPoint.y - firstTrackPoint.y);
-  
-        const startPoint = { x: Number.NaN, y: Number.NaN };
-        startPoint.x = firstTrackPoint.x;
-        startPoint.y = firstTrackPoint.y;
-  
-        const endPoint = { x: Number.NaN, y: Number.NaN };
-        endPoint.x = lastTrackPoint.x;
-        endPoint.y = lastTrackPoint.y;
+        const startPoint = Object.freeze({
+          x: firstTrackPoint.x,
+          y: firstTrackPoint.y,
+        });
+        const endPoint = Object.freeze({
+          x: lastTrackPoint.x,
+          y: lastTrackPoint.y,
+        });
 
-        this.#onTrackingComplete({
+        relativeX = (endPoint.x - startPoint.x);
+        relativeY = (endPoint.y - startPoint.y);
+
+        this.#onTrackingComplete(Object.freeze({
           pointer: firstTrack.pointer,
           duration,
           startPoint,
@@ -294,7 +295,7 @@ namespace Pointer {
           relativeY,
           movementX,
           movementY,
-        });
+        }));
         return;
       }
       catch (exception) {
@@ -321,5 +322,6 @@ namespace Pointer {
 }
 
 export {
+  type pointerid,
   Pointer,
 };
