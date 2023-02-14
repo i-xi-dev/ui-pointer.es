@@ -181,8 +181,8 @@ namespace Pointer {
   export interface TrackingResult {
     readonly pointer: Identification;
     readonly duration: milliseconds;
-    readonly startPoint: Geometry2d.Point; // viewport座標
-    readonly endPoint: Geometry2d.Point; // viewport座標
+    readonly startGeometry: Geometry2d.Point & Geometry2d.Area; // viewport座標 // x,yは左上でなく中心なので、Geometry2d.Rectは使用してない
+    readonly endGeometry: Geometry2d.Point & Geometry2d.Area; // viewport座標 // x,yは左上でなく中心なので、Geometry2d.Rectは使用してない
     readonly relativeX: number; // 終点の始点からの相対位置
     readonly relativeY: number; // 終点の始点からの相対位置
     readonly movementX: number; // 絶対移動量
@@ -269,24 +269,28 @@ namespace Pointer {
         }
 
         const duration = (lastTrack.timestamp - firstTrack.timestamp);
-        const firstTrackPoint = firstTrack.geometry.point;
-        const lastTrackPoint = lastTrack.geometry.point;
-        const startPoint = Object.freeze({
-          x: firstTrackPoint.x,
-          y: firstTrackPoint.y,
+        const firstTrackGeometry = firstTrack.geometry;
+        const lastTrackGeometry = lastTrack.geometry;
+        const startGeometry = Object.freeze({
+          x: firstTrackGeometry.point.x,
+          y: firstTrackGeometry.point.y,
+          width: firstTrackGeometry.size.width,
+          height: firstTrackGeometry.size.height,
         });
-        const endPoint = Object.freeze({
-          x: lastTrackPoint.x,
-          y: lastTrackPoint.y,
+        const endGeometry = Object.freeze({
+          x: lastTrackGeometry.point.x,
+          y: lastTrackGeometry.point.y,
+          width: lastTrackGeometry.size.width,
+          height: lastTrackGeometry.size.height,
         });
-        const relativeX = (endPoint.x - startPoint.x);
-        const relativeY = (endPoint.y - startPoint.y);
+        const relativeX = (endGeometry.x - startGeometry.x);
+        const relativeY = (endGeometry.y - startGeometry.y);
 
         this.#result = Object.freeze({
           pointer: firstTrack.pointer,
           duration,
-          startPoint,
-          endPoint,
+          startGeometry,
+          endGeometry,
           relativeX,
           relativeY,
           movementX,

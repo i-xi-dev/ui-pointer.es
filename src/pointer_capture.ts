@@ -2,18 +2,8 @@ import { Geometry2d } from "@i-xi-dev/ui-utils";
 import { type pointerid, Pointer } from "./pointer";
 
 //要対処な問題
-//TODO-1 pointerupでリリースしたものとして処理しているが
-//       左クリック中の右クリックでもpointerupは走る
 
-//TODO-2 最初のpointerdown時のcomposedPathまたはtargetを参照したい
-
-//TODO-2 wentOutOfHitRegion,wentOutOfBoundingBoxは、pointerのwidth/heightも考慮する
-
-//TODO-2
-// - contextmenuをpreventDefaultすべきか
-//   右クリックはともかく、タッチ長押しはこちらで対応すべき
-
-//TODO-3 touch-action,user-selectをどうするか設定可にする
+//TODO-1 最初のpointerdown時のcomposedPathまたはtargetを参照したい
 
 //既知の問題
 // - ターゲット要素のスクロールバーでpointerdownしたとき、pointermoveのtrackがpushされない
@@ -25,15 +15,20 @@ import { type pointerid, Pointer } from "./pointer";
 //  とりあえず、一旦どこかクリックすれば解消される
 //  → テキストを選択しようとしているっぽい user-selectを強制的にnoneにすることにする
 //   これもおそらくchromiumの問題
+// - mouse操作中にタッチすると、マウスのカーソルがタッチ地点に移動する
+//   おそらくfirefoxの問題（pointerIdを区別してほしい）
+// - タッチのpointerupのwidth/heightがブラウザによって違う
+//   chrome: 離した後扱い？（1×1）
+//   firefox:離す前扱い
 
 class _PointerCaptureTracking extends Pointer.Tracking<PointerCapture.Track> {
   readonly #target: Element;
-  readonly #boundingBox: DOMRect;
+  //readonly #boundingBox: DOMRect;// 開始時点の
 
   constructor(pointer: Pointer.Identification, target: Element, signal: AbortSignal) {
     super(pointer, signal);
     this.#target = target;
-    this.#boundingBox = target.getBoundingClientRect();
+    //this.#boundingBox = target.getBoundingClientRect();
   }
 
   get target(): Element {
@@ -42,10 +37,11 @@ class _PointerCaptureTracking extends Pointer.Tracking<PointerCapture.Track> {
 
   override async readAll(ontrack?: (track: PointerCapture.Track) => void): Promise<PointerCapture.TrackingResult> {
     const baseResult = await super.readAll(ontrack);
-    const { endPoint } = baseResult;
+    const { endGeometry } = baseResult;
+    const { insideHitRegion, insideBoundingBox } = _hitTest(this.#target, endGeometry, endGeometry);
     return Object.assign({
-      wentOutOfHitRegion: (_elementContainsPoint(this.#target, endPoint) !== true),
-      wentOutOfBoundingBox: ((endPoint.x < this.#boundingBox.x) || (endPoint.y < this.#boundingBox.y) || (endPoint.x > this.#boundingBox.right) || (endPoint.y > this.#boundingBox.bottom)),
+      wentOutOfHitRegion: (insideHitRegion !== true),
+      wentOutOfBoundingBox: (insideBoundingBox !== true),
     }, baseResult);
   }
 
@@ -82,10 +78,32 @@ class _PointerCaptureFilter {
   }
 }
 
-function _elementContainsPoint(element: Element, { x, y }: Geometry2d.Point): boolean {// x,yはviewport座標
+function _hitTest(element: Element, { x, y }: Geometry2d.Point, pointSize: Geometry2d.Area): { insideHitRegion: boolean, insideBoundingBox: boolean } {// x,yはviewport座標
   const root = element.getRootNode();
   if ((root instanceof Document) || (root instanceof ShadowRoot)) {
-    return root.elementsFromPoint(x, y).includes(element);
+    const wr = Math.floor((pointSize.width - 1) / 2);
+    const hr = Math.floor((pointSize.height - 1) / 2);
+
+    let insideHitRegion = false;
+    if ((wr <= 0) && (hr <= 0)) {
+      insideHitRegion = root.elementsFromPoint(x, y).includes(element);
+    }
+    else {
+      insideHitRegion = root.elementsFromPoint((x - wr), (y - hr)).includes(element)
+        || root.elementsFromPoint((x + wr), (y - hr)).includes(element)
+        || root.elementsFromPoint((x - wr), (y + hr)).includes(element)
+        || root.elementsFromPoint((x + wr), (y + hr)).includes(element);
+    }
+
+    let insideBoundingBox = false;
+    const boundingBox = element.getBoundingClientRect();
+    insideBoundingBox = ((x + wr) >= boundingBox.left) && ((x - wr) <= boundingBox.right)
+      && ((y + hr) >= boundingBox.top) && ((y - hr) <= boundingBox.bottom);
+
+    return {
+      insideHitRegion,
+      insideBoundingBox,
+    };
   }
   throw new Error("invalid state: element is not connected");
 }
@@ -105,10 +123,11 @@ class _PointerCaptureTarget {
     this.#trackingMap = new Map();
 
     const targetStyle = (this.#target as unknown as ElementCSSInlineStyle).style;
+    const overrideStyle = options.overrideStyle ?? {};
     // タッチの場合にpointerupやpointercancelしなくても暗黙にreleasepointercaptureされるので強制設定する
-    targetStyle.setProperty("touch-action", "none", "important");
+    targetStyle.setProperty("touch-action", (typeof overrideStyle.touchAction === "string") ? overrideStyle.touchAction : "none", "important");
     // 選択可能テキストの有無に関わらず、選択し始めてpointercancelされることがあるので強制設定する
-    targetStyle.setProperty("user-select", "none", "important");
+    targetStyle.setProperty("user-select", (typeof overrideStyle.userSelect === "string") ? overrideStyle.userSelect : "none", "important");
 
     const passiveOptions = {
       passive: true,
@@ -118,6 +137,10 @@ class _PointerCaptureTarget {
       passive: false,
       signal: this.#eventListenerAborter.signal,
     };
+
+    this.#target.addEventListener("contextmenu", ((event: MouseEvent) => {
+      event.preventDefault();
+    }) as EventListener, activeOptions);
 
     this.#target.addEventListener("pointerdown", ((event: PointerEvent) => {
       if (event.isTrusted !== true) {
@@ -166,6 +189,8 @@ class _PointerCaptureTarget {
       if (event.isTrusted !== true) {
         return;
       }
+      console.log("up")
+      this.#target.releasePointerCapture(event.pointerId);
       this.#pushLastTrack(event);
       this.#afterRelease(event);
     }) as EventListener, passiveOptions);
@@ -174,6 +199,8 @@ class _PointerCaptureTarget {
       if (event.isTrusted !== true) {
         return;
       }
+      console.log("cancel")
+      this.#target.releasePointerCapture(event.pointerId);
       this.#pushLastTrack(event);
       this.#afterRelease(event);
     }) as EventListener, passiveOptions);
@@ -318,6 +345,12 @@ namespace PointerCapture {
   export type AutoCaptureOptions = {
     filter?: AutoCaptureFilterSource,
     highPrecision?: boolean,
+    //XXX 終了条件を設定可にする 今はmouseはボタンは1つも押していない、pen,touchは接触を失った
+    //    開始条件はfilterの外に出す
+    overrideStyle?: {
+      touchAction?: string,
+      userSelect?: string,
+    },
   };
 
   export function setAutoCapture(target: Element, callback: AutoCapturedCallback, options: AutoCaptureOptions = {}): void {
