@@ -22,8 +22,10 @@
   background-color: #8f9a96;
   height: 500px;
   position: relative;
-  touch-action: pinch-zoom;
   width: 500px;
+}
+*#test.captured {
+  cursor: none;
 }
 *.test1inner {
   background-color: #fff4;
@@ -78,11 +80,13 @@ function ontrack(track, target) {
 PointerCapture.setAutoCapture(test, async (capturedPointerTracks) => {
   //console.log(`pointerdown: pointerId:${capturedPointerTracks.pointer.id}, setPointerCapture() succeeded`);
   // ------------------------------------------------------------
+  test.classList.add("captured");
   const target = capturedPointerTracks.target;
   const result = await capturedPointerTracks.consume((track) => {
     console.log(track);
     ontrack(track, target);
   });
+  test.classList.remove("captured");
   console.log(result);
   // ------------------------------------------------------------
   //console.log(`pointerup or pointercancel: pointerId:${capturedPointerTracks.pointer.id}`);
