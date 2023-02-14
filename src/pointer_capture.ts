@@ -1,25 +1,32 @@
 import { Geometry2d } from "@i-xi-dev/ui-utils";
 import { type pointerid, Pointer } from "./pointer";
 
-//要対処な問題
-
 //既知の問題
 // - ターゲット要素のスクロールバーでpointerdownしたとき、pointermoveのtrackがpushされない
 //   結果は取得できる（pointer capture中にpointermoveが発火しない為）
 //   おそらくchromiumの問題
+//
 // - 理由不明で勝手にpointercancelされることがある（マウスでも。カーソルがno-dropになり、pointermoveが発火しなくなる）
 //   - position:absoluteの子孫上でcapture～releaseすると、次のcaptureで再現する
 //   - 最初のpointerdownでcaoture、そのままうごかず長押し、releaseしたあと、次のcaptureでも再現する
 //   とりあえず、一旦どこかクリックすれば解消される
 //   → テキストを選択しようとしているっぽい user-selectを強制的にnoneにすることにする
 //   これもおそらくchromiumの問題
+//
 // - mouse操作中にタッチすると、マウスのカーソルがタッチ地点に移動する
 //   おそらくfirefoxの問題（pointerIdを区別してほしい）
+//
 // - タッチのpointerupのwidth/heightがブラウザによって違う
 //   chrome: 離した後扱い？（1×1）
 //   firefox:離す前扱い
-// - touch-actionはブロックに適用
-// - display:inlineの場合の座標基点がブラウザによって違う
+//
+// - 適用要素に制限あり
+//   - touch-actionはブロックに適用
+//   - display:inlineの場合の座標基点がブラウザによって違う
+//   - その他box数が1ではない場合
+//     - 0: displayがnone,contents,...
+//     - 1以上: displayがinline,...
+//     - 通常は1だが2以上になることがある: page-break以外のbreak (regionは廃止されたのでcolumnだけか？)
 
 class _PointerCaptureTracking extends Pointer.Tracking<PointerCapture.Track> {
   readonly #target: Element;
