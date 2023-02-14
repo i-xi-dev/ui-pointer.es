@@ -150,6 +150,7 @@ namespace Pointer {
     readonly geometry: Geometry;
     // pressure,tangentialPressure,tiltX,tiltY,twist,altitudeAngle,azimuthAngle
     // ,composedPath, ...
+    readonly target: Element | null,
   };
   export namespace Track {
     export function from(event: PointerEvent): Track {
@@ -174,6 +175,7 @@ namespace Pointer {
         modifiers,
         buttons,
         geometry,
+        target: (event.target instanceof Element) ? event.target : null,
       });
     }
   }

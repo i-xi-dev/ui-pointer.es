@@ -29,7 +29,7 @@
   /*cursor: none;*/
 }
 *.test1inner {
-  background-color: #fff4;
+  background-color: #8f84;
   height: 100px;
   width: 100px;
 }
@@ -42,7 +42,11 @@
 *.test1inner.p {
   bottom: 50px;
   position: absolute;
-  right:100px;
+  right: 100px;
+}
+*.test1inner.p.p2 {
+  bottom: 150px;
+  right: -50px;
 }
     </style>
     <template id="template1">
@@ -99,7 +103,8 @@ PointerCapture.setAutoCapture(test, async (capturedPointerTracks) => {
     <div id="test">
       <div class="test1inner m"></div>
       <div class="test1inner t"></div>
-      <div class="test1inner p" draggable="false"></div>
+      <div class="test1inner p"></div>
+      <div class="test1inner p p2"></div>
     </div>
   </body>
 </html>

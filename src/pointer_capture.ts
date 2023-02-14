@@ -3,8 +3,6 @@ import { type pointerid, Pointer } from "./pointer";
 
 //要対処な問題
 
-//TODO-1 最初のpointerdown時のcomposedPathまたはtargetを参照したい
-
 //既知の問題
 // - ターゲット要素のスクロールバーでpointerdownしたとき、pointermoveのtrackがpushされない
 //   結果は取得できる（pointer capture中にpointermoveが発火しない為）
@@ -12,14 +10,15 @@ import { type pointerid, Pointer } from "./pointer";
 // - 理由不明で勝手にpointercancelされることがある（マウスでも。カーソルがno-dropになり、pointermoveが発火しなくなる）
 //   - position:absoluteの子孫上でcapture～releaseすると、次のcaptureで再現する
 //   - 最初のpointerdownでcaoture、そのままうごかず長押し、releaseしたあと、次のcaptureでも再現する
-//  とりあえず、一旦どこかクリックすれば解消される
-//  → テキストを選択しようとしているっぽい user-selectを強制的にnoneにすることにする
+//   とりあえず、一旦どこかクリックすれば解消される
+//   → テキストを選択しようとしているっぽい user-selectを強制的にnoneにすることにする
 //   これもおそらくchromiumの問題
 // - mouse操作中にタッチすると、マウスのカーソルがタッチ地点に移動する
 //   おそらくfirefoxの問題（pointerIdを区別してほしい）
 // - タッチのpointerupのwidth/heightがブラウザによって違う
 //   chrome: 離した後扱い？（1×1）
 //   firefox:離す前扱い
+// - touch-actionはブロックに適用
 
 class _PointerCaptureTracking extends Pointer.Tracking<PointerCapture.Track> {
   readonly #target: Element;
@@ -189,18 +188,18 @@ class _PointerCaptureTarget {
       if (event.isTrusted !== true) {
         return;
       }
-      console.log("up")
-      this.#target.releasePointerCapture(event.pointerId);
+      this.#target.releasePointerCapture(event.pointerId); // この後暗黙にreleaseされる、おそらくここで明示的にreleasePointerCaptureしなくても問題ない
       this.#pushLastTrack(event);
       this.#afterRelease(event);
     }) as EventListener, passiveOptions);
 
+    // マウスなら左を押しているし、ペン,タッチなら接触しているので、基本的に発生しない（先にpointerupが発生する）
+    // 発生するとしたら、接触中にペアリングが切れたペンとか？
     this.#target.addEventListener("pointercancel", ((event: PointerEvent): void => {
       if (event.isTrusted !== true) {
         return;
       }
-      console.log("cancel")
-      this.#target.releasePointerCapture(event.pointerId);
+      this.#target.releasePointerCapture(event.pointerId); // この後暗黙にreleaseされる、おそらくここで明示的にreleasePointerCaptureしなくても問題ない
       this.#pushLastTrack(event);
       this.#afterRelease(event);
     }) as EventListener, passiveOptions);
@@ -252,7 +251,6 @@ class _PointerCaptureTarget {
     }
   }
 
-  //XXX 明示的にreleasePointerCaptureする？ いまのところgotpointercaptureが発生するのにlostpointercaptureが発生しないケースにはあったことは無い
   #afterRelease(event: PointerEvent): void {
     if (this.#trackingMap.has(event.pointerId) === true) {
       this.#trackingMap.delete(event.pointerId);
@@ -319,7 +317,9 @@ namespace PointerCapture {
   }
 
   export interface TrackingResult extends Pointer.TrackingResult {
+    /** @experimetal */
     wentOutOfHitRegion: boolean; // 終了時点でhit testをパスするか
+    /** @experimetal */
     wentOutOfBoundingBox: boolean; // 終了時点でbounding boxの外に出ているか（bounding boxが移動/リサイズした等には関知しない）
     //XXX streamを読んでる側で取得可能なのでどこまで持たせるか
   }
