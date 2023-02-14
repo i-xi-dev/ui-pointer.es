@@ -134,6 +134,7 @@ class _PointerCaptureTarget {
     // タッチの場合にpointerupやpointercancelしなくても暗黙にreleasepointercaptureされるので強制設定する
     targetStyle.setProperty("touch-action", (typeof overrideStyle.touchAction === "string") ? overrideStyle.touchAction : "none", "important");
     // 選択可能テキストの有無に関わらず、選択し始めてpointercancelされることがあるので強制設定する
+    targetStyle.setProperty("-webkit-user-select", (typeof overrideStyle.userSelect === "string") ? overrideStyle.userSelect : "none", "important");
     targetStyle.setProperty("user-select", (typeof overrideStyle.userSelect === "string") ? overrideStyle.userSelect : "none", "important");
 
     const passiveOptions = {
