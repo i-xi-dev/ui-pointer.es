@@ -55,7 +55,6 @@ body {
   min-height: 0;
   overflow: scroll;
   transition: background-color 300ms;
-  touch-action: pinch-zoom;
 }
 
 *.t3-grid.t3-mode-itemdrag *.t3-grid-scrollport {

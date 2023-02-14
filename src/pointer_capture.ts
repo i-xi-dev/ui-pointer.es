@@ -130,12 +130,11 @@ class _PointerCaptureTarget {
     this.#trackingMap = new Map();
 
     const targetStyle = (this.#target as unknown as ElementCSSInlineStyle).style;
-    const overrideStyle = options.overrideStyle ?? {};
     // タッチの場合にpointerupやpointercancelしなくても暗黙にreleasepointercaptureされるので強制設定する
-    targetStyle.setProperty("touch-action", (typeof overrideStyle.touchAction === "string") ? overrideStyle.touchAction : "none", "important");
+    // targetStyle.setProperty("touch-action", "none", "important");// → ここで設定するとタブレット等でスクロールできなくなる → pointerdownに移した 
     // 選択可能テキストの有無に関わらず、選択し始めてpointercancelされることがあるので強制設定する
-    targetStyle.setProperty("-webkit-user-select", (typeof overrideStyle.userSelect === "string") ? overrideStyle.userSelect : "none", "important");
-    targetStyle.setProperty("user-select", (typeof overrideStyle.userSelect === "string") ? overrideStyle.userSelect : "none", "important");
+    targetStyle.setProperty("-webkit-user-select", "none", "important");
+    targetStyle.setProperty("user-select", "none", "important");
 
     const passiveOptions = {
       passive: true,
@@ -146,8 +145,21 @@ class _PointerCaptureTarget {
       signal: this.#eventListenerAborter.signal,
     };
 
+    // pointer captureするなら、おそらくコンテキストメニューは邪魔と考えられるので、
+    // コンテキストメニューは一律キャンセルする
+    // - capture中のどの時点においても、マウス右ボタンを離したとき
+    // - タッチ開始してから動かさずに一定時間たったとき
     this.#target.addEventListener("contextmenu", ((event: MouseEvent) => {
       event.preventDefault();
+    }) as EventListener, activeOptions);
+
+    // touch-actionを一律禁止すると、タブレット等でスクロールできなくなるので
+    // pointer capture中のtouchmoveをキャンセルする
+    // いくつかの環境で試してみて、touchmoveのみキャンセルすれば問題なさそうだったが、Pointer Events仕様でもTouch Events仕様でも preventDefaultすると何が起きるのかがほぼ未定義なのがリスク
+    this.#target.addEventListener("touchmove", ((event: TouchEvent) => {
+      if (this.#trackingMap.size > 0) {
+        event.preventDefault();
+      }
     }) as EventListener, activeOptions);
 
     this.#target.addEventListener("pointerdown", ((event: PointerEvent) => {
@@ -180,6 +192,8 @@ class _PointerCaptureTarget {
       this.#target.setPointerCapture(event.pointerId);
       if (this.#target.hasPointerCapture(event.pointerId) === true) {
         // gotpointercaptureは遅延される場合があるのでここで行う
+
+        // (this.#target as unknown as ElementCSSInlineStyle).style.setProperty("touch-action", "none", "important"); → constructorから移したが、ここでやっても意味なかった → TouchEventをキャンセルする？ → TouchEventをキャンセルするか、スクロールは自前で処理するか
         this.#afterCapture(event, callback);
         this.#pushTrack(event);
       }
@@ -200,6 +214,7 @@ class _PointerCaptureTarget {
       this.#target.releasePointerCapture(event.pointerId); // この後暗黙にreleaseされる、おそらくここで明示的にreleasePointerCaptureしなくても問題ない
       this.#pushLastTrack(event);
       this.#afterRelease(event);
+      //(this.#target as unknown as ElementCSSInlineStyle).style.removeProperty("touch-action");
     }) as EventListener, passiveOptions);
 
     // マウスなら左を押しているし、ペン,タッチなら接触しているので、基本的に発生しない（先にpointerupが発生する）
@@ -211,6 +226,7 @@ class _PointerCaptureTarget {
       this.#target.releasePointerCapture(event.pointerId); // この後暗黙にreleaseされる、おそらくここで明示的にreleasePointerCaptureしなくても問題ない
       this.#pushLastTrack(event);
       this.#afterRelease(event);
+      //(this.#target as unknown as ElementCSSInlineStyle).style.removeProperty("touch-action");
     }) as EventListener, passiveOptions);
   }
 
@@ -356,10 +372,7 @@ namespace PointerCapture {
     highPrecision?: boolean,
     //XXX 終了条件を設定可にする 今はmouseはボタンは1つも押していない、pen,touchは接触を失った
     //    開始条件はfilterの外に出す
-    overrideStyle?: {
-      touchAction?: string,
-      userSelect?: string,
-    },
+    //XXX touch-actionをnoneにしtouchmoveのキャンセルをしないようにするか否か（その場合、非マウス環境でスクロールが必要なら自前で実装してもらう）
   };
 
   export function setAutoCapture(target: Element, callback: AutoCapturedCallback, options: AutoCaptureOptions = {}): void {
