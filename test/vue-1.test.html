@@ -15,13 +15,13 @@ const template = `
       <div class="t3-grid-colheads">
         <div
         v-for="col of cols"
-        aria-current="(currentColNum === col.colNum) ? 'true' : undefined"
+        :aria-current="(currentColNum === col.colNum) ? 'true' : undefined"
         class="t3-grid-colhead">{{ String(col.colNum).padStart(3, '0') }}</div>
       </div>
       <div class="t3-grid-rowheads">
         <div
         v-for="row of rows"
-        aria-current="(currentRowNum === row.rowNum) ? 'true' : undefined"
+        :aria-current="(currentRowNum === row.rowNum) ? 'true' : undefined"
         class="t3-grid-rowhead">{{ String(row.rowNum).padStart(3, '0') }}</div>
       </div>
     </div>
