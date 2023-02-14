@@ -19,6 +19,7 @@ import { type pointerid, Pointer } from "./pointer";
 //   chrome: 離した後扱い？（1×1）
 //   firefox:離す前扱い
 // - touch-actionはブロックに適用
+// - display:inlineの場合の座標基点がブラウザによって違う
 
 class _PointerCaptureTracking extends Pointer.Tracking<PointerCapture.Track> {
   readonly #target: Element;
