@@ -1,6 +1,56 @@
 import { Geometry2d } from "@i-xi-dev/ui-utils";
 import { type pointerid, Pointer } from "./pointer";
 
+//要対処な問題
+//TODO-1 pointerupでリリースしたものとして処理しているが
+//       左クリック中の右クリックでもpointerupは走る
+
+//TODO-2 最初のpointerdown時のcomposedPathまたはtargetを参照したい
+
+//TODO-2 wentOutOfHitRegion,wentOutOfBoundingBoxは、pointerのwidth/heightも考慮する
+
+//TODO-2
+// - contextmenuをpreventDefaultすべきか
+//   右クリックはともかく、タッチ長押しはこちらで対応すべき
+
+//TODO-3 touch-action,user-selectをどうするか設定可にする
+
+//既知の問題
+// - ターゲット要素のスクロールバーでpointerdownしたとき、pointermoveのtrackがpushされない
+//   結果は取得できる（pointer capture中にpointermoveが発火しない為）
+//   おそらくchromiumの問題
+// - 理由不明で勝手にpointercancelされることがある（マウスでも。カーソルがno-dropになり、pointermoveが発火しなくなる）
+//   - position:absoluteの子孫上でcapture～releaseすると、次のcaptureで再現する
+//   - 最初のpointerdownでcaoture、そのままうごかず長押し、releaseしたあと、次のcaptureでも再現する
+//  とりあえず、一旦どこかクリックすれば解消される
+//  → テキストを選択しようとしているっぽい user-selectを強制的にnoneにすることにする
+//   これもおそらくchromiumの問題
+
+class _PointerCaptureTracking extends Pointer.Tracking<PointerCapture.Track> {
+  readonly #target: Element;
+  readonly #boundingBox: DOMRect;
+
+  constructor(pointer: Pointer.Identification, target: Element, signal: AbortSignal) {
+    super(pointer, signal);
+    this.#target = target;
+    this.#boundingBox = target.getBoundingClientRect();
+  }
+
+  get target(): Element {
+    return this.#target;
+  }
+
+  override async readAll(ontrack?: (track: PointerCapture.Track) => void): Promise<PointerCapture.TrackingResult> {
+    const baseResult = await super.readAll(ontrack);
+    const { endPoint } = baseResult;
+    return Object.assign({
+      wentOutOfHitRegion: (_elementContainsPoint(this.#target, endPoint) !== true),
+      wentOutOfBoundingBox: ((endPoint.x < this.#boundingBox.x) || (endPoint.y < this.#boundingBox.y) || (endPoint.x > this.#boundingBox.right) || (endPoint.y > this.#boundingBox.bottom)),
+    }, baseResult);
+  }
+
+}
+
 class _PointerCaptureFilter {
   readonly #pointerTypes: Array<string>;
   readonly #primaryPointer: boolean;
@@ -45,7 +95,7 @@ class _PointerCaptureTarget {
   readonly #filter: _PointerCaptureFilter;
   readonly #highPrecision: boolean;
   readonly #eventListenerAborter: AbortController;
-  readonly #trackingMap: Map<pointerid, PointerCapture.Tracking>;
+  readonly #trackingMap: Map<pointerid, _PointerCaptureTracking>;// ブラウザのpointer captureの挙動の制限により、最大サイズ1とする
 
   constructor(target: Element, callback: PointerCapture.AutoCapturedCallback, options: PointerCapture.AutoCaptureOptions) {
     this.#target = target;
@@ -54,8 +104,11 @@ class _PointerCaptureTarget {
     this.#eventListenerAborter = new AbortController();
     this.#trackingMap = new Map();
 
-    // タッチの場合にpointerupやpointercancelしなくても暗黙にreleasepointercaptureされるので強制設定する //XXX 値は設定可にする
-    (this.#target as unknown as ElementCSSInlineStyle).style.setProperty("touch-action", "none", "important");
+    const targetStyle = (this.#target as unknown as ElementCSSInlineStyle).style;
+    // タッチの場合にpointerupやpointercancelしなくても暗黙にreleasepointercaptureされるので強制設定する
+    targetStyle.setProperty("touch-action", "none", "important");
+    // 選択可能テキストの有無に関わらず、選択し始めてpointercancelされることがあるので強制設定する
+    targetStyle.setProperty("user-select", "none", "important");
 
     const passiveOptions = {
       passive: true,
@@ -66,16 +119,19 @@ class _PointerCaptureTarget {
       signal: this.#eventListenerAborter.signal,
     };
 
-    //XXX targetがcurrentTargetの子孫でもoffsetX/Yが問題なく取れそうなら、pointerenterで開始するモードも追加する（trackにcontactかどうかも追加する）
-
     this.#target.addEventListener("pointerdown", ((event: PointerEvent) => {
       if (event.isTrusted !== true) {
         return;
       }
 
       if (this.#trackingMap.has(event.pointerId) === true) {
-        // pointermove中にpointerdown
+        // pointermove中に同じpointerでのpointerdown
         this.#pushTrack(event);
+        return;
+      }
+      else if (this.#trackingMap.size > 0) {
+        // 異なるpointer
+        // ブラウザの挙動として、新しいpointer captureが生きている間は古いほうは基本無視されるので、同時captureはしないこととする
         return;
       }
 
@@ -87,7 +143,8 @@ class _PointerCaptureTarget {
 
       // event.preventDefault();// 中クリックの自動スクロールがpointerdown
 
-      //XXX 暗黙のpointercaptureは放置で問題ない？
+      // 暗黙のpointercaptureは放置で問題ないか？
+      // → mouseでcapture中にタッチにcaptureを奪われる。見た目以外に実害があるかは不明
 
       this.#target.setPointerCapture(event.pointerId);
       if (this.#target.hasPointerCapture(event.pointerId) === true) {
@@ -129,16 +186,26 @@ class _PointerCaptureTarget {
 
   #afterCapture(event: PointerEvent, callback: PointerCapture.AutoCapturedCallback): void {
     const pointer = Pointer.Identification.of(event);
-    const tracking = new PointerCapture.Tracking(pointer, this.#target, this.#eventListenerAborter.signal);
+    const tracking = new _PointerCaptureTracking(pointer, this.#target, this.#eventListenerAborter.signal);
     this.#trackingMap.set(event.pointerId, tracking);
-    callback(tracking);
+    callback({
+      pointer,
+      target: tracking.target,
+      stream: tracking.stream,
+      [Symbol.asyncIterator]() {
+        return tracking.tracks();
+      },
+      consume(ontrack?: (track: PointerCapture.Track) => void) {
+        return tracking.readAll(ontrack);
+      },
+    });
   }
 
   #pushTrack(event: PointerEvent): void {
     if (this.#trackingMap.has(event.pointerId) === true) {
-      const tracking = this.#trackingMap.get(event.pointerId) as PointerCapture.Tracking;
+      const tracking = this.#trackingMap.get(event.pointerId) as _PointerCaptureTracking;
 
-      if (this.#highPrecision === true) {
+      if ((this.#highPrecision === true) && (event.type === "pointermove")) {
         for (const coalesced of event.getCoalescedEvents()) {
           tracking.append(PointerCapture.Track.from(coalesced));
         }
@@ -151,7 +218,7 @@ class _PointerCaptureTarget {
 
   #pushLastTrack(event: PointerEvent): void {
     if (this.#trackingMap.has(event.pointerId) === true) {
-      const tracking = this.#trackingMap.get(event.pointerId) as PointerCapture.Tracking;
+      const tracking = this.#trackingMap.get(event.pointerId) as _PointerCaptureTracking;
 
       tracking.append(PointerCapture.Track.from(event));
       tracking.terminate();
@@ -194,8 +261,8 @@ namespace PointerCapture {
         const currentTargetBoundingBox = (event.currentTarget as Element).getBoundingClientRect();
         const targetBoundingBox = (event.target as Element).getBoundingClientRect();
         const { x, y } = Geometry2d.Point.distanceBetween(currentTargetBoundingBox, targetBoundingBox);
-        offsetFromTarget.x = offsetFromTarget.x - x;
-        offsetFromTarget.y = offsetFromTarget.y - y;
+        offsetFromTarget.x = offsetFromTarget.x + x;
+        offsetFromTarget.y = offsetFromTarget.y + y;
       }
 
       let trackingPhase: Phase;
@@ -224,33 +291,21 @@ namespace PointerCapture {
     }
   }
 
-  export type TrackingResult = Pointer.TrackingResult & {
-    wentOutOfBoundingBox: boolean, // 終了時点でbounding boxの外に出ているか
-    wentOutOfHitRegion: boolean,
-  };
+  export interface TrackingResult extends Pointer.TrackingResult {
+    wentOutOfHitRegion: boolean; // 終了時点でhit testをパスするか
+    wentOutOfBoundingBox: boolean; // 終了時点でbounding boxの外に出ているか（bounding boxが移動/リサイズした等には関知しない）
+    //XXX streamを読んでる側で取得可能なのでどこまで持たせるか
+  }
 
-  export class Tracking extends Pointer.Tracking {
-    readonly #target: Element;
-    readonly #boundingBox: DOMRect;
-
-    constructor(pointer: Pointer.Identification, target: Element, signal: AbortSignal) {
-      super(pointer, signal);
-      this.#target = target;
-      this.#boundingBox = target.getBoundingClientRect();
-    }
-
-    override async result(): Promise<TrackingResult> {
-      const baseResult = await super.result();
-      const { endPoint } = baseResult;
-      return Object.assign({
-        wentOutOfBoundingBox: ((endPoint.x < this.#boundingBox.x) || (endPoint.y < this.#boundingBox.y) || (endPoint.x > this.#boundingBox.right) || (endPoint.y > this.#boundingBox.bottom)),
-        wentOutOfHitRegion: (_elementContainsPoint(this.#target, endPoint) !== true),
-      }, baseResult);
-    }
-
+  export interface CapturedPointerTracks {
+    readonly pointer: Pointer.Identification;
+    readonly target: Element,
+    readonly stream: ReadableStream<Track>;
+    readonly [Symbol.asyncIterator]: () => AsyncGenerator<Track, void, void>;
+    readonly consume: (ontrack?: (track: Track) => void) => Promise<TrackingResult>;
   }
   
-  export type AutoCapturedCallback = (tracking: Tracking) => (void | Promise<void>);
+  export type AutoCapturedCallback = (tracks: CapturedPointerTracks) => (void | Promise<void>);
 
   export type AutoCaptureFilterSource = {
     pointerType?: Array<string>,
@@ -263,7 +318,6 @@ namespace PointerCapture {
   export type AutoCaptureOptions = {
     filter?: AutoCaptureFilterSource,
     highPrecision?: boolean,
-    //XXX pointermoveしなくても一定時間ごとにpushするかしないか
   };
 
   export function setAutoCapture(target: Element, callback: AutoCapturedCallback, options: AutoCaptureOptions = {}): void {

@@ -178,28 +178,26 @@ namespace Pointer {
     }
   }
 
-  export type TrackingResult = {
-    pointer: Identification;
-    duration: milliseconds,
-    startPoint: Geometry2d.Point, // viewport座標
-    endPoint: Geometry2d.Point, // viewport座標
-    relativeX: number, // 終点の始点からの相対位置
-    relativeY: number, // 終点の始点からの相対位置
-    movementX: number, // 絶対移動量
-    movementY: number, // 絶対移動量
-  };
+  export interface TrackingResult {
+    readonly pointer: Identification;
+    readonly duration: milliseconds;
+    readonly startPoint: Geometry2d.Point; // viewport座標
+    readonly endPoint: Geometry2d.Point; // viewport座標
+    readonly relativeX: number; // 終点の始点からの相対位置
+    readonly relativeY: number; // 終点の始点からの相対位置
+    readonly movementX: number; // 絶対移動量
+    readonly movementY: number; // 絶対移動量
+  }
 
-  export class Tracking {
+  export class Tracking<T extends Track> {
     readonly #pointer: Identification;
-    readonly #trackStream: ReadableStream<Track>;
-    #controller: ReadableStreamDefaultController<Track> | null = null;
-    readonly #task: Promise<TrackingResult>;
-    #onTrackingComplete: (value: TrackingResult) => void = (): void => undefined;
-    #onTrackingFail: (reason?: any) => void = (): void => undefined;
+    readonly #trackStream: ReadableStream<T>;
+    #controller: ReadableStreamDefaultController<T> | null = null;
+    #result: TrackingResult | null = null;
 
     constructor(pointer: Identification, signal: AbortSignal) {
       this.#pointer = pointer;
-      const start = (controller: ReadableStreamDefaultController<Track>) => {
+      const start = (controller: ReadableStreamDefaultController<T>) => {
         signal.addEventListener("abort", () => {
           controller.close();
         }, { passive: true });
@@ -208,35 +206,14 @@ namespace Pointer {
       this.#trackStream = new ReadableStream({
         start,
       });
-      this.#task = new Promise((resolve, reject) => {
-        this.#onTrackingComplete = resolve;
-        this.#onTrackingFail = reject;
-      });
     }
 
     get pointer(): Identification {
       return this.#pointer;
     }
 
-    // get tracks(): ReadableStream<Track> {
-    //   return this.#trackStream;
-    // }
-
-    async result(): Promise<TrackingResult> {
-      if (this.#trackStream.locked !== true) {
-        for await (const track of this.tracks()) {
-        }
-      }
-      return this.#task;
-    }
-
-    // append(event: PointerEvent): void {
-    // }
-
-    append(track: Track): void {
-      if (!!this.#controller) {
-        this.#controller.enqueue(track);
-      }
+    get stream(): ReadableStream<T> {
+      return this.#trackStream;
     }
 
     terminate(): void {
@@ -245,12 +222,36 @@ namespace Pointer {
       }
     }
 
-    async * tracks(): AsyncGenerator<Track, void, void> {
-      try {
+    append(track: T): void {
+      if (!!this.#controller) {
+        this.#controller.enqueue(track);
+      }
+    }
+
+    readAll(ontrack?: (track: T) => void): Promise<TrackingResult> {
+      return new Promise(async (resolve, reject) => {
+        try {
+          for await (const track of this.tracks()) {
+            if (!!ontrack) {
+              ontrack(track);
+            }
+          }
+
+          resolve(this.#result as TrackingResult);
+          return;
+        }
+        catch (exception) {
+          reject(exception);
+        }
+      });
+    }
+
+    async * tracks(): AsyncGenerator<T, void, void> {
+      //try {
         let movementX: number = 0;
         let movementY: number = 0;
-        let firstTrack: Track | undefined = undefined;
-        let lastTrack: Track | undefined = undefined;
+        let firstTrack: T | undefined = undefined;
+        let lastTrack: T | undefined = undefined;
         for await (const track of this.#tracks()) {
           if (!!lastTrack) {
             movementX = movementX + Math.abs(lastTrack.geometry.point.x - track.geometry.point.x);
@@ -267,11 +268,7 @@ namespace Pointer {
           throw new Error("TODO");
         }
 
-        let duration: milliseconds = 0;
-        let relativeX: number = 0;
-        let relativeY: number = 0;
-
-        duration = (lastTrack.timestamp - firstTrack.timestamp);
+        const duration = (lastTrack.timestamp - firstTrack.timestamp);
         const firstTrackPoint = firstTrack.geometry.point;
         const lastTrackPoint = lastTrack.geometry.point;
         const startPoint = Object.freeze({
@@ -282,11 +279,10 @@ namespace Pointer {
           x: lastTrackPoint.x,
           y: lastTrackPoint.y,
         });
+        const relativeX = (endPoint.x - startPoint.x);
+        const relativeY = (endPoint.y - startPoint.y);
 
-        relativeX = (endPoint.x - startPoint.x);
-        relativeY = (endPoint.y - startPoint.y);
-
-        this.#onTrackingComplete(Object.freeze({
+        this.#result = Object.freeze({
           pointer: firstTrack.pointer,
           duration,
           startPoint,
@@ -295,16 +291,17 @@ namespace Pointer {
           relativeY,
           movementX,
           movementY,
-        }));
+        });
         return;
-      }
-      catch (exception) {
-        this.#onTrackingFail(exception);
-      }
+      // }
+      // catch (exception) {
+      //   //;
+      //   throw exception;
+      // }
     }
 
     // ReadableStream#[Symbol.asyncIterator]がブラウザでなかなか実装されないので…
-    async * #tracks(): AsyncGenerator<Track, void, void> {
+    async * #tracks(): AsyncGenerator<T, void, void> {
       const streamReader = this.#trackStream.getReader();
       try {
         for (let i = await streamReader.read(); (i.done !== true); i = await streamReader.read()) {
