@@ -31,14 +31,8 @@ const template = `
         'grid-column': dragTarget.dragoverColNum,
         'grid-row': dragTarget.dragoverRowNum,
       }"
-      class="t3-grid-cell"
-      ref="todo2">
-        <div class="t3-grid-cell-main">
-          <svg class="t3-grid-cell-info">
-            <text x="10" y="20">R-{{ String(dragTarget.dragoverRowNum).padStart(3, '0') }}</text>
-            <text x="10" y="36">C-{{ String(dragTarget.dragoverColNum).padStart(3, '0') }}</text>
-          </svg>
-        </div>
+      class="t3-grid-cell">
+        <div class="t3-grid-cell-main"></div>
       </div>
 
       <div v-for="item of items"

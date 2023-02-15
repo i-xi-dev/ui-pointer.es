@@ -17,11 +17,6 @@
 *#test.xx-active {
   box-shadow: 0 0 0 4px gray;
 }
-/*
-*#test.captured {
-  cursor: none;
-}
-*/
 *.test1inner {
   background-image: linear-gradient(to bottom, #fff 0%, #fff0 50%, #0000 50%, #000 100%),
   linear-gradient(to right, red 0%, yellow 16.66%, lime 33.33%, aqua 50%, blue 66.66%, fuchsia 83.33%, red 100%);
@@ -32,7 +27,6 @@
     <script type="module">
 import { PointerCapture } from "../dist/index.js";
 const test = document.getElementById("test");
-const content = document.getElementById("content");
 
 let startPointerX = 0;
 let startPointerY = 0;
@@ -40,11 +34,6 @@ let movementX = 0;
 let movementY = 0;
 let startScrollX = 0;
 let startScrollY = 0;
-
-const MIN_SCROLL_X = 0;
-const MIN_SCROLL_Y = 0;
-const MAX_SCROLL_X = test.scrollWidth - test.offsetWidth;
-const MAX_SCROLL_Y = test.scrollHeight - test.offsetHeight;
 
 function ontrack(track, target) {
   if (track.trackingPhase === "start") {
@@ -86,7 +75,7 @@ PointerCapture.setAutoCapture(test, async (capturedPointerTracks) => {
   </head>
   <body>
     <div id="test">
-      <div class="test1inner" id="content"></div>
+      <div class="test1inner"></div>
     </div>
   </body>
 </html>
