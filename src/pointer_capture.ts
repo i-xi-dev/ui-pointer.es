@@ -6,13 +6,6 @@ import { type pointerid, Pointer } from "./pointer";
 //   結果は取得できる（pointer capture中にpointermoveが発火しない為）
 //   おそらくchromiumの問題
 //
-// - 理由不明で勝手にpointercancelされることがある（マウスでも。カーソルがno-dropになり、pointermoveが発火しなくなる）
-//   - position:absoluteの子孫上でcapture～releaseすると、次のcaptureで再現する
-//   - 最初のpointerdownでcaoture、そのままうごかず長押し、releaseしたあと、次のcaptureでも再現する
-//   とりあえず、一旦どこかクリックすれば解消される
-//   → テキストを選択しようとしているっぽい user-selectを強制的にnoneにすることにする
-//   これもおそらくchromiumの問題
-//
 // - mouse操作中にタッチすると、マウスのカーソルがタッチ地点に移動する
 //   おそらくfirefoxの問題（pointerIdを区別してほしい）
 //
@@ -120,7 +113,7 @@ class _PointerCaptureTarget {
   readonly #filter: _PointerCaptureFilter;
   readonly #highPrecision: boolean;
   readonly #eventListenerAborter: AbortController;
-  readonly #trackingMap: Map<pointerid, _PointerCaptureTracking>;// ブラウザのpointer captureの挙動の制限により、最大サイズ1とする
+  readonly #trackingMap: Map<pointerid, _PointerCaptureTracking>;// ブラウザのpointer captureの挙動により、最大サイズ1とする
 
   constructor(target: Element, callback: PointerCapture.AutoCapturedCallback, options: PointerCapture.AutoCaptureOptions) {
     this.#target = target;
@@ -130,10 +123,11 @@ class _PointerCaptureTarget {
     this.#trackingMap = new Map();
 
     const targetStyle = (this.#target as unknown as ElementCSSInlineStyle).style;
-    // タッチの場合にpointerupやpointercancelしなくても暗黙にreleasepointercaptureされるので強制設定する
-    // targetStyle.setProperty("touch-action", "none", "important");// → ここで設定するとタブレット等でスクロールできなくなる → pointerdownに移した 
-    // 選択可能テキストの有無に関わらず、選択し始めてpointercancelされることがあるので強制設定する
-    targetStyle.setProperty("-webkit-user-select", "none", "important");
+    if (options.setTouchActionNone === true) {
+      targetStyle.setProperty("touch-action", "none", "important");
+    }
+    // 選択可能テキストの有無に関わらず、テキスト選択し始めてpointercancelされることがあるので強制設定する
+    targetStyle.setProperty("-webkit-user-select", "none", "important"); // safari向け（chromeもfirefoxも接頭辞は不要）
     targetStyle.setProperty("user-select", "none", "important");
 
     const passiveOptions = {
@@ -153,9 +147,10 @@ class _PointerCaptureTarget {
       event.preventDefault();
     }) as EventListener, activeOptions);
 
-    // touch-actionを一律禁止すると、タブレット等でスクロールできなくなるので
-    // pointer capture中のtouchmoveをキャンセルする
-    // いくつかの環境で試してみて、touchmoveのみキャンセルすれば問題なさそうだったが、Pointer Events仕様でもTouch Events仕様でも preventDefaultすると何が起きるのかがほぼ未定義なのがリスク
+    // touch-actionを一律禁止すると、タブレット等でスクロールできなくなってしまうので
+    // 代わりにpointer capture中のtouchmoveをキャンセルする
+    // いくつかの環境で試してみた結果ではtouchmoveのみキャンセルすれば問題なさそうだったが、
+    //   Pointer Events仕様でもTouch Events仕様でも preventDefaultすると何が起きるのかがほぼ未定義なのはリスク
     this.#target.addEventListener("touchmove", ((event: TouchEvent) => {
       if (this.#trackingMap.size > 0) {
         event.preventDefault();
@@ -187,13 +182,12 @@ class _PointerCaptureTarget {
       // event.preventDefault();// 中クリックの自動スクロールがpointerdown
 
       // 暗黙のpointercaptureは放置で問題ないか？
-      // → mouseでcapture中にタッチにcaptureを奪われる。見た目以外に実害があるかは不明
+      // → mouseでcapture中にタッチにcaptureを奪われる。見た目以外に実害があるかは未だ不明
 
       this.#target.setPointerCapture(event.pointerId);
       if (this.#target.hasPointerCapture(event.pointerId) === true) {
         // gotpointercaptureは遅延される場合があるのでここで行う
-
-        // (this.#target as unknown as ElementCSSInlineStyle).style.setProperty("touch-action", "none", "important"); → constructorから移したが、ここでやっても意味なかった → TouchEventをキャンセルする？ → TouchEventをキャンセルするか、スクロールは自前で処理するか
+        // 備忘: ここでtouch-actionをnoneに変更しても何の意味もなかった
         this.#afterCapture(event, callback);
         this.#pushTrack(event);
       }
@@ -214,11 +208,10 @@ class _PointerCaptureTarget {
       this.#target.releasePointerCapture(event.pointerId); // この後暗黙にreleaseされる、おそらくここで明示的にreleasePointerCaptureしなくても問題ない
       this.#pushLastTrack(event);
       this.#afterRelease(event);
-      //(this.#target as unknown as ElementCSSInlineStyle).style.removeProperty("touch-action");
     }) as EventListener, passiveOptions);
 
-    // マウスなら左を押しているし、ペン,タッチなら接触しているので、基本的に発生しない（先にpointerupが発生する）
-    // 発生するとしたら、接触中にペアリングが切れたペンとか？
+    // mouseなら左を押しているし、pen,touchなら接触しているので、基本的に発火されないはず（先にpointerupが発生する）
+    // 発火されるとしたら、接触中に電源喪失したpenとか？
     this.#target.addEventListener("pointercancel", ((event: PointerEvent): void => {
       if (event.isTrusted !== true) {
         return;
@@ -226,7 +219,6 @@ class _PointerCaptureTarget {
       this.#target.releasePointerCapture(event.pointerId); // この後暗黙にreleaseされる、おそらくここで明示的にreleasePointerCaptureしなくても問題ない
       this.#pushLastTrack(event);
       this.#afterRelease(event);
-      //(this.#target as unknown as ElementCSSInlineStyle).style.removeProperty("touch-action");
     }) as EventListener, passiveOptions);
   }
 
@@ -368,11 +360,15 @@ namespace PointerCapture {
   };
 
   export type AutoCaptureOptions = {
+
     filter?: AutoCaptureFilterSource,
+
     highPrecision?: boolean,
+
+    setTouchActionNone?: boolean, // trueにする場合タブレット等でスクロール手段がなくなるので注意。スクロールが必要な場合は自前でスクロールを実装すること
+
     //XXX 終了条件を設定可にする 今はmouseはボタンは1つも押していない、pen,touchは接触を失った
     //    開始条件はfilterの外に出す
-    //XXX touch-actionをnoneにしtouchmoveのキャンセルをしないようにするか否か（その場合、非マウス環境でスクロールが必要なら自前で実装してもらう）
   };
 
   export function setAutoCapture(target: Element, callback: AutoCapturedCallback, options: AutoCaptureOptions = {}): void {
@@ -396,11 +392,10 @@ namespace PointerCapture {
 // - 非trustedなPointerEventは無条件で無視している
 //     受け付けるようにする場合は、pointerdownがtrustedでpointermoveが非trustedの場合の挙動などをどうするか
 // - gotpointercaptureは使用しないことにした
-//     setPointerCapture後、Firefoxは即座にgotpointercaptureが発火するのに対して、Chromeは次にpointermoveなどが発火する直前まで遅延される為
+//     - setPointerCapture後、Firefoxは即座にgotpointercaptureが発火するのに対して、Chromeは次にpointermoveなどが発火する直前まで遅延される為
+//     - Chromeで発火しない場合があるため（mouseでtargetのスクロールバー上でpointerdownした場合とか）
 // - lostpointercaptureは使用しないことにした
-//     Chrome,EdgeでpointerTypeがmouseのとき、スクロールバー上でpointerdownしたときに問題になる為
-//     （スクロールバーがpointer captureを奪う？ので要素ではgotpointercaptureもlostpointercaptureも発火しないがcaptureはしてるっぽい）
-//     Firefoxは問題ないので、Chromiumの問題な気もするが
+//     - Chromeで発火しない場合があるため（gotopointercaptureとおそらく同じ問題）
 
 //将来検討
 // - pointerrawupdate設定可にする

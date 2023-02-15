@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Test: panning with display:block</title>
+    <style>
+*#test {
+  background-color: #8f9a96;
+  box-shadow: 0 0 0 2px gray;
+  cursor: move;
+  height: 500px;
+  margin: 100px;
+  overflow: hidden;
+  position: relative;
+  width: 500px;
+}
+*#test.xx-active {
+  box-shadow: 0 0 0 4px gray;
+}
+/*
+*#test.captured {
+  cursor: none;
+}
+*/
+*.test1inner {
+  background-image: linear-gradient(to bottom, #fff 0%, #fff0 50%, #0000 50%, #000 100%),
+  linear-gradient(to right, red 0%, yellow 16.66%, lime 33.33%, aqua 50%, blue 66.66%, fuchsia 83.33%, red 100%);
+  height: 1000px;
+  width: 1000px;
+}
+    </style>
+    <script type="module">
+import { PointerCapture } from "../dist/index.js";
+const test = document.getElementById("test");
+const content = document.getElementById("content");
+
+let startPointerX = 0;
+let startPointerY = 0;
+let movementX = 0;
+let movementY = 0;
+let startScrollX = 0;
+let startScrollY = 0;
+
+const MIN_SCROLL_X = 0;
+const MIN_SCROLL_Y = 0;
+const MAX_SCROLL_X = test.scrollWidth - test.offsetWidth;
+const MAX_SCROLL_Y = test.scrollHeight - test.offsetHeight;
+
+function ontrack(track, target) {
+  if (track.trackingPhase === "start") {
+    startPointerX = track.offsetFromTarget.x;
+    startPointerY = track.offsetFromTarget.y;
+    startScrollX = target.scrollLeft;
+    startScrollY = target.scrollTop;
+    target.classList.add("xx-active");
+  }
+  else if (track.trackingPhase === "progress") {
+    movementX = startPointerX - track.offsetFromTarget.x;
+    movementY = startPointerY - track.offsetFromTarget.y;
+
+    target.scroll(startScrollX + movementX, startScrollY + movementY);
+  }
+  else {
+    target.classList.remove("xx-active");
+  }
+
+  
+}
+
+PointerCapture.setAutoCapture(test, async (capturedPointerTracks) => {
+  //console.log(`pointerdown: pointerId:${capturedPointerTracks.pointer.id}, setPointerCapture() succeeded`);
+  // ------------------------------------------------------------
+  test.classList.add("captured");
+  const target = capturedPointerTracks.target;
+  const result = await capturedPointerTracks.consume((track) => {
+    console.log(track);
+    ontrack(track, target);
+  });
+  test.classList.remove("captured");
+  console.log(result);
+  // ------------------------------------------------------------
+  //console.log(`pointerup or pointercancel: pointerId:${capturedPointerTracks.pointer.id}`);
+});
+
+    </script>
+  </head>
+  <body>
+    <div id="test">
+      <div class="test1inner" id="content"></div>
+    </div>
+  </body>
+</html>
