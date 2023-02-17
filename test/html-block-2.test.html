@@ -69,6 +69,8 @@ PointerCapture.setAutoCapture(test, async (capturedPointerTracks) => {
   console.log(result);
   // ------------------------------------------------------------
   //console.log(`pointerup or pointercancel: pointerId:${capturedPointerTracks.pointer.id}`);
+}, {
+  setTouchActionNone: true,
 });
 
     </script>

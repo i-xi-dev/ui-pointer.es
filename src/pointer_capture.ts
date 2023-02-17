@@ -38,7 +38,7 @@ class _PointerCaptureTracking extends Pointer.Tracking<PointerCapture.Track> {
   override async readAll(ontrack?: (track: PointerCapture.Track) => void): Promise<PointerCapture.TrackingResult> {
     const baseResult = await super.readAll(ontrack);
     const { endGeometry } = baseResult;
-    const { insideHitRegion, insideBoundingBox } = _hitTest(this.#target, endGeometry, endGeometry);
+    const { insideHitRegion, insideBoundingBox } = _hitTest(this.#target, endGeometry);
     return Object.assign({
       wentOutOfHitRegion: (insideHitRegion !== true),
       wentOutOfBoundingBox: (insideBoundingBox !== true),
@@ -78,27 +78,18 @@ class _PointerCaptureFilter {
   }
 }
 
-function _hitTest(element: Element, { x, y }: Geometry2d.Point, pointSize: Geometry2d.Area): { insideHitRegion: boolean, insideBoundingBox: boolean } {// x,yはviewport座標
+function _hitTest(element: Element, { x, y, rx, ry }: Pointer.Geometry): { insideHitRegion: boolean, insideBoundingBox: boolean } {// x,yはviewport座標
   const root = element.getRootNode();
   if ((root instanceof Document) || (root instanceof ShadowRoot)) {
-    const wr = Math.floor((pointSize.width - 1) / 2);
-    const hr = Math.floor((pointSize.height - 1) / 2);
-
-    let insideHitRegion = false;
-    if ((wr <= 0) && (hr <= 0)) {
-      insideHitRegion = root.elementsFromPoint(x, y).includes(element);
-    }
-    else {
-      insideHitRegion = root.elementsFromPoint((x - wr), (y - hr)).includes(element)
-        || root.elementsFromPoint((x + wr), (y - hr)).includes(element)
-        || root.elementsFromPoint((x - wr), (y + hr)).includes(element)
-        || root.elementsFromPoint((x + wr), (y + hr)).includes(element);
-    }
+    const insideHitRegion = root.elementsFromPoint((x - rx), (y - ry)).includes(element)
+      || root.elementsFromPoint((x + rx), (y - ry)).includes(element)
+      || root.elementsFromPoint((x - rx), (y + ry)).includes(element)
+      || root.elementsFromPoint((x + rx), (y + ry)).includes(element);
 
     let insideBoundingBox = false;
     const boundingBox = element.getBoundingClientRect();
-    insideBoundingBox = ((x + wr) >= boundingBox.left) && ((x - wr) <= boundingBox.right)
-      && ((y + hr) >= boundingBox.top) && ((y - hr) <= boundingBox.bottom);
+    insideBoundingBox = ((x + rx) >= boundingBox.left) && ((x - rx) <= boundingBox.right)
+      && ((y + ry) >= boundingBox.top) && ((y - ry) <= boundingBox.bottom);
 
     return {
       insideHitRegion,
@@ -399,6 +390,8 @@ namespace PointerCapture {
 
 //将来検討
 // - pointerrawupdate設定可にする
+// - callbackでなく、{ start(track) => {}, progress(track) => {}, end(track) => {} }の方が便利か？
+//   trackに直前のtrackとの差分なんかも持たせる？
 
 export {
   PointerCapture,

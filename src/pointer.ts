@@ -92,21 +92,17 @@ namespace Pointer {
     }
   }
 
-  export type Geometry = {
-    readonly point: Geometry2d.Point, // viewport座標
-    readonly size: Geometry2d.Area,
+  export type Geometry = Geometry2d.Point & {// x/yはviewport座標
+    readonly rx: number,
+    readonly ry: number,
   };
   export namespace Geometry {
     export function of(event: PointerEvent): Pointer.Geometry {
       return Object.freeze({
-        point: Object.freeze({
-          x: event.clientX,
-          y: event.clientY,
-        }),
-        size: Object.freeze({
-          width: event.width,
-          height: event.height,
-        }),
+        x: event.clientX,
+        y: event.clientY,
+        rx: (event.width / 2),
+        ry: (event.height / 2),
       });
     }
   }
@@ -183,8 +179,8 @@ namespace Pointer {
   export interface TrackingResult {
     readonly pointer: Identification;
     readonly duration: milliseconds;
-    readonly startGeometry: Geometry2d.Point & Geometry2d.Area; // viewport座標 // x,yは左上でなく中心なので、Geometry2d.Rectは使用してない
-    readonly endGeometry: Geometry2d.Point & Geometry2d.Area; // viewport座標 // x,yは左上でなく中心なので、Geometry2d.Rectは使用してない
+    readonly startGeometry: Geometry; // viewport座標 // x,yは左上でなく中心なので、Geometry2d.Rectは使用してない
+    readonly endGeometry: Geometry; // viewport座標 // x,yは左上でなく中心なので、Geometry2d.Rectは使用してない
     readonly relativeX: number; // 終点の始点からの相対位置
     readonly relativeY: number; // 終点の始点からの相対位置
     readonly movementX: number; // 絶対移動量
@@ -256,8 +252,8 @@ namespace Pointer {
         let lastTrack: T | undefined = undefined;
         for await (const track of this.#tracks()) {
           if (!!lastTrack) {
-            movementX = movementX + Math.abs(lastTrack.geometry.point.x - track.geometry.point.x);
-            movementY = movementY + Math.abs(lastTrack.geometry.point.y - track.geometry.point.y);
+            movementX = movementX + Math.abs(lastTrack.geometry.x - track.geometry.x);
+            movementY = movementY + Math.abs(lastTrack.geometry.y - track.geometry.y);
           }
           if (!firstTrack) {
             firstTrack = track;
@@ -271,20 +267,8 @@ namespace Pointer {
         }
 
         const duration = (lastTrack.timestamp - firstTrack.timestamp);
-        const firstTrackGeometry = firstTrack.geometry;
-        const lastTrackGeometry = lastTrack.geometry;
-        const startGeometry = Object.freeze({
-          x: firstTrackGeometry.point.x,
-          y: firstTrackGeometry.point.y,
-          width: firstTrackGeometry.size.width,
-          height: firstTrackGeometry.size.height,
-        });
-        const endGeometry = Object.freeze({
-          x: lastTrackGeometry.point.x,
-          y: lastTrackGeometry.point.y,
-          width: lastTrackGeometry.size.width,
-          height: lastTrackGeometry.size.height,
-        });
+        const startGeometry = Object.freeze(Object.assign({}, firstTrack.geometry));
+        const endGeometry = Object.freeze(Object.assign({}, lastTrack.geometry));
         const relativeX = (endGeometry.x - startGeometry.x);
         const relativeY = (endGeometry.y - startGeometry.y);
 

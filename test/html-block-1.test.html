@@ -72,8 +72,8 @@ function ontrack(track, target) {
 
   ti1.style.setProperty("left", `${track.offsetFromTarget.x}px`);
   ti1.style.setProperty("top", `${track.offsetFromTarget.y}px`);
-  ti1.style.setProperty("--width", `${track.geometry.size.width}px`);
-  ti1.style.setProperty("--height", `${track.geometry.size.height}px`);
+  ti1.style.setProperty("--width", `${track.geometry.rx * 2}px`);
+  ti1.style.setProperty("--height", `${track.geometry.ry * 2}px`);
   if (ti1.isConnected !== true) {
     target.append(ti1);
   }
