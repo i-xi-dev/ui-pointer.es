@@ -2,18 +2,26 @@ import { Geometry2d } from "@i-xi-dev/ui-utils";
 import { type pointerid, Pointer } from "./pointer";
 
 //既知の問題
-// - ターゲット要素のスクロールバーでpointerdownしたとき、pointermoveのtrackがpushされない
+// - Chrome, Edge
+//   ターゲット要素のスクロールバーでpointerdownしたとき、pointermoveのtrackがpushされない
 //   結果は取得できる（pointer capture中にpointermoveが発火しない為）
 //   おそらくchromiumの問題
 //
-// - mouse操作中にタッチすると、マウスのカーソルがタッチ地点に移動する
+// - Firefox
+//   mouse操作中にタッチすると、マウスのカーソルがタッチ地点に移動する
 //   おそらくfirefoxの問題（pointerIdを区別してほしい）
 //
-// - タッチのpointerupのwidth/heightがブラウザによって違う
-//   chrome: 離した後扱い？（1×1）
-//   firefox:離す前扱い
+// - Chrome, Edge
+//   mouseのpointer capture中にtouchすると、おそらくタッチで発生した暗黙のpointer ceptureが優先になる
+//   mouseの方のpointermove等がその間発火しない（すぐに暗黙のreleaseが起きるので重大な問題は無い？？）
 //
-// - 適用要素に制限あり
+// - 仕様未定義に起因
+//   タッチのpointerupのwidth/heightがブラウザによって違う
+//    - chrome: 離した後扱い？（1×1）
+//    - firefox:離す前扱い
+//   仕様としてどうあるべきかの記載はPointer Events仕様書には特になし（私の見落としでなければ）
+//
+// - 前提条件として
 //   - touch-actionはブロックに適用
 //   - display:inlineの場合の座標基点がブラウザによって違う
 //   - その他box数が1ではない場合
@@ -21,14 +29,58 @@ import { type pointerid, Pointer } from "./pointer";
 //     - 1以上: displayがinline,...
 //     - 通常は1だが2以上になることがある: page-break以外のbreak (regionは廃止されたのでcolumnだけか？)
 
+function _pointerCaptureTrackFrom(event: PointerEvent, startTrack: PointerCapture.Track | null, prevTrack: PointerCapture.Track | null): PointerCapture.Track {
+  const offsetFromTarget = {
+    x: event.offsetX,
+    y: event.offsetY,
+  };
+
+  // targetはcurrentTargetの子孫である可能性（すなわちevent.offsetX/YがcurrentTargetの座標ではない可能性）
+  if (!!event.target && !!event.currentTarget && (event.currentTarget !== event.target)) {
+    // ここに分岐するのは、pointerdownの時のみ（pointer captureを使用しているので）
+    const currentTargetBoundingBox = (event.currentTarget as Element).getBoundingClientRect();
+    const targetBoundingBox = (event.target as Element).getBoundingClientRect();
+    const { x, y } = Geometry2d.Point.distanceBetween(currentTargetBoundingBox, targetBoundingBox);
+    offsetFromTarget.x = offsetFromTarget.x + x;
+    offsetFromTarget.y = offsetFromTarget.y + y;
+  }
+
+  let trackingPhase: PointerCapture.Phase;
+  switch (event.type) {
+    case "pointerdown":
+      trackingPhase = PointerCapture.Phase.START;
+      break;
+    case "pointermove":
+      trackingPhase = PointerCapture.Phase.PROGRESS;
+      break;
+    case "pointerup":
+    case "pointercancel":
+      trackingPhase = PointerCapture.Phase.END;
+      break;
+    default:
+      trackingPhase = PointerCapture.Phase.UNDEFINED;
+      // pointerup,pointercancelの後は_PointerTrack.fromPointerEventを呼んでいないのでありえない
+      break;
+  }
+
+  const relativeX = !!startTrack ? (event.clientX - startTrack.geometry.x) : 0;
+  const relativeY = !!startTrack ? (event.clientY - startTrack.geometry.y) : 0;
+
+  const baseTrack = Pointer.Track.from(event);
+  return Object.assign({
+    offsetFromTarget,
+    trackingPhase,
+    relativeX,
+    relativeY,
+  }, baseTrack);
+}
+
 class _PointerCaptureTracking extends Pointer.Tracking<PointerCapture.Track> {
   readonly #target: Element;
-  //readonly #boundingBox: DOMRect;// 開始時点の
 
   constructor(pointer: Pointer.Identification, target: Element, signal: AbortSignal) {
     super(pointer, signal);
     this.#target = target;
-    //this.#boundingBox = target.getBoundingClientRect();
   }
 
   get target(): Element {
@@ -45,6 +97,9 @@ class _PointerCaptureTracking extends Pointer.Tracking<PointerCapture.Track> {
     }, baseResult);
   }
 
+  protected override _trackFromPointerEvent(event: PointerEvent): PointerCapture.Track {
+    return _pointerCaptureTrackFrom(event, this._firstTrack, this._lastTrack);
+  }
 }
 
 class _PointerCaptureFilter {
@@ -241,11 +296,11 @@ class _PointerCaptureTarget {
 
       if ((this.#highPrecision === true) && (event.type === "pointermove")) {
         for (const coalesced of event.getCoalescedEvents()) {
-          tracking.append(PointerCapture.Track.from(coalesced));
+          tracking.append(coalesced);
         }
       }
       else {
-        tracking.append(PointerCapture.Track.from(event));
+        tracking.append(event);
       }
     }
   }
@@ -254,7 +309,7 @@ class _PointerCaptureTarget {
     if (this.#trackingMap.has(event.pointerId) === true) {
       const tracking = this.#trackingMap.get(event.pointerId) as _PointerCaptureTracking;
 
-      tracking.append(PointerCapture.Track.from(event));
+      tracking.append(event);
       tracking.terminate();
     }
   }
@@ -280,48 +335,8 @@ namespace PointerCapture {
   export interface Track extends Pointer.Track {
     readonly offsetFromTarget: Geometry2d.Point; // offset from target bounding box
     readonly trackingPhase: Phase,
-  }
-  export namespace Track{
-    export function from(event: PointerEvent): Track {
-      const offsetFromTarget = {
-        x: event.offsetX,
-        y: event.offsetY,
-      };
-
-      // targetはcurrentTargetの子孫である可能性（すなわちevent.offsetX/YがcurrentTargetの座標ではない可能性）
-      if (!!event.target && !!event.currentTarget && (event.currentTarget !== event.target)) {
-        // ここに分岐するのは、pointerdownの時のみ（pointer captureを使用しているので）
-        const currentTargetBoundingBox = (event.currentTarget as Element).getBoundingClientRect();
-        const targetBoundingBox = (event.target as Element).getBoundingClientRect();
-        const { x, y } = Geometry2d.Point.distanceBetween(currentTargetBoundingBox, targetBoundingBox);
-        offsetFromTarget.x = offsetFromTarget.x + x;
-        offsetFromTarget.y = offsetFromTarget.y + y;
-      }
-
-      let trackingPhase: Phase;
-      switch (event.type) {
-        case "pointerdown":
-          trackingPhase = Phase.START;
-          break;
-        case "pointermove":
-          trackingPhase = Phase.PROGRESS;
-          break;
-        case "pointerup":
-        case "pointercancel":
-          trackingPhase = Phase.END;
-          break;
-        default:
-          trackingPhase = Phase.UNDEFINED;
-          // pointerup,pointercancelの後は_PointerTrack.fromPointerEventを呼んでいないのでありえない
-          break;
-      }
-
-      const baseTrack = Pointer.Track.from(event);
-      return Object.assign({
-        offsetFromTarget,
-        trackingPhase,
-      }, baseTrack);
-    }
+    readonly relativeX: number; // 始点からの相対位置
+    readonly relativeY: number; // 始点からの相対位置
   }
 
   export interface TrackingResult extends Pointer.TrackingResult {
@@ -339,7 +354,7 @@ namespace PointerCapture {
     readonly [Symbol.asyncIterator]: () => AsyncGenerator<Track, void, void>;
     readonly consume: (ontrack?: (track: Track) => void) => Promise<TrackingResult>;
   }
-  
+
   export type AutoCapturedCallback = (tracks: CapturedPointerTracks) => (void | Promise<void>);
 
   export type AutoCaptureFilterSource = {

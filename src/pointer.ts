@@ -179,19 +179,21 @@ namespace Pointer {
   export interface TrackingResult {
     readonly pointer: Identification;
     readonly duration: milliseconds;
-    readonly startGeometry: Geometry; // viewport座標 // x,yは左上でなく中心なので、Geometry2d.Rectは使用してない
-    readonly endGeometry: Geometry; // viewport座標 // x,yは左上でなく中心なので、Geometry2d.Rectは使用してない
-    readonly relativeX: number; // 終点の始点からの相対位置
-    readonly relativeY: number; // 終点の始点からの相対位置
-    readonly movementX: number; // 絶対移動量
-    readonly movementY: number; // 絶対移動量
+    readonly startGeometry: Geometry; // x/yはviewport座標
+    readonly endGeometry: Geometry; // x/yはviewport座標
+    readonly absoluteX: number; // 絶対移動量
+    readonly absoluteY: number; // 絶対移動量
   }
 
-  export class Tracking<T extends Track> {
+  export abstract class Tracking<T extends Track> {
     readonly #pointer: Identification;
     readonly #trackStream: ReadableStream<T>;
     #controller: ReadableStreamDefaultController<T> | null = null;
     #result: TrackingResult | null = null;
+    #firstAppended: T | null = null;
+    #lastAppended: T | null = null;
+    #absoluteX: number = 0;
+    #absoluteY: number = 0;
 
     constructor(pointer: Identification, signal: AbortSignal) {
       this.#pointer = pointer;
@@ -214,14 +216,33 @@ namespace Pointer {
       return this.#trackStream;
     }
 
+    protected get _firstTrack(): T | null {
+      return this.#firstAppended;
+    }
+
+    protected get _lastTrack(): T | null {
+      return this.#lastAppended;
+    }
+
     terminate(): void {
       if (!!this.#controller) {
         this.#controller.close();
       }
     }
 
-    append(track: T): void {
+    protected abstract _trackFromPointerEvent(event: PointerEvent): T;
+
+    append(event: PointerEvent): void {
       if (!!this.#controller) {
+        const track: T = this._trackFromPointerEvent(event);
+        if (!this.#firstAppended) {
+          this.#firstAppended = track;
+        }
+        if (!!this.#lastAppended) {
+          this.#absoluteX = this.#absoluteX + Math.abs(this.#lastAppended.geometry.x - track.geometry.x);
+          this.#absoluteY = this.#absoluteY + Math.abs(this.#lastAppended.geometry.y - track.geometry.y);
+        }
+        this.#lastAppended = track;
         this.#controller.enqueue(track);
       }
     }
@@ -246,15 +267,9 @@ namespace Pointer {
 
     async * tracks(): AsyncGenerator<T, void, void> {
       //try {
-        let movementX: number = 0;
-        let movementY: number = 0;
         let firstTrack: T | undefined = undefined;
         let lastTrack: T | undefined = undefined;
         for await (const track of this.#tracks()) {
-          if (!!lastTrack) {
-            movementX = movementX + Math.abs(lastTrack.geometry.x - track.geometry.x);
-            movementY = movementY + Math.abs(lastTrack.geometry.y - track.geometry.y);
-          }
           if (!firstTrack) {
             firstTrack = track;
           }
@@ -269,18 +284,14 @@ namespace Pointer {
         const duration = (lastTrack.timestamp - firstTrack.timestamp);
         const startGeometry = Object.freeze(Object.assign({}, firstTrack.geometry));
         const endGeometry = Object.freeze(Object.assign({}, lastTrack.geometry));
-        const relativeX = (endGeometry.x - startGeometry.x);
-        const relativeY = (endGeometry.y - startGeometry.y);
 
         this.#result = Object.freeze({
           pointer: firstTrack.pointer,
           duration,
           startGeometry,
           endGeometry,
-          relativeX,
-          relativeY,
-          movementX,
-          movementY,
+          absoluteX: this.#absoluteX,
+          absoluteY: this.#absoluteY,
         });
         return;
       // }
