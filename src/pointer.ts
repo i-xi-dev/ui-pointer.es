@@ -357,15 +357,116 @@ namespace Pointer {
 
   };
 
+  export abstract class DetectionFilter {
+    protected readonly _pointerTypes: Array<string>;
+    protected readonly _primaryPointer: boolean;
+    protected readonly _customFilter: (event: PointerEvent) => boolean;
+    protected readonly _disableDefaultFilter: boolean;
+    constructor(filterSource: DetectionFilterSource = {}) {
+      this._pointerTypes = Array.isArray(filterSource.pointerType) ? filterSource.pointerType : [Pointer.Type.MOUSE, Pointer.Type.PEN, Pointer.Type.TOUCH];
+      this._primaryPointer = (filterSource.primaryPointer === true);
+      this._customFilter = (typeof filterSource.custom === "function") ? filterSource.custom : () => true;
+      this._disableDefaultFilter = (filterSource.disableDefaultFilter === true);
+    }
+    abstract filter(event: PointerEvent): boolean;
+  }
+
+  export abstract class TrackingTarget<T extends Track> {
+    readonly #target: Element;
+    readonly #highPrecision: boolean;
+    readonly #eventListenerAborter: AbortController;
+    protected readonly _trackingMap: Map<pointerid, Tracking<T>>;
+    constructor(target: Element, callback: DetectedCallback<T>, options: DetectionOptions) {
+      this.#target = target;
+      this.#highPrecision = (options.highPrecision === true) && !!(new PointerEvent("test")).getCoalescedEvents;// safariが未実装:getCoalescedEvents
+      this.#eventListenerAborter = new AbortController();
+      this._trackingMap = new Map();
+
+      if (options.setTouchActionNone === true) {
+        this._targetStyle.setProperty("touch-action", "none", "important");
+      }
+    }
+
+    get target(): Element {
+      return this.#target;
+    }
+    protected get _targetStyle(): CSSStyleDeclaration {
+      return (this.#target as unknown as ElementCSSInlineStyle).style;
+    }
+    protected get _passiveOptions(): AddEventListenerOptions {
+      return {
+        passive: true,
+        signal: this.#eventListenerAborter.signal,
+      };
+    }
+    protected get _activeOptions(): AddEventListenerOptions {
+      return {
+        passive: false,
+        signal: this.#eventListenerAborter.signal,
+      };
+    }
+    protected get _signal(): AbortSignal {
+      return this.#eventListenerAborter.signal;
+    }
+
+    disconnect(): void {
+      this.#eventListenerAborter.abort();
+      this._trackingMap.clear();
+    }
+
+    protected _pushTrack(event: PointerEvent): void {
+      if (this._trackingMap.has(event.pointerId) === true) {
+        const tracking = this._trackingMap.get(event.pointerId) as Tracking<T>;
+
+        if ((this.#highPrecision === true) && (event.type === "pointermove")) {
+          for (const coalesced of event.getCoalescedEvents()) {
+            tracking.append(coalesced);
+          }
+        }
+        else {
+          tracking.append(event);
+        }
+      }
+    }
+
+    protected _pushEndTrack(event: PointerEvent): void {
+      if (this._trackingMap.has(event.pointerId) === true) {
+        const tracking = this._trackingMap.get(event.pointerId) as Tracking<T>;
+  
+        tracking.append(event);
+
+        // 分離する？
+        tracking.terminate();
+        this._trackingMap.delete(event.pointerId);
+      }
+    }
+  }
+
   export function observe(target: Element, callback: DetectedCallback<Track>, options: DetectionOptions = {}): void {
-    //TODO
+    const tracker = new _PointerTrackingTarget(target, callback, options);
+    _pointerTrackingTargetRegistry.set(target, tracker);
   }
 
   export function unobserve(target: Element): void {
-    //TODO
+    const tracker = _pointerTrackingTargetRegistry.get(target);
+    if (!!tracker) {
+      tracker.disconnect();
+      _pointerTrackingTargetRegistry.delete(target);
+    }
+  }
+}
+
+class _PointerTrackingTarget extends Pointer.TrackingTarget<Pointer.Track> {
+
+  constructor(target: Element, callback: Pointer.DetectedCallback<Pointer.Track>, options: Pointer.DetectionOptions) {
+    super(target, callback, options);
+    throw new Error("not implemented")//TODO
   }
 
+
 }
+
+const _pointerTrackingTargetRegistry: WeakMap<Element, _PointerTrackingTarget> = new WeakMap();
 
 export {
   type pointerid,

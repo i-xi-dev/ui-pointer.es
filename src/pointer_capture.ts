@@ -29,7 +29,7 @@ import { type pointerid, Pointer } from "./pointer";
 //     - 通常は1だが2以上になることがある: page-break以外のbreak (regionは廃止されたのでcolumnだけか？)
 
 class _PointerCaptureTracking extends Pointer.Tracking<PointerCapture.Track> {
-  readonly #target: Element;
+  readonly #target: Element;//XXX 要る？
 
   constructor(pointer: Pointer.Identification, target: Element, signal: AbortSignal) {
     super(pointer, signal);
@@ -82,28 +82,18 @@ class _PointerCaptureTracking extends Pointer.Tracking<PointerCapture.Track> {
   }
 }
 
-class _PointerCaptureFilter {
-  readonly #pointerTypes: Array<string>;
-  readonly #primaryPointer: boolean;
-  readonly #customFilter: (event: PointerEvent) => boolean;
-  readonly #disableDefaultFilter: boolean;
-  constructor(filterSource: Pointer.DetectionFilterSource = {}) {
-    this.#pointerTypes = Array.isArray(filterSource.pointerType) ? filterSource.pointerType : [Pointer.Type.MOUSE, Pointer.Type.PEN, Pointer.Type.TOUCH];
-    this.#primaryPointer = (filterSource.primaryPointer === true);
-    this.#customFilter = (typeof filterSource.custom === "function") ? filterSource.custom : () => true;
-    this.#disableDefaultFilter = (filterSource.disableDefaultFilter === true);
-  }
+class _PointerCaptureFilter extends Pointer.DetectionFilter {
   filter(event: PointerEvent): boolean {
-    if (this.#pointerTypes.includes(event.pointerType) !== true) {
+    if (this._pointerTypes.includes(event.pointerType) !== true) {
       return false;
     }
-    if ((this.#primaryPointer === true) && (event.isPrimary !== true)) {
+    if ((this._primaryPointer === true) && (event.isPrimary !== true)) {
       return false;
     }
-    if (this.#customFilter(event) !== true) {
+    if (this._customFilter(event) !== true) {
       return false;
     }
-    if (this.#disableDefaultFilter !== true) {
+    if (this._disableDefaultFilter !== true) {
       if (event.buttons !== 1) {
         // mouseの場合左ボタンのみ、pen,touchの場合ボタンなし接触のみ
         return false;
@@ -134,66 +124,47 @@ function _hitTest(element: Element, { x, y, rx, ry }: Pointer.Geometry): { insid
   throw new Error("invalid state: element is not connected");
 }
 
-class _PointerCaptureTarget {
-  readonly #target: Element;
-  readonly #filter: _PointerCaptureFilter;
-  readonly #highPrecision: boolean;
-  readonly #eventListenerAborter: AbortController;
-  readonly #trackingMap: Map<pointerid, _PointerCaptureTracking>;// ブラウザのpointer captureの挙動により、最大サイズ1とする
+class _PointerCaptureTarget extends Pointer.TrackingTarget<PointerCapture.Track> {
+  readonly #filter: Pointer.DetectionFilter;
 
   constructor(target: Element, callback: Pointer.DetectedCallback<PointerCapture.Track>, options: Pointer.DetectionOptions) {
-    this.#target = target;
+    super(target, callback, options);
     this.#filter = new _PointerCaptureFilter(options?.filter);
-    this.#highPrecision = (options.highPrecision === true) && !!(new PointerEvent("test")).getCoalescedEvents;// safariが未実装:getCoalescedEvents
-    this.#eventListenerAborter = new AbortController();
-    this.#trackingMap = new Map();
 
-    const targetStyle = (this.#target as unknown as ElementCSSInlineStyle).style;
-    if (options.setTouchActionNone === true) {
-      targetStyle.setProperty("touch-action", "none", "important");
-    }
+    const targetStyle = this._targetStyle;
     // 選択可能テキストの有無に関わらず、テキスト選択し始めてpointercancelされることがあるので強制設定する
     targetStyle.setProperty("-webkit-user-select", "none", "important"); // safari向け（chromeもfirefoxも接頭辞は不要）
     targetStyle.setProperty("user-select", "none", "important");
-
-    const passiveOptions = {
-      passive: true,
-      signal: this.#eventListenerAborter.signal,
-    };
-    const activeOptions = {
-      passive: false,
-      signal: this.#eventListenerAborter.signal,
-    };
 
     // pointer captureするなら、おそらくコンテキストメニューは邪魔と考えられるので、
     // コンテキストメニューは一律キャンセルする
     // - capture中のどの時点においても、マウス右ボタンを離したとき
     // - タッチ開始してから動かさずに一定時間たったとき
-    this.#target.addEventListener("contextmenu", ((event: MouseEvent) => {
+    this.target.addEventListener("contextmenu", ((event: MouseEvent) => {
       event.preventDefault();
-    }) as EventListener, activeOptions);
+    }) as EventListener, this._activeOptions);
 
     // touch-actionを一律禁止すると、タブレット等でスクロールできなくなってしまうので
     // 代わりにpointer capture中のtouchmoveをキャンセルする
     // いくつかの環境で試してみた結果ではtouchmoveのみキャンセルすれば問題なさそうだったが、
     //   Pointer Events仕様でもTouch Events仕様でも preventDefaultすると何が起きるのかがほぼ未定義なのはリスク
-    this.#target.addEventListener("touchmove", ((event: TouchEvent) => {
-      if (this.#trackingMap.size > 0) {
+    this.target.addEventListener("touchmove", ((event: TouchEvent) => {
+      if (this._trackingMap.size > 0) {
         event.preventDefault();
       }
-    }) as EventListener, activeOptions);
+    }) as EventListener, this._activeOptions);
 
-    this.#target.addEventListener("pointerdown", ((event: PointerEvent) => {
+    this.target.addEventListener("pointerdown", ((event: PointerEvent) => {
       if (event.isTrusted !== true) {
         return;
       }
 
-      if (this.#trackingMap.has(event.pointerId) === true) {
+      if (this._trackingMap.has(event.pointerId) === true) {
         // pointermove中に同じpointerでのpointerdown
-        this.#pushTrack(event);
+        this._pushTrack(event);
         return;
       }
-      else if (this.#trackingMap.size > 0) {
+      else if (this._trackingMap.size > 0) {
         // 異なるpointer
         // ブラウザの挙動として、新しいpointer captureが生きている間は古いほうは基本無視されるので、同時captureはしないこととする
         return;
@@ -210,53 +181,46 @@ class _PointerCaptureTarget {
       // 暗黙のpointercaptureは放置で問題ないか？
       // → mouseでcapture中にタッチにcaptureを奪われる。見た目以外に実害があるかは未だ不明
 
-      this.#target.setPointerCapture(event.pointerId);
-      if (this.#target.hasPointerCapture(event.pointerId) === true) {
+      this.target.setPointerCapture(event.pointerId);
+      if (this.target.hasPointerCapture(event.pointerId) === true) {
         // gotpointercaptureは遅延される場合があるのでここで行う
         // 備忘: ここでtouch-actionをnoneに変更しても何の意味もなかった
         this.#afterCapture(event, callback);
-        this.#pushTrack(event);
+        this._pushTrack(event);
       }
-    }) as EventListener, passiveOptions);
+    }) as EventListener, this._passiveOptions);
 
-    this.#target.addEventListener("pointermove", ((event: PointerEvent): void => {
+    this.target.addEventListener("pointermove", ((event: PointerEvent): void => {
       if (event.isTrusted !== true) {
         return;
       }
-      //XXX hasPointerCaptureがfalseなら#afterRelease()呼ぶ？ pointermove以外でも
-      this.#pushTrack(event);
-    }) as EventListener, passiveOptions);
+      //XXX hasPointerCaptureがfalseなら追跡終了する？ pointermove以外でも
+      this._pushTrack(event);
+    }) as EventListener, this._passiveOptions);
 
-    this.#target.addEventListener("pointerup", ((event: PointerEvent): void => {
+    this.target.addEventListener("pointerup", ((event: PointerEvent): void => {
       if (event.isTrusted !== true) {
         return;
       }
-      this.#target.releasePointerCapture(event.pointerId); // この後暗黙にreleaseされる、おそらくここで明示的にreleasePointerCaptureしなくても問題ない
-      this.#pushLastTrack(event);
-      this.#afterRelease(event);
-    }) as EventListener, passiveOptions);
+      this.target.releasePointerCapture(event.pointerId); // この後暗黙にreleaseされる、おそらくここで明示的にreleasePointerCaptureしなくても問題ない
+      this._pushEndTrack(event);
+    }) as EventListener, this._passiveOptions);
 
     // mouseなら左を押しているし、pen,touchなら接触しているので、基本的に発火されないはず（先にpointerupが発生する）
     // 発火されるとしたら、接触中に電源喪失したpenとか？
-    this.#target.addEventListener("pointercancel", ((event: PointerEvent): void => {
+    this.target.addEventListener("pointercancel", ((event: PointerEvent): void => {
       if (event.isTrusted !== true) {
         return;
       }
-      this.#target.releasePointerCapture(event.pointerId); // この後暗黙にreleaseされる、おそらくここで明示的にreleasePointerCaptureしなくても問題ない
-      this.#pushLastTrack(event);
-      this.#afterRelease(event);
-    }) as EventListener, passiveOptions);
-  }
-
-  disconnect(): void {
-    this.#eventListenerAborter.abort();
-    this.#trackingMap.clear();
+      this.target.releasePointerCapture(event.pointerId); // この後暗黙にreleaseされる、おそらくここで明示的にreleasePointerCaptureしなくても問題ない
+      this._pushEndTrack(event);
+    }) as EventListener, this._passiveOptions);
   }
 
   #afterCapture(event: PointerEvent, callback: Pointer.DetectedCallback<PointerCapture.Track>): void {
     const pointer = Pointer.Identification.of(event);
-    const tracking = new _PointerCaptureTracking(pointer, this.#target, this.#eventListenerAborter.signal);
-    this.#trackingMap.set(event.pointerId, tracking);
+    const tracking = new _PointerCaptureTracking(pointer, this.target, this._signal);
+    this._trackingMap.set(event.pointerId, tracking);
     callback({
       pointer,
       target: tracking.target,
@@ -268,36 +232,6 @@ class _PointerCaptureTarget {
         return tracking.readAll(ontrack);
       },
     });
-  }
-
-  #pushTrack(event: PointerEvent): void {
-    if (this.#trackingMap.has(event.pointerId) === true) {
-      const tracking = this.#trackingMap.get(event.pointerId) as _PointerCaptureTracking;
-
-      if ((this.#highPrecision === true) && (event.type === "pointermove")) {
-        for (const coalesced of event.getCoalescedEvents()) {
-          tracking.append(coalesced);
-        }
-      }
-      else {
-        tracking.append(event);
-      }
-    }
-  }
-
-  #pushLastTrack(event: PointerEvent): void {
-    if (this.#trackingMap.has(event.pointerId) === true) {
-      const tracking = this.#trackingMap.get(event.pointerId) as _PointerCaptureTracking;
-
-      tracking.append(event);
-      tracking.terminate();
-    }
-  }
-
-  #afterRelease(event: PointerEvent): void {
-    if (this.#trackingMap.has(event.pointerId) === true) {
-      this.#trackingMap.delete(event.pointerId);
-    }
   }
 }
 
@@ -338,7 +272,6 @@ namespace PointerCapture {
       _pointerCaptureTargetRegistry.delete(target);
     }
   }
-
 }
 
 //備忘
