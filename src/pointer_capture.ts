@@ -1,4 +1,3 @@
-import { Geometry2d } from "@i-xi-dev/ui-utils";
 import { type pointerid, Pointer } from "./pointer";
 
 //既知の問題
@@ -29,36 +28,6 @@ import { type pointerid, Pointer } from "./pointer";
 //     - 1以上: displayがinline,...
 //     - 通常は1だが2以上になることがある: page-break以外のbreak (regionは廃止されたのでcolumnだけか？)
 
-function _pointerCaptureTrackFrom(event: PointerEvent, startTrack: PointerCapture.Track | null, prevTrack: PointerCapture.Track | null): PointerCapture.Track {
-  let trackingPhase: PointerCapture.Phase;
-  switch (event.type) {
-    case "pointerdown":
-      trackingPhase = PointerCapture.Phase.START;
-      break;
-    case "pointermove":
-      trackingPhase = PointerCapture.Phase.PROGRESS;
-      break;
-    case "pointerup":
-    case "pointercancel":
-      trackingPhase = PointerCapture.Phase.END;
-      break;
-    default:
-      trackingPhase = PointerCapture.Phase.UNDEFINED;
-      // pointerup,pointercancelの後は_PointerTrack.fromPointerEventを呼んでいないのでありえない
-      break;
-  }
-
-  const relativeX = !!startTrack ? (event.clientX - startTrack.geometry.x) : 0;
-  const relativeY = !!startTrack ? (event.clientY - startTrack.geometry.y) : 0;
-
-  const baseTrack = Pointer.Track.from(event);
-  return Object.assign({
-    trackingPhase,
-    relativeX,
-    relativeY,
-  }, baseTrack);
-}
-
 class _PointerCaptureTracking extends Pointer.Tracking<PointerCapture.Track> {
   readonly #target: Element;
 
@@ -71,8 +40,8 @@ class _PointerCaptureTracking extends Pointer.Tracking<PointerCapture.Track> {
     return this.#target;
   }
 
-  override async readAll(ontrack?: (track: PointerCapture.Track) => void): Promise<PointerCapture.TrackingResult> {
-    const baseResult = await super.readAll(ontrack);
+  protected override _currentResult(): PointerCapture.TrackingResult {
+    const baseResult = super._currentResult();
     const { endGeometry } = baseResult;
     const { insideHitRegion, insideBoundingBox } = _hitTest(this.#target, endGeometry);
     return Object.assign({
@@ -82,7 +51,34 @@ class _PointerCaptureTracking extends Pointer.Tracking<PointerCapture.Track> {
   }
 
   protected override _trackFromPointerEvent(event: PointerEvent): PointerCapture.Track {
-    return _pointerCaptureTrackFrom(event, this._firstTrack, this._lastTrack);
+    const baseTrack = this._baseTrackFromPointerEvent(event);
+
+    let trackingPhase: PointerCapture.Phase;
+    switch (event.type) {
+      case "pointerdown":
+        trackingPhase = PointerCapture.Phase.START;
+        break;
+      case "pointermove":
+        trackingPhase = PointerCapture.Phase.PROGRESS;
+        break;
+      case "pointerup":
+      case "pointercancel":
+        trackingPhase = PointerCapture.Phase.END;
+        break;
+      default:
+        trackingPhase = PointerCapture.Phase.UNDEFINED;
+        // pointerup,pointercancelの後は_PointerTrack.fromPointerEventを呼んでいないのでありえない
+        break;
+    }
+
+    const relativeX = !!this._firstTrack ? (event.clientX - this._firstTrack.geometry.x) : 0;
+    const relativeY = !!this._firstTrack ? (event.clientY - this._firstTrack.geometry.y) : 0;
+
+    return Object.assign({
+      trackingPhase,
+      relativeX,
+      relativeY,
+    }, baseTrack);
   }
 }
 
@@ -145,7 +141,7 @@ class _PointerCaptureTarget {
   readonly #eventListenerAborter: AbortController;
   readonly #trackingMap: Map<pointerid, _PointerCaptureTracking>;// ブラウザのpointer captureの挙動により、最大サイズ1とする
 
-  constructor(target: Element, callback: Pointer.DetectedCallback, options: Pointer.DetectionOptions) {
+  constructor(target: Element, callback: Pointer.DetectedCallback<PointerCapture.Track>, options: Pointer.DetectionOptions) {
     this.#target = target;
     this.#filter = new _PointerCaptureFilter(options?.filter);
     this.#highPrecision = (options.highPrecision === true) && !!(new PointerEvent("test")).getCoalescedEvents;// safariが未実装:getCoalescedEvents
@@ -257,7 +253,7 @@ class _PointerCaptureTarget {
     this.#trackingMap.clear();
   }
 
-  #afterCapture(event: PointerEvent, callback: Pointer.DetectedCallback): void {
+  #afterCapture(event: PointerEvent, callback: Pointer.DetectedCallback<PointerCapture.Track>): void {
     const pointer = Pointer.Identification.of(event);
     const tracking = new _PointerCaptureTracking(pointer, this.#target, this.#eventListenerAborter.signal);
     this.#trackingMap.set(event.pointerId, tracking);
@@ -322,7 +318,7 @@ namespace PointerCapture {
     readonly relativeY: number; // 始点からの相対位置
   }
 
-  export interface TrackingResult extends Pointer.TrackingResult {
+  export interface TrackingResult extends Pointer.TrackingResult<Track> {
     /** @experimental */
     wentOutOfHitRegion: boolean; // 終了時点でhit testをパスするか
     /** @experimental */
@@ -330,7 +326,7 @@ namespace PointerCapture {
     //XXX 上記いずれもstreamを読んでる側で取得可能の為不要では
   }
 
-  export function setAutoCapture(target: Element, callback: Pointer.DetectedCallback, options: Pointer.DetectionOptions = {}): void {
+  export function setAutoCapture(target: Element, callback: Pointer.DetectedCallback<Track>, options: Pointer.DetectionOptions = {}): void {
     const tracker = new _PointerCaptureTarget(target, callback, options);
     _pointerCaptureTargetRegistry.set(target, tracker);
   }

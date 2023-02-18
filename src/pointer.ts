@@ -150,8 +150,65 @@ namespace Pointer {
     readonly insetY: number; // offset from target bounding box. target is tracking target (event listener invoker)
     readonly dispatcher: Element | null; // event dispatcher
   };
-  export namespace Track {
-    export function from(event: PointerEvent): Track {
+
+  export interface TrackingResult<T extends Track> {
+    readonly pointer: Identification;
+    readonly duration: milliseconds;
+    readonly startGeometry: Geometry; // x/yはviewport座標
+    readonly endGeometry: Geometry; // x/yはviewport座標
+    readonly absoluteX: number; // 絶対移動量
+    readonly absoluteY: number; // 絶対移動量
+  }
+
+  export abstract class Tracking<T extends Track> {
+    readonly #pointer: Identification;
+    readonly #trackStream: ReadableStream<T>;
+    #controller: ReadableStreamDefaultController<T> | null = null;
+    #result: TrackingResult<T> | null = null;
+    #firstAppended: T | null = null;
+    #lastAppended: T | null = null;
+    #duration: milliseconds = 0;
+    #absoluteX: number = 0;
+    #absoluteY: number = 0;
+
+    constructor(pointer: Identification, signal: AbortSignal) {
+      this.#pointer = pointer;
+      const start = (controller: ReadableStreamDefaultController<T>) => {
+        signal.addEventListener("abort", () => {
+          controller.close();
+        }, { passive: true });
+        this.#controller = controller;
+      };
+      this.#trackStream = new ReadableStream({
+        start,
+      });
+    }
+
+    get pointer(): Identification {
+      return this.#pointer;
+    }
+
+    get stream(): ReadableStream<T> {
+      return this.#trackStream;
+    }
+
+    protected get _firstTrack(): T | null {
+      return this.#firstAppended;
+    }
+
+    protected get _lastTrack(): T | null {
+      return this.#lastAppended;
+    }
+
+    terminate(): void {
+      if (!!this.#controller) {
+        this.#controller.close();
+      }
+    }
+
+    protected abstract _trackFromPointerEvent(event: PointerEvent): T;
+
+    protected _baseTrackFromPointerEvent(event: PointerEvent): Track {
       const pointer = Identification.of(event);
       const state = _pointerStateOf(event);
       const modifiers = _pointerModifiersOf(event);
@@ -198,63 +255,6 @@ namespace Pointer {
         dispatcher,
       });
     }
-  }
-
-  export interface TrackingResult {
-    readonly pointer: Identification;
-    readonly duration: milliseconds;
-    readonly startGeometry: Geometry; // x/yはviewport座標
-    readonly endGeometry: Geometry; // x/yはviewport座標
-    readonly absoluteX: number; // 絶対移動量
-    readonly absoluteY: number; // 絶対移動量
-  }
-
-  export abstract class Tracking<T extends Track> {
-    readonly #pointer: Identification;
-    readonly #trackStream: ReadableStream<T>;
-    #controller: ReadableStreamDefaultController<T> | null = null;
-    #result: TrackingResult | null = null;
-    #firstAppended: T | null = null;
-    #lastAppended: T | null = null;
-    #absoluteX: number = 0;
-    #absoluteY: number = 0;
-
-    constructor(pointer: Identification, signal: AbortSignal) {
-      this.#pointer = pointer;
-      const start = (controller: ReadableStreamDefaultController<T>) => {
-        signal.addEventListener("abort", () => {
-          controller.close();
-        }, { passive: true });
-        this.#controller = controller;
-      };
-      this.#trackStream = new ReadableStream({
-        start,
-      });
-    }
-
-    get pointer(): Identification {
-      return this.#pointer;
-    }
-
-    get stream(): ReadableStream<T> {
-      return this.#trackStream;
-    }
-
-    protected get _firstTrack(): T | null {
-      return this.#firstAppended;
-    }
-
-    protected get _lastTrack(): T | null {
-      return this.#lastAppended;
-    }
-
-    terminate(): void {
-      if (!!this.#controller) {
-        this.#controller.close();
-      }
-    }
-
-    protected abstract _trackFromPointerEvent(event: PointerEvent): T;
 
     append(event: PointerEvent): void {
       if (!!this.#controller) {
@@ -263,6 +263,7 @@ namespace Pointer {
           this.#firstAppended = track;
         }
         if (!!this.#lastAppended) {
+          this.#duration = (this.#lastAppended.timestamp - this.#firstAppended.timestamp);
           this.#absoluteX = this.#absoluteX + Math.abs(this.#lastAppended.geometry.x - track.geometry.x);
           this.#absoluteY = this.#absoluteY + Math.abs(this.#lastAppended.geometry.y - track.geometry.y);
         }
@@ -271,7 +272,7 @@ namespace Pointer {
       }
     }
 
-    readAll(ontrack?: (track: T) => void): Promise<TrackingResult> {
+    readAll(ontrack?: (track: T) => void): Promise<TrackingResult<T>> {
       return new Promise(async (resolve, reject) => {
         try {
           for await (const track of this.tracks()) {
@@ -280,7 +281,7 @@ namespace Pointer {
             }
           }
 
-          resolve(this.#result as TrackingResult);
+          resolve(this.#result as TrackingResult<T>);
           return;
         }
         catch (exception) {
@@ -289,40 +290,28 @@ namespace Pointer {
       });
     }
 
+    protected _currentResult(): TrackingResult<T> {
+      if (!this.#firstAppended || !this.#lastAppended) {
+        throw new Error("TODO");
+      }
+
+      return Object.freeze({
+        pointer: this.#pointer,
+        duration: this.#duration,
+        startGeometry: Object.freeze(Object.assign({}, this.#firstAppended.geometry)),
+        endGeometry: Object.freeze(Object.assign({}, this.#lastAppended.geometry)),
+        absoluteX: this.#absoluteX,
+        absoluteY: this.#absoluteY,
+      });
+    }
+
     async * tracks(): AsyncGenerator<T, void, void> {
-      //try {
-        let firstTrack: T | undefined = undefined;
-        let lastTrack: T | undefined = undefined;
-        for await (const track of this.#tracks()) {
-          if (!firstTrack) {
-            firstTrack = track;
-          }
-          lastTrack = track;
-          yield track;
-        }
+      for await (const track of this.#tracks()) {
+        yield track;
+      }
 
-        if (!firstTrack || !lastTrack) {
-          throw new Error("TODO");
-        }
-
-        const duration = (lastTrack.timestamp - firstTrack.timestamp);
-        const startGeometry = Object.freeze(Object.assign({}, firstTrack.geometry));
-        const endGeometry = Object.freeze(Object.assign({}, lastTrack.geometry));
-
-        this.#result = Object.freeze({
-          pointer: firstTrack.pointer,
-          duration,
-          startGeometry,
-          endGeometry,
-          absoluteX: this.#absoluteX,
-          absoluteY: this.#absoluteY,
-        });
-        return;
-      // }
-      // catch (exception) {
-      //   //;
-      //   throw exception;
-      // }
+      this.#result = this._currentResult();
+      return;
     }
 
     // ReadableStream#[Symbol.asyncIterator]がブラウザでなかなか実装されないので…
@@ -340,15 +329,15 @@ namespace Pointer {
     }
   }
 
-  export interface TrackingTask {
+  export interface TrackingTask<T extends Track> {
     readonly pointer: Pointer.Identification;
     readonly target: Element | null, // PointerCaptureの場合は必ずElement その他の場合でviewportを監視している場合はnull それ以外ではElement
-    readonly stream: ReadableStream<Track>;
-    readonly [Symbol.asyncIterator]: () => AsyncGenerator<Track, void, void>;
-    readonly consume: (ontrack?: (track: Track) => void) => Promise<TrackingResult>;
+    readonly stream: ReadableStream<T>;
+    readonly [Symbol.asyncIterator]: () => AsyncGenerator<T, void, void>;
+    readonly consume: (ontrack?: (track: T) => void) => Promise<TrackingResult<T>>;
   }
 
-  export type DetectedCallback = (tracks: TrackingTask) => (void | Promise<void>);
+  export type DetectedCallback<T extends Track> = (tracks: TrackingTask<T>) => (void | Promise<void>);
 
   export type DetectionFilterSource = {
     pointerType?: Array<string>,
@@ -368,7 +357,7 @@ namespace Pointer {
 
   };
 
-  export function observe(target: Element, callback: DetectedCallback, options: DetectionOptions = {}): void {
+  export function observe(target: Element, callback: DetectedCallback<Track>, options: DetectionOptions = {}): void {
     //TODO
   }
 
