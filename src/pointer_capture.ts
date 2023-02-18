@@ -178,8 +178,10 @@ class _PointerCaptureTarget extends Pointer.TrackingTarget<PointerCapture.Track>
 
       // event.preventDefault();// 中クリックの自動スクロールがpointerdown
 
-      // 暗黙のpointercaptureは放置で問題ないか？
-      // → mouseでcapture中にタッチにcaptureを奪われる。見た目以外に実害があるかは未だ不明
+      // 暗黙のpointer captureのrelease //XXX 不要か？
+      if ((event.target as Element).hasPointerCapture(event.pointerId) === true) {
+        (event.target as Element).releasePointerCapture(event.pointerId);
+      }
 
       this.target.setPointerCapture(event.pointerId);
       if (this.target.hasPointerCapture(event.pointerId) === true) {
@@ -223,7 +225,7 @@ class _PointerCaptureTarget extends Pointer.TrackingTarget<PointerCapture.Track>
     this._trackingMap.set(event.pointerId, tracking);
     callback({
       pointer,
-      target: tracking.target,
+      target: this.target,
       stream: tracking.stream,
       [Symbol.asyncIterator]() {
         return tracking.tracks();

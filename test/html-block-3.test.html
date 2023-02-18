@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Test: display:block</title>
+    <style>
+*.p1 {
+  --color: #000;
+  --width: 1px;
+  --height: 1px;
+  background-color: var(--color);
+  box-shadow: 0 0 0 4px #f004;
+  height: var(--height);
+  margin-left: calc(var(--width) * -0.5);
+  margin-top: calc(var(--height) * -0.5);
+  min-height: 1px;
+  min-width: 1px;
+  pointer-events: none;
+  position: absolute;
+  width: var(--width);
+}
+*#test {
+  background-color: #8f9a96;
+  cursor: crosshair;
+  height: 500px;
+  margin: 100px;
+  position: relative;
+  width: 500px;
+}
+*.test1inner {
+  background-color: #8f84;
+  height: 100px;
+  width: 100px;
+}
+*.test1inner.m {
+  margin: 0 100px;
+}
+*.test1inner.t {
+  transform: translate(50px, 150px);
+}
+*.test1inner.p {
+  bottom: 50px;
+  position: absolute;
+  right: 100px;
+}
+*.test1inner.p.p2 {
+  bottom: 150px;
+  right: -50px;
+}
+*#p-1 {
+  --color: #f00;
+}
+*#p-2 {
+  --color: #0f0;
+}
+*#p-3 {
+  --color: #00f;
+}
+*#p-4 {
+  --color: #ff0;
+}
+*#p-5 {
+  --color: #0ff;
+}
+*#p-6 {
+  --color: #f0f;
+}
+    </style>
+    <template id="template1">
+      <div class="p1"></div>
+    </template>
+    <script type="module">
+import { Pointer } from "../dist/index.js";
+const test = document.getElementById("test");
+
+const tis = new Map();
+
+function onprogress(track, target) {
+  const pointerId = track.pointer.id;
+  let ti = tis.get(pointerId);
+  if (!ti) {
+    ti = document.getElementById("template1").content.cloneNode(true).firstElementChild;
+    ti.id = `p-${pointerId}`;
+    tis.set(pointerId, ti);
+  }
+  //TODO touchの場合releasePointerCaptureするか
+
+  ti.style.setProperty("left", `${track.insetX}px`);
+  ti.style.setProperty("top", `${track.insetY}px`);
+  ti.style.setProperty("--width", `${track.geometry.rx * 2}px`);
+  ti.style.setProperty("--height", `${track.geometry.ry * 2}px`);
+  if (ti.isConnected !== true) {
+    target.append(ti);
+  }
+}
+
+function onend(pointerId) {
+  const ti = tis.get(pointerId);
+  if (!!ti) {
+    ti.remove();
+    tis.delete(pointerId);
+  }
+}
+
+Pointer.observe(test, async (pointerTracks) => {
+  console.log(`tracking-start: pointerId:${pointerTracks.pointer.id}`);
+  // ------------------------------------------------------------
+  //test.classList.add("");
+  const target = pointerTracks.target;
+  const result = await pointerTracks.consume((track) => {
+    console.log(track);
+    onprogress(track, target);
+  });
+  //test.classList.remove("");
+  onend(pointerTracks.pointer.id);
+  console.log(result);
+  // ------------------------------------------------------------
+  console.log(`tracking-end: pointerId:${pointerTracks.pointer.id}`);
+}, {
+  setTouchActionNone: true,
+});
+
+    </script>
+  </head>
+  <body>
+    <div id="test">
+      <div class="test1inner m"></div>
+      <div class="test1inner t"></div>
+      <div class="test1inner p"></div>
+      <div class="test1inner p p2"></div>
+    </div>
+  </body>
+</html>

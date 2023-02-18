@@ -456,14 +456,86 @@ namespace Pointer {
   }
 }
 
+class _PointerTracking extends Pointer.Tracking<Pointer.Track> {
+  protected override _trackFromPointerEvent(event: PointerEvent): Pointer.Track {
+    return this._baseTrackFromPointerEvent(event);
+  }
+
+}
+
 class _PointerTrackingTarget extends Pointer.TrackingTarget<Pointer.Track> {
 
   constructor(target: Element, callback: Pointer.DetectedCallback<Pointer.Track>, options: Pointer.DetectionOptions) {
     super(target, callback, options);
-    throw new Error("not implemented")//TODO
+
+    this.target.addEventListener("pointerenter", ((event: PointerEvent) => {
+      if (event.isTrusted !== true) {
+        return;
+      }
+
+      if (this._trackingMap.has(event.pointerId) !== true) {
+        this.#addTracking(event, callback);
+      }
+      this._pushTrack(event);
+    }) as EventListener, this._passiveOptions);
+
+    this.target.addEventListener("pointermove", ((event: PointerEvent) => {
+      if (event.isTrusted !== true) {
+        return;
+      }
+      this._pushTrack(event);
+    }) as EventListener, this._passiveOptions);
+
+    this.target.addEventListener("pointerdown", ((event: PointerEvent) => {
+      if (event.isTrusted !== true) {
+        return;
+      }
+      if ((event.target instanceof Element) && event.target.hasPointerCapture(event.pointerId)) {
+        // 暗黙のpointer captureのrelease
+        event.target.releasePointerCapture(event.pointerId);
+      }
+      this._pushTrack(event);
+    }) as EventListener, this._passiveOptions);
+
+    this.target.addEventListener("pointerup", ((event: PointerEvent) => {
+      if (event.isTrusted !== true) {
+        return;
+      }
+      this._pushTrack(event);
+    }) as EventListener, this._passiveOptions);
+
+    this.target.addEventListener("pointerleave", ((event: PointerEvent) => {
+      if (event.isTrusted !== true) {
+        return;
+      }
+      this._pushEndTrack(event);
+    }) as EventListener, this._passiveOptions);
+
+    this.target.addEventListener("pointercancel", ((event: PointerEvent) => {
+      if (event.isTrusted !== true) {
+        return;
+      }
+      this._pushEndTrack(event);
+    }) as EventListener, this._passiveOptions);
+
   }
 
-
+  #addTracking(event: PointerEvent, callback: Pointer.DetectedCallback<Pointer.Track>): void {
+    const pointer = Pointer.Identification.of(event);
+    const tracking = new _PointerTracking(pointer, this._signal);
+    this._trackingMap.set(event.pointerId, tracking);
+    callback({
+      pointer,
+      target: this.target,
+      stream: tracking.stream,
+      [Symbol.asyncIterator]() {
+        return tracking.tracks();
+      },
+      consume(ontrack?: (track: Pointer.Track) => void) {
+        return tracking.readAll(ontrack);
+      },
+    });
+  }
 }
 
 const _pointerTrackingTargetRegistry: WeakMap<Element, _PointerTrackingTarget> = new WeakMap();
