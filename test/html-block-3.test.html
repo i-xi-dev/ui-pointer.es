@@ -108,12 +108,12 @@ Pointer.observe(test, async (pointerTracks) => {
   //test.classList.add("");
   const target = pointerTracks.target;
   const result = await pointerTracks.consume((track) => {
-    console.log(track);
+    //console.log(track);
     onprogress(track, target);
   });
   //test.classList.remove("");
   onend(pointerTracks.pointer.id);
-  console.log(result);
+  //console.log(result);
   // ------------------------------------------------------------
   console.log(`tracking-end: pointerId:${pointerTracks.pointer.id}`);
 }, {

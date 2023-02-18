@@ -540,6 +540,14 @@ class _PointerTrackingTarget extends Pointer.TrackingTarget<Pointer.Track> {
 
 const _pointerTrackingTargetRegistry: WeakMap<Element, _PointerTrackingTarget> = new WeakMap();
 
+//既知の問題
+// - Firefox
+//   mouseで2つのpointerIdが同時にactiveになる事がある
+//   再現条件不明 適当にマウス動かしながらタッチしまくると発生する
+//   で、2つ目はpointerleave無しにいつのまにか消える（pointermoveが発生しなくなる）ので、Trackingが終了しないまま残ってしまう
+//   発生する状況は限定的なものの、残ったTrackingが終了しているのかどうかは検知しようがないので致命的
+//   → mouseの2つ目以降のpointerIdは無視しても実質問題ないか？
+
 export {
   type pointerid,
   Pointer,
