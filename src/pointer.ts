@@ -146,7 +146,9 @@ namespace Pointer {
     readonly geometry: Geometry;
     // pressure,tangentialPressure,tiltX,tiltY,twist,altitudeAngle,azimuthAngle
     // ,composedPath, ...
-    readonly target: Element | null,
+    readonly insetX: number; // offset from target bounding box. target is tracking target (event listener invoker)
+    readonly insetY: number; // offset from target bounding box. target is tracking target (event listener invoker)
+    readonly dispatcher: Element | null; // event dispatcher
   };
   export namespace Track {
     export function from(event: PointerEvent): Track {
@@ -164,6 +166,26 @@ namespace Pointer {
         buttons = [];
       }
       const geometry = Geometry.of(event);
+
+      const dispatcher = (event.target instanceof Element) ? event.target : null;
+      let insetX = Number.NaN;
+      let insetY = Number.NaN;
+
+      if (!!dispatcher) {
+        insetX = event.offsetX;
+        insetY = event.offsetY;
+      }
+
+      // targetはcurrentTargetの子孫である可能性（すなわちevent.offsetX/YがcurrentTargetの座標ではない可能性）
+      if (!!dispatcher && !!event.currentTarget && (event.currentTarget !== dispatcher)) {
+        // ここに分岐するのは、pointerdownの時のみ（pointer captureを使用しているので）
+        const currentTargetBoundingBox = (event.currentTarget as Element).getBoundingClientRect();
+        const targetBoundingBox = (dispatcher as Element).getBoundingClientRect();
+        const { x, y } = Geometry2d.Point.distanceBetween(currentTargetBoundingBox, targetBoundingBox);
+        insetX = insetX + x;
+        insetY = insetY + y;
+      }
+
       return Object.freeze({
         pointer,
         timestamp: event.timeStamp,
@@ -171,7 +193,9 @@ namespace Pointer {
         modifiers,
         buttons,
         geometry,
-        target: (event.target instanceof Element) ? event.target : null,
+        insetX,
+        insetY,
+        dispatcher,
       });
     }
   }
@@ -316,7 +340,42 @@ namespace Pointer {
     }
   }
 
-  //XXX ターゲットを問わない（ElementかWindow）Trackerを追加（pointerenterで追跡開始）
+  export interface TrackingTask {
+    readonly pointer: Pointer.Identification;
+    readonly target: Element | null, // PointerCaptureの場合は必ずElement その他の場合でviewportを監視している場合はnull それ以外ではElement
+    readonly stream: ReadableStream<Track>;
+    readonly [Symbol.asyncIterator]: () => AsyncGenerator<Track, void, void>;
+    readonly consume: (ontrack?: (track: Track) => void) => Promise<TrackingResult>;
+  }
+
+  export type DetectedCallback = (tracks: TrackingTask) => (void | Promise<void>);
+
+  export type DetectionFilterSource = {
+    pointerType?: Array<string>,
+    primaryPointer?: boolean,
+
+    custom?: (event: PointerEvent) => boolean,// 位置でフィルタとか、composedPath()でフィルタとか、
+    disableDefaultFilter?: boolean,
+  };
+
+  export type DetectionOptions = {
+
+    filter?: DetectionFilterSource,
+
+    highPrecision?: boolean,
+
+    setTouchActionNone?: boolean, // trueにする場合タブレット等でスクロール手段がなくなるので注意。スクロールが必要な場合は自前でスクロールを実装すること
+
+  };
+
+  export function observe(target: Element, callback: DetectedCallback, options: DetectionOptions = {}): void {
+    //TODO
+  }
+
+  export function unobserve(target: Element): void {
+    //TODO
+  }
+
 }
 
 export {

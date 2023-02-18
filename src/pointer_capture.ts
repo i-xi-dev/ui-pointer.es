@@ -30,21 +30,6 @@ import { type pointerid, Pointer } from "./pointer";
 //     - 通常は1だが2以上になることがある: page-break以外のbreak (regionは廃止されたのでcolumnだけか？)
 
 function _pointerCaptureTrackFrom(event: PointerEvent, startTrack: PointerCapture.Track | null, prevTrack: PointerCapture.Track | null): PointerCapture.Track {
-  const offsetFromTarget = {
-    x: event.offsetX,
-    y: event.offsetY,
-  };
-
-  // targetはcurrentTargetの子孫である可能性（すなわちevent.offsetX/YがcurrentTargetの座標ではない可能性）
-  if (!!event.target && !!event.currentTarget && (event.currentTarget !== event.target)) {
-    // ここに分岐するのは、pointerdownの時のみ（pointer captureを使用しているので）
-    const currentTargetBoundingBox = (event.currentTarget as Element).getBoundingClientRect();
-    const targetBoundingBox = (event.target as Element).getBoundingClientRect();
-    const { x, y } = Geometry2d.Point.distanceBetween(currentTargetBoundingBox, targetBoundingBox);
-    offsetFromTarget.x = offsetFromTarget.x + x;
-    offsetFromTarget.y = offsetFromTarget.y + y;
-  }
-
   let trackingPhase: PointerCapture.Phase;
   switch (event.type) {
     case "pointerdown":
@@ -68,7 +53,6 @@ function _pointerCaptureTrackFrom(event: PointerEvent, startTrack: PointerCaptur
 
   const baseTrack = Pointer.Track.from(event);
   return Object.assign({
-    offsetFromTarget,
     trackingPhase,
     relativeX,
     relativeY,
@@ -107,7 +91,7 @@ class _PointerCaptureFilter {
   readonly #primaryPointer: boolean;
   readonly #customFilter: (event: PointerEvent) => boolean;
   readonly #disableDefaultFilter: boolean;
-  constructor(filterSource: PointerCapture.AutoCaptureFilterSource = {}) {
+  constructor(filterSource: Pointer.DetectionFilterSource = {}) {
     this.#pointerTypes = Array.isArray(filterSource.pointerType) ? filterSource.pointerType : [Pointer.Type.MOUSE, Pointer.Type.PEN, Pointer.Type.TOUCH];
     this.#primaryPointer = (filterSource.primaryPointer === true);
     this.#customFilter = (typeof filterSource.custom === "function") ? filterSource.custom : () => true;
@@ -161,7 +145,7 @@ class _PointerCaptureTarget {
   readonly #eventListenerAborter: AbortController;
   readonly #trackingMap: Map<pointerid, _PointerCaptureTracking>;// ブラウザのpointer captureの挙動により、最大サイズ1とする
 
-  constructor(target: Element, callback: PointerCapture.AutoCapturedCallback, options: PointerCapture.AutoCaptureOptions) {
+  constructor(target: Element, callback: Pointer.DetectedCallback, options: Pointer.DetectionOptions) {
     this.#target = target;
     this.#filter = new _PointerCaptureFilter(options?.filter);
     this.#highPrecision = (options.highPrecision === true) && !!(new PointerEvent("test")).getCoalescedEvents;// safariが未実装:getCoalescedEvents
@@ -273,7 +257,7 @@ class _PointerCaptureTarget {
     this.#trackingMap.clear();
   }
 
-  #afterCapture(event: PointerEvent, callback: PointerCapture.AutoCapturedCallback): void {
+  #afterCapture(event: PointerEvent, callback: Pointer.DetectedCallback): void {
     const pointer = Pointer.Identification.of(event);
     const tracking = new _PointerCaptureTracking(pointer, this.#target, this.#eventListenerAborter.signal);
     this.#trackingMap.set(event.pointerId, tracking);
@@ -333,51 +317,20 @@ namespace PointerCapture {
   export type Phase = typeof Phase[keyof typeof Phase];
 
   export interface Track extends Pointer.Track {
-    readonly offsetFromTarget: Geometry2d.Point; // offset from target bounding box
     readonly trackingPhase: Phase,
     readonly relativeX: number; // 始点からの相対位置
     readonly relativeY: number; // 始点からの相対位置
   }
 
   export interface TrackingResult extends Pointer.TrackingResult {
-    /** @experimetal */
+    /** @experimental */
     wentOutOfHitRegion: boolean; // 終了時点でhit testをパスするか
-    /** @experimetal */
+    /** @experimental */
     wentOutOfBoundingBox: boolean; // 終了時点でbounding boxの外に出ているか（bounding boxが移動/リサイズした等には関知しない）
-    //XXX streamを読んでる側で取得可能なのでどこまで持たせるか
+    //XXX 上記いずれもstreamを読んでる側で取得可能の為不要では
   }
 
-  export interface CapturedPointerTracks {
-    readonly pointer: Pointer.Identification;
-    readonly target: Element,
-    readonly stream: ReadableStream<Track>;
-    readonly [Symbol.asyncIterator]: () => AsyncGenerator<Track, void, void>;
-    readonly consume: (ontrack?: (track: Track) => void) => Promise<TrackingResult>;
-  }
-
-  export type AutoCapturedCallback = (tracks: CapturedPointerTracks) => (void | Promise<void>);
-
-  export type AutoCaptureFilterSource = {
-    pointerType?: Array<string>,
-    primaryPointer?: boolean,
-
-    custom?: (event: PointerEvent) => boolean,// 位置でフィルタとか、composedPath()でフィルタとか、
-    disableDefaultFilter?: boolean,
-  };
-
-  export type AutoCaptureOptions = {
-
-    filter?: AutoCaptureFilterSource,
-
-    highPrecision?: boolean,
-
-    setTouchActionNone?: boolean, // trueにする場合タブレット等でスクロール手段がなくなるので注意。スクロールが必要な場合は自前でスクロールを実装すること
-
-    //XXX 終了条件を設定可にする 今はmouseはボタンは1つも押していない、pen,touchは接触を失った
-    //    開始条件はfilterの外に出す
-  };
-
-  export function setAutoCapture(target: Element, callback: AutoCapturedCallback, options: AutoCaptureOptions = {}): void {
+  export function setAutoCapture(target: Element, callback: Pointer.DetectedCallback, options: Pointer.DetectionOptions = {}): void {
     const tracker = new _PointerCaptureTarget(target, callback, options);
     _pointerCaptureTargetRegistry.set(target, tracker);
   }
@@ -407,6 +360,7 @@ namespace PointerCapture {
 // - pointerrawupdate設定可にする
 // - callbackでなく、{ start(track) => {}, progress(track) => {}, end(track) => {} }の方が便利か？
 //   trackに直前のtrackとの差分なんかも持たせる？
+// - 終了条件を設定可にする？（今はmouseはボタンは1つも押していない、pen,touchは接触を失った）
 
 export {
   PointerCapture,

@@ -225,10 +225,10 @@ createApp({
       const result = await capturedPointerTracks.consume((track) => {
         lastTrack = track;
         const gridElt = this.$refs.ref1;
-        this.dragTarget.dragXInBoundingBox = track.offsetFromTarget.x;console.log(track.offsetFromTarget.x)
-        this.dragTarget.dragYInBoundingBox = track.offsetFromTarget.y;
-        this.dragTarget.dragXScrollContent = track.offsetFromTarget.x + gridElt.scrollLeft;
-        this.dragTarget.dragYScrollContent = track.offsetFromTarget.y + gridElt.scrollTop;
+        this.dragTarget.dragXInBoundingBox = track.insetX;
+        this.dragTarget.dragYInBoundingBox = track.insetY;
+        this.dragTarget.dragXScrollContent = track.insetX + gridElt.scrollLeft;
+        this.dragTarget.dragYScrollContent = track.insetY + gridElt.scrollTop;
         const cindex = Math.floor((this.dragTarget.dragXScrollContent - this.xSpace) / this.colWidth);
         this.dragTarget.dragoverColIndex = Math.min((this.colCount - 1), Math.max(0, cindex));
         const rindex = Math.floor((this.dragTarget.dragYScrollContent - this.ySpace) / this.rowHeight);

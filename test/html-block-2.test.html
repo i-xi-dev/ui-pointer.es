@@ -37,15 +37,15 @@ let startScrollY = 0;
 
 function ontrack(track, target) {
   if (track.trackingPhase === "start") {
-    startPointerX = track.offsetFromTarget.x;
-    startPointerY = track.offsetFromTarget.y;
+    startPointerX = track.insetX;
+    startPointerY = track.insetY;
     startScrollX = target.scrollLeft;
     startScrollY = target.scrollTop;
     target.classList.add("xx-active");
   }
   else if (track.trackingPhase === "progress") {
-    movementX = startPointerX - track.offsetFromTarget.x;
-    movementY = startPointerY - track.offsetFromTarget.y;
+    movementX = startPointerX - track.insetX;
+    movementY = startPointerY - track.insetY;
 
     target.scroll(startScrollX + movementX, startScrollY + movementY);
   }
