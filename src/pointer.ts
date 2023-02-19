@@ -365,7 +365,7 @@ namespace Pointer {
     constructor(filterSource: DetectionFilterSource = {}) {
       this._pointerTypes = Array.isArray(filterSource.pointerType) ? filterSource.pointerType : [ Pointer.Type.MOUSE, Pointer.Type.PEN, Pointer.Type.TOUCH ];
       this._primaryPointer = (filterSource.primaryPointer === true);
-      this._customFilter = (typeof filterSource.custom === "function") ? filterSource.custom : () => true;
+      this._customFilter = (typeof filterSource.custom === "function") ? filterSource.custom : (): boolean => true;
       this._disableDefaultFilter = (filterSource.disableDefaultFilter === true);
     }
     abstract filter(event: PointerEvent): boolean;
