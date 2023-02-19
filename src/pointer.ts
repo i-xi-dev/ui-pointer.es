@@ -272,22 +272,19 @@ namespace Pointer {
       }
     }
 
-    readAll(ontrack?: (track: T) => void): Promise<TrackingResult<T>> {
-      return new Promise(async (resolve, reject) => {
-        try {
-          for await (const track of this.tracks()) {
-            if (ontrack) {
-              ontrack(track);
-            }
-          }
+    async readAll(ontrack?: (track: T) => void): Promise<TrackingResult<T>> {
+      // try {
+      for await (const track of this.tracks()) {
+        if (ontrack) {
+          ontrack(track);
+        }
+      }
 
-          resolve(this.#result as TrackingResult<T>);
-          return;
-        }
-        catch (exception) {
-          reject(exception);
-        }
-      });
+      return this.#result as TrackingResult<T>;
+      // }
+      // catch (exception) {
+      //   throw exception;
+      // }
     }
 
     protected _currentResult(): TrackingResult<T> {
