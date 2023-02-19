@@ -123,7 +123,7 @@ namespace Pointer {
   export type Modifier = typeof Modifier[keyof typeof Modifier];
 
   export const MouseButton = {
-    //LEFT: "left", stateがcontactかどうか
+    // LEFT: "left", stateがcontactかどうか
     MIDDLE: "middle",
     RIGHT: "right",
     X1: "x1",
@@ -149,7 +149,7 @@ namespace Pointer {
     readonly insetX: number; // offset from target bounding box. target is tracking target (event listener invoker)
     readonly insetY: number; // offset from target bounding box. target is tracking target (event listener invoker)
     readonly dispatcher: Element | null; // event dispatcher
-  };
+  }
 
   export interface TrackingResult<T extends Track> {
     readonly pointer: Identification;
@@ -168,8 +168,8 @@ namespace Pointer {
     #firstAppended: T | null = null;
     #lastAppended: T | null = null;
     #duration: milliseconds = 0;
-    #absoluteX: number = 0;
-    #absoluteY: number = 0;
+    #absoluteX = 0;
+    #absoluteY = 0;
 
     constructor(pointer: Identification, signal: AbortSignal) {
       this.#pointer = pointer;
@@ -201,7 +201,7 @@ namespace Pointer {
     }
 
     terminate(): void {
-      if (!!this.#controller) {
+      if (this.#controller) {
         this.#controller.close();
       }
     }
@@ -228,7 +228,7 @@ namespace Pointer {
       let insetX = Number.NaN;
       let insetY = Number.NaN;
 
-      if (!!dispatcher) {
+      if (dispatcher) {
         insetX = event.offsetX;
         insetY = event.offsetY;
       }
@@ -237,7 +237,7 @@ namespace Pointer {
       if (!!dispatcher && !!event.currentTarget && (event.currentTarget !== dispatcher)) {
         // ここに分岐するのは、pointerdownの時のみ（pointer captureを使用しているので）
         const currentTargetBoundingBox = (event.currentTarget as Element).getBoundingClientRect();
-        const targetBoundingBox = (dispatcher as Element).getBoundingClientRect();
+        const targetBoundingBox = dispatcher.getBoundingClientRect();
         const { x, y } = Geometry2d.Point.distanceBetween(currentTargetBoundingBox, targetBoundingBox);
         insetX = insetX + x;
         insetY = insetY + y;
@@ -257,12 +257,12 @@ namespace Pointer {
     }
 
     append(event: PointerEvent): void {
-      if (!!this.#controller) {
+      if (this.#controller) {
         const track: T = this._trackFromPointerEvent(event);
         if (!this.#firstAppended) {
           this.#firstAppended = track;
         }
-        if (!!this.#lastAppended) {
+        if (this.#lastAppended) {
           this.#duration = (this.#lastAppended.timestamp - this.#firstAppended.timestamp);
           this.#absoluteX = this.#absoluteX + Math.abs(this.#lastAppended.geometry.x - track.geometry.x);
           this.#absoluteY = this.#absoluteY + Math.abs(this.#lastAppended.geometry.y - track.geometry.y);
@@ -276,7 +276,7 @@ namespace Pointer {
       return new Promise(async (resolve, reject) => {
         try {
           for await (const track of this.tracks()) {
-            if (!!ontrack) {
+            if (ontrack) {
               ontrack(track);
             }
           }
@@ -343,7 +343,7 @@ namespace Pointer {
     pointerType?: Array<string>,
     primaryPointer?: boolean,
 
-    custom?: (event: PointerEvent) => boolean,// 位置でフィルタとか、composedPath()でフィルタとか、
+    custom?: (event: PointerEvent) => boolean, // 位置でフィルタとか、composedPath()でフィルタとか、
     disableDefaultFilter?: boolean,
   };
 
@@ -363,7 +363,7 @@ namespace Pointer {
     protected readonly _customFilter: (event: PointerEvent) => boolean;
     protected readonly _disableDefaultFilter: boolean;
     constructor(filterSource: DetectionFilterSource = {}) {
-      this._pointerTypes = Array.isArray(filterSource.pointerType) ? filterSource.pointerType : [Pointer.Type.MOUSE, Pointer.Type.PEN, Pointer.Type.TOUCH];
+      this._pointerTypes = Array.isArray(filterSource.pointerType) ? filterSource.pointerType : [ Pointer.Type.MOUSE, Pointer.Type.PEN, Pointer.Type.TOUCH ];
       this._primaryPointer = (filterSource.primaryPointer === true);
       this._customFilter = (typeof filterSource.custom === "function") ? filterSource.custom : () => true;
       this._disableDefaultFilter = (filterSource.disableDefaultFilter === true);
@@ -449,7 +449,7 @@ namespace Pointer {
 
   export function unobserve(target: Element): void {
     const tracker = _pointerTrackingTargetRegistry.get(target);
-    if (!!tracker) {
+    if (tracker) {
       tracker.disconnect();
       _pointerTrackingTargetRegistry.delete(target);
     }
@@ -540,7 +540,7 @@ class _PointerTrackingTarget extends Pointer.TrackingTarget<Pointer.Track> {
 
 const _pointerTrackingTargetRegistry: WeakMap<Element, _PointerTrackingTarget> = new WeakMap();
 
-//既知の問題
+// 既知の問題
 // - Firefox
 //   mouseで2つのpointerIdが同時にactiveになる事がある
 //   再現条件不明 適当にマウス動かしながらタッチしまくると発生する
@@ -549,8 +549,8 @@ const _pointerTrackingTargetRegistry: WeakMap<Element, _PointerTrackingTarget> =
 //   → mouseの2つ目以降のpointerIdは無視しても実質問題ないか？
 //   → penだとどうなるか要確認
 
-//ターゲットのboundingBox外に位置する子孫の扱い
-//Trackingは開始する仕様とする
+// ターゲットのboundingBox外に位置する子孫の扱い
+// Trackingは開始する仕様とする
 // - ターゲットの子孫が何らかのCSS(position:absoluteなど)で、ターゲットのboundingBoxの外にある時
 //   - その子孫でPointerEventが起きれば、当然ターゲットに伝播する
 //   - このとき、PointerEventの座標でelementsFromPoint()したとき、ターゲットはヒットしない

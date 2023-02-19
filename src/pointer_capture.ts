@@ -1,6 +1,6 @@
 import { type pointerid, Pointer } from "./pointer";
 
-//既知の問題
+// 既知の問題
 // - Chrome, Edge
 //   ターゲット要素のスクロールバーでpointerdownしたとき、pointermoveのtrackがpushされない
 //   結果は取得できる（pointer capture中にpointermoveが発火しない為）
@@ -29,7 +29,7 @@ import { type pointerid, Pointer } from "./pointer";
 //     - 通常は1だが2以上になることがある: page-break以外のbreak (regionは廃止されたのでcolumnだけか？)
 
 class _PointerCaptureTracking extends Pointer.Tracking<PointerCapture.Track> {
-  readonly #target: Element;//XXX 要る？
+  readonly #target: Element;// XXX 要る？
 
   constructor(pointer: Pointer.Identification, target: Element, signal: AbortSignal) {
     super(pointer, signal);
@@ -55,24 +55,24 @@ class _PointerCaptureTracking extends Pointer.Tracking<PointerCapture.Track> {
 
     let trackingPhase: PointerCapture.Phase;
     switch (event.type) {
-      case "pointerdown":
-        trackingPhase = PointerCapture.Phase.START;
-        break;
-      case "pointermove":
-        trackingPhase = PointerCapture.Phase.PROGRESS;
-        break;
-      case "pointerup":
-      case "pointercancel":
-        trackingPhase = PointerCapture.Phase.END;
-        break;
-      default:
-        trackingPhase = PointerCapture.Phase.UNDEFINED;
-        // pointerup,pointercancelの後は_PointerTrack.fromPointerEventを呼んでいないのでありえない
-        break;
+    case "pointerdown":
+      trackingPhase = PointerCapture.Phase.START;
+      break;
+    case "pointermove":
+      trackingPhase = PointerCapture.Phase.PROGRESS;
+      break;
+    case "pointerup":
+    case "pointercancel":
+      trackingPhase = PointerCapture.Phase.END;
+      break;
+    default:
+      trackingPhase = PointerCapture.Phase.UNDEFINED;
+      // pointerup,pointercancelの後は_PointerTrack.fromPointerEventを呼んでいないのでありえない
+      break;
     }
 
-    const relativeX = !!this._firstTrack ? (event.clientX - this._firstTrack.geometry.x) : 0;
-    const relativeY = !!this._firstTrack ? (event.clientY - this._firstTrack.geometry.y) : 0;
+    const relativeX = this._firstTrack ? (event.clientX - this._firstTrack.geometry.x) : 0;
+    const relativeY = this._firstTrack ? (event.clientY - this._firstTrack.geometry.y) : 0;
 
     return Object.assign({
       trackingPhase,
@@ -103,7 +103,7 @@ class _PointerCaptureFilter extends Pointer.DetectionFilter {
   }
 }
 
-function _hitTest(element: Element, { x, y, rx, ry }: Pointer.Geometry): { insideHitRegion: boolean, insideBoundingBox: boolean } {// x,yはviewport座標
+function _hitTest(element: Element, { x, y, rx, ry }: Pointer.Geometry): { insideHitRegion: boolean, insideBoundingBox: boolean } { // x,yはviewport座標
   const root = element.getRootNode();
   if ((root instanceof Document) || (root instanceof ShadowRoot)) {
     const insideHitRegion = root.elementsFromPoint((x - rx), (y - ry)).includes(element)
@@ -196,7 +196,7 @@ class _PointerCaptureTarget extends Pointer.TrackingTarget<PointerCapture.Track>
       if (event.isTrusted !== true) {
         return;
       }
-      //XXX hasPointerCaptureがfalseなら追跡終了する？ pointermove以外でも
+      // XXX hasPointerCaptureがfalseなら追跡終了する？ pointermove以外でも
       this._pushTrack(event);
     }) as EventListener, this._passiveOptions);
 
@@ -259,7 +259,7 @@ namespace PointerCapture {
     wentOutOfHitRegion: boolean; // 終了時点でhit testをパスするか
     /** @experimental */
     wentOutOfBoundingBox: boolean; // 終了時点でbounding boxの外に出ているか（bounding boxが移動/リサイズした等には関知しない）
-    //XXX 上記いずれもstreamを読んでる側で取得可能の為不要では
+    // XXX 上記いずれもstreamを読んでる側で取得可能の為不要では
   }
 
   export function setAutoCapture(target: Element, callback: Pointer.DetectedCallback<Track>, options: Pointer.DetectionOptions = {}): void {
@@ -269,14 +269,14 @@ namespace PointerCapture {
 
   export function clearAutoCapture(target: Element): void {
     const tracker = _pointerCaptureTargetRegistry.get(target);
-    if (!!tracker) {
+    if (tracker) {
       tracker.disconnect();
       _pointerCaptureTargetRegistry.delete(target);
     }
   }
 }
 
-//備忘
+// 備忘
 // - 同時追跡数はとりあえず1固定にしている
 //     ブラウザのpointer captureが複数captureに対応してないので。（複数captureは可能だが、アクティブになるのは直近のcapture 1つのみ。releaseしたらその前のcaptureがアクティブになるが同時にアクティブにはならない）
 // - 非trustedなPointerEventは無条件で無視している
@@ -287,7 +287,7 @@ namespace PointerCapture {
 // - lostpointercaptureは使用しないことにした
 //     - Chromeで発火しない場合があるため（gotopointercaptureとおそらく同じ問題）
 
-//将来検討
+// 将来検討
 // - pointerrawupdate設定可にする
 // - callbackでなく、{ start(track) => {}, progress(track) => {}, end(track) => {} }の方が便利か？
 //   trackに直前のtrackとの差分なんかも持たせる？
