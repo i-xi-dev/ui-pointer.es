@@ -1,0 +1,13 @@
+{
+  "entryPoints": [
+    "./src/index.ts"
+  ],
+  "excludeExternals": false,
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "exclude": "**/*.test.ts",
+  "out": "docs/reference",
+  "readme": "none",
+  "includeVersion": true,
+  "disableSources": true
+}
