@@ -173,7 +173,7 @@ namespace Pointer {
 
     constructor(pointer: Identification, signal: AbortSignal) {
       this.#pointer = pointer;
-      const start = (controller: ReadableStreamDefaultController<T>) => {
+      const start = (controller: ReadableStreamDefaultController<T>): void => {
         signal.addEventListener("abort", () => {
           controller.close();
         }, { passive: true });

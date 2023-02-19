@@ -1,4 +1,4 @@
-import { type pointerid, Pointer } from "./pointer";
+import { Pointer } from "./pointer";
 
 // 既知の問題
 // - Chrome, Edge
