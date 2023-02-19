@@ -547,6 +547,15 @@ const _pointerTrackingTargetRegistry: WeakMap<Element, _PointerTrackingTarget> =
 //   で、2つ目はpointerleave無しにいつのまにか消える（pointermoveが発生しなくなる）ので、Trackingが終了しないまま残ってしまう
 //   発生する状況は限定的なものの、残ったTrackingが終了しているのかどうかは検知しようがないので致命的
 //   → mouseの2つ目以降のpointerIdは無視しても実質問題ないか？
+//   → penだとどうなるか要確認
+
+//ターゲットのboundingBox外に位置する子孫の扱い
+//Trackingは開始する仕様とする
+// - ターゲットの子孫が何らかのCSS(position:absoluteなど)で、ターゲットのboundingBoxの外にある時
+//   - その子孫でPointerEventが起きれば、当然ターゲットに伝播する
+//   - このとき、PointerEventの座標でelementsFromPoint()したとき、ターゲットはヒットしない
+//   - IntersectionObserverだとどうなる？
+//   - 
 
 export {
   type pointerid,

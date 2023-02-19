@@ -19,6 +19,9 @@
   position: absolute;
   width: var(--width);
 }
+*.p1.contact {
+  box-shadow: 0 0 0 16px #f008;
+}
 *#test {
   background-color: #8f9a96;
   cursor: crosshair;
@@ -84,6 +87,13 @@ function onprogress(track, target) {
     tis.set(pointerId, ti);
   }
   //TODO touchの場合releasePointerCaptureするか
+
+  if (track.state === "contact") {
+    ti.classList.add("contact");
+  }
+  else {
+    ti.classList.remove("contact");
+  }
 
   ti.style.setProperty("left", `${track.insetX}px`);
   ti.style.setProperty("top", `${track.insetY}px`);
