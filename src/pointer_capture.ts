@@ -249,7 +249,7 @@ namespace PointerCapture {
   export type Phase = typeof Phase[keyof typeof Phase];
 
   export interface Track extends Pointer.Track {
-    readonly trackingPhase: Phase,
+    readonly trackingPhase: Phase;
     readonly relativeX: number; // 始点からの相対位置
     readonly relativeY: number; // 始点からの相対位置
   }

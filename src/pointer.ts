@@ -140,9 +140,9 @@ namespace Pointer {
   export interface Track {
     readonly pointer: Identification;
     readonly timestamp: number;
-    readonly state: State,
-    readonly modifiers: Array<Modifier>,
-    readonly buttons: (Array<MouseButton> | Array<PenButton>),
+    readonly state: State;
+    readonly modifiers: Array<Modifier>;
+    readonly buttons: (Array<MouseButton> | Array<PenButton>);
     readonly geometry: Geometry;
     // pressure,tangentialPressure,tiltX,tiltY,twist,altitudeAngle,azimuthAngle
     // ,composedPath, ...
@@ -331,7 +331,7 @@ namespace Pointer {
 
   export interface TrackingTask<T extends Track> {
     readonly pointer: Pointer.Identification;
-    readonly target: Element | null, // PointerCaptureの場合は必ずElement その他の場合でviewportを監視している場合はnull それ以外ではElement
+    readonly target: Element | null; // PointerCaptureの場合は必ずElement その他の場合でviewportを監視している場合はnull それ以外ではElement
     readonly stream: ReadableStream<T>;
     readonly [Symbol.asyncIterator]: () => AsyncGenerator<T, void, void>;
     readonly consume: (ontrack?: (track: T) => void) => Promise<TrackingResult<T>>;
