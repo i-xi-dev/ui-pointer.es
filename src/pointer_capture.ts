@@ -223,6 +223,8 @@ class _PointerCaptureTarget extends Pointer.TrackingTarget<PointerCapture.Track>
     const pointer = Pointer.Identification.of(event);
     const tracking = new _PointerCaptureTracking(pointer, this.target, this._signal);
     this._trackingMap.set(event.pointerId, tracking);
+
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     callback({
       pointer,
       target: this.target,

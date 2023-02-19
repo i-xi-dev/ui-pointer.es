@@ -151,7 +151,8 @@ namespace Pointer {
     readonly dispatcher: Element | null; // event dispatcher
   }
 
-  export interface TrackingResult<T extends Track> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  export interface TrackingResult<T extends Track> {// XXX no-unused-vars
     readonly pointer: Identification;
     readonly duration: milliseconds;
     readonly startGeometry: Geometry; // x/yはviewport座標
@@ -521,6 +522,8 @@ class _PointerTrackingTarget extends Pointer.TrackingTarget<Pointer.Track> {
     const pointer = Pointer.Identification.of(event);
     const tracking = new _PointerTracking(pointer, this._signal);
     this._trackingMap.set(event.pointerId, tracking);
+
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     callback({
       pointer,
       target: this.target,
