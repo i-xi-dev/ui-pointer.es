@@ -427,13 +427,9 @@ namespace Pointer {
       }
     }
 
-    protected _pushEndTrack(event: PointerEvent): void {
+    protected _terminateTracking(event: PointerEvent): void {
       if (this._trackingMap.has(event.pointerId) === true) {
         const tracking = this._trackingMap.get(event.pointerId) as Tracking<T>;
-  
-        tracking.append(event);
-
-        // 分離する？
         tracking.terminate();
         this._trackingMap.delete(event.pointerId);
       }
@@ -506,14 +502,16 @@ class _PointerTrackingTarget extends Pointer.TrackingTarget<Pointer.Track> {
       if (event.isTrusted !== true) {
         return;
       }
-      this._pushEndTrack(event);
+      this._pushTrack(event);
+      this._terminateTracking(event);
     }) as EventListener, this._passiveOptions);
 
     this.target.addEventListener("pointercancel", ((event: PointerEvent) => {
       if (event.isTrusted !== true) {
         return;
       }
-      this._pushEndTrack(event);
+      this._pushTrack(event);
+      this._terminateTracking(event);
     }) as EventListener, this._passiveOptions);
 
   }
@@ -561,3 +559,5 @@ export {
   type pointerid,
   Pointer,
 };
+
+//TODO 公開はPointerObserverのみにする

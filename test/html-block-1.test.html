@@ -64,7 +64,7 @@ function ontrack(track, target) {
     ti1 = document.getElementById("ti1");
   }
 
-  if (track.trackingPhase !== "start" && track.trackingPhase !== "progress") {
+  if (track.trackingPhase !== "start" && track.trackingPhase !== "progress") {//TODO これはforループの後でなければならない
     if (!!ti1 && ti1.isConnected) {
       ti1.remove();
     }
@@ -86,7 +86,7 @@ PointerCapture.setAutoCapture(test, async (capturedPointerTracks) => {
   test.classList.add("captured");
   const target = capturedPointerTracks.target;
   const result = await capturedPointerTracks.consume((track) => {
-    console.log(track);
+    //console.log(track);
     ontrack(track, target);
   });
   test.classList.remove("captured");

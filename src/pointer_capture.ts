@@ -5,6 +5,7 @@ import { Pointer } from "./pointer";
 //   ターゲット要素のスクロールバーでpointerdownしたとき、pointermoveのtrackがpushされない
 //   結果は取得できる（pointer capture中にpointermoveが発火しない為）
 //   おそらくchromiumの問題
+//   $18
 //
 // - Firefox
 //   mouse操作中にタッチすると、マウスのカーソルがタッチ地点に移動する
@@ -27,6 +28,7 @@ import { Pointer } from "./pointer";
 //     - 0: displayがnone,contents,...
 //     - 1以上: displayがinline,...
 //     - 通常は1だが2以上になることがある: page-break以外のbreak (regionは廃止されたのでcolumnだけか？)
+//
 
 class _PointerCaptureTracking extends Pointer.Tracking<PointerCapture.Track> {
   readonly #target: Element;// XXX 要る？
@@ -164,7 +166,15 @@ class _PointerCaptureTarget extends Pointer.TrackingTarget<PointerCapture.Track>
         this._pushTrack(event);
         return;
       }
-      else if (this._trackingMap.size > 0) {
+
+      //[$31[
+      // 暗黙のpointer captureのrelease しかし、$31対策としては意味ないかも
+      if ((event.target as Element).hasPointerCapture(event.pointerId) === true) {
+        (event.target as Element).releasePointerCapture(event.pointerId);
+      }
+      //]$31]
+
+      if (this._trackingMap.size > 0) {
         // 異なるpointer
         // ブラウザの挙動として、新しいpointer captureが生きている間は古いほうは基本無視されるので、同時captureはしないこととする
         return;
@@ -177,11 +187,6 @@ class _PointerCaptureTarget extends Pointer.TrackingTarget<PointerCapture.Track>
       }
 
       // event.preventDefault();// 中クリックの自動スクロールがpointerdown
-
-      // 暗黙のpointer captureのrelease //XXX 不要か？
-      if ((event.target as Element).hasPointerCapture(event.pointerId) === true) {
-        (event.target as Element).releasePointerCapture(event.pointerId);
-      }
 
       this.target.setPointerCapture(event.pointerId);
       if (this.target.hasPointerCapture(event.pointerId) === true) {
@@ -196,7 +201,12 @@ class _PointerCaptureTarget extends Pointer.TrackingTarget<PointerCapture.Track>
       if (event.isTrusted !== true) {
         return;
       }
-      // XXX hasPointerCaptureがfalseなら追跡終了する？ pointermove以外でも
+      //[$31[ これだけでは不足（領域外でpointerupが発火せずにpointer captureがreleaseされた場合、領域外のpointermoveはもうlistenできないので意味ない）
+      if (this.target.hasPointerCapture(event.pointerId) !== true) {
+        this._terminateTracking(event);
+        return;
+      }
+      //]$31]
       this._pushTrack(event);
     }) as EventListener, this._passiveOptions);
 
@@ -205,7 +215,8 @@ class _PointerCaptureTarget extends Pointer.TrackingTarget<PointerCapture.Track>
         return;
       }
       this.target.releasePointerCapture(event.pointerId); // この後暗黙にreleaseされる、おそらくここで明示的にreleasePointerCaptureしなくても問題ない
-      this._pushEndTrack(event);
+      this._pushTrack(event);
+      this._terminateTracking(event);
     }) as EventListener, this._passiveOptions);
 
     // mouseなら左を押しているし、pen,touchなら接触しているので、基本的に発火されないはず（先にpointerupが発生する）
@@ -215,8 +226,24 @@ class _PointerCaptureTarget extends Pointer.TrackingTarget<PointerCapture.Track>
         return;
       }
       this.target.releasePointerCapture(event.pointerId); // この後暗黙にreleaseされる、おそらくここで明示的にreleasePointerCaptureしなくても問題ない
-      this._pushEndTrack(event);
+      this._pushTrack(event);
+      this._terminateTracking(event);
     }) as EventListener, this._passiveOptions);
+
+    //[$31[ 
+    // $31ではlostpointercaptureは遅延発火するので、lostpointercaptureにするしかない
+    // ただし$18のケースで問題になる TODO スクロールバーがあったら警告するか
+    this.target.addEventListener("lostpointercapture", ((event: PointerEvent): void => {
+      if (event.isTrusted !== true) {
+        return;
+      }
+      console.log(`${event.pointerType}-lostpointercapture-${event.pointerId}`)
+      if (this.target.hasPointerCapture(event.pointerId) !== true) {
+        this._terminateTracking(event);
+        return;
+      }
+    }) as EventListener, this._passiveOptions);
+    //]$31]
   }
 
   #afterCapture(event: PointerEvent, callback: Pointer.DetectedCallback<PointerCapture.Track>): void {
@@ -288,6 +315,9 @@ namespace PointerCapture {
 //     - Chromeで発火しない場合があるため（mouseでtargetのスクロールバー上でpointerdownした場合とか）
 // - lostpointercaptureは使用しないことにした
 //     - Chromeで発火しない場合があるため（gotopointercaptureとおそらく同じ問題）
+// - $31 Chrome
+//   mouseでpointer capture中にtouchして、mouseをtargetの外に出しpointerupしてもpointerupが発火しない
+//   lostpointercaptureは、touchのpointerupの後、かつ、mouseが動く直前まで遅延される
 
 // 将来検討
 // - pointerrawupdate設定可にする
