@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Test: display:block</title>
+    <style>
+*.p1 {
+  --width: 1px;
+  --height: 1px;
+  background-color: #f00;
+  box-shadow: 0 0 0 4px #f004;
+  height: var(--height);
+  margin-left: calc(var(--width) * -0.5);
+  margin-top: calc(var(--height) * -0.5);
+  min-height: 1px;
+  min-width: 1px;
+  pointer-events: none;
+  position: absolute;
+  width: var(--width);
+}
+*#test {
+  background-color: #8f9a96;
+  cursor: crosshair;
+  height: 500px;
+  margin: 100px;
+  position: relative;
+  width: 500px;
+}
+*.test1inner {
+  background-color: #8f84;
+  height: 100px;
+  width: 100px;
+}
+*.test1inner.m {
+  margin: 0 100px;
+}
+*.test1inner.t {
+  transform: translate(50px, 150px);
+}
+*.test1inner.p {
+  bottom: 50px;
+  position: absolute;
+  right: 100px;
+}
+*.test1inner.p.p2 {
+  bottom: 150px;
+  right: -50px;
+}
+    </style>
+    <template id="template1">
+      <div class="p1"></div>
+    </template>
+    <script type="module">
+import { PointerObserver } from "../dist/index.js";
+const test = document.getElementById("test");
+
+function ontrack(trackSequence) {
+  // let ti1;
+  // if (track.trackingPhase === "start") {
+  //   ti1 = document.getElementById("template1").content.cloneNode(true).firstElementChild;
+  //   ti1.id = "ti1";
+  // }
+  // else {
+  //   ti1 = document.getElementById("ti1");
+  // }
+
+  // if (track.trackingPhase !== "start" && track.trackingPhase !== "progress") {//TODO これはforループの後でなければならない
+  //   if (!!ti1 && ti1.isConnected) {
+  //     ti1.remove();
+  //   }
+  //   return;
+  // }
+
+  // ti1.style.setProperty("left", `${track.insetX}px`);
+  // ti1.style.setProperty("top", `${track.insetY}px`);
+  // ti1.style.setProperty("--width", `${track.geometry.rx * 2}px`);
+  // ti1.style.setProperty("--height", `${track.geometry.ry * 2}px`);
+  // if (ti1.isConnected !== true) {
+  //   target.append(ti1);
+  // }
+}
+
+const o = new PointerObserver(async (trackSequence) => {
+  // trackSequence.target
+  console.log(`[START] pointerId:${trackSequence.pointerId}, startTime:${trackSequence.startTime}`);
+  for await (const track of trackSequence) {
+    console.log(`[-] pointerId:${trackSequence.pointerId}, duration:${trackSequence.duration}, movement:${JSON.stringify(trackSequence.movement)}`);
+    console.log(track);
+  }
+  console.log(`[END] pointerId:${trackSequence.pointerId}, duration:${trackSequence.duration}`);
+}, {});
+o.observe(test);
+    </script>
+  </head>
+  <body>
+    <div id="test">
+      <div class="test1inner m"></div>
+      <div class="test1inner t"></div>
+      <div class="test1inner p"></div>
+      <div class="test1inner p p2"></div>
+    </div>
+  </body>
+</html>
