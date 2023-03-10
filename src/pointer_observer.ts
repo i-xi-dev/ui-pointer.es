@@ -42,8 +42,6 @@ type PenButton = typeof PenButton[keyof typeof PenButton];
 interface PointerTrack {
   readonly timestamp: number;
   readonly pointerId: pointerid;
-  readonly pointerType: string;
-  readonly primaryPointer: boolean;
   //readonly trustedPointer: boolean;
   readonly pointerState: PointerState;
   readonly modifiers: Array<PointerModifier>;
@@ -85,8 +83,6 @@ namespace PointerTrack {
     return Object.freeze({
       timestamp: event.timeStamp,
       pointerId: event.pointerId,
-      pointerType: event.pointerType,
-      primaryPointer: event.isPrimary,
       pointerState: _pointerStateOf(event),
       modifiers: _pointerModifiersOf(event),
       buttons: (event.pointerType === PointerType.PEN) ? _penButtonsOf(event) : _mouseButtonsOf(event),
@@ -181,6 +177,8 @@ type PointerTrackListener<T extends PointerTrack> = (track: T) => void;
 
 interface PointerTrackSequence<T extends PointerTrack> {
   readonly pointerId: pointerid;
+  readonly pointerType: string;
+  readonly primaryPointer: boolean;// 途中で変わることはない？（タッチの場合pointerIdが変わる、マウスの場合pointerIdは変わらない、ペンが複数の場合は？）
   readonly startTime: number;
   readonly duration: number;
   readonly stream: ReadableStream<T>;
@@ -196,6 +194,8 @@ type PointerTrackSequenceOptions = {
 
 class _PointerTrackSequence implements PointerTrackSequence<PointerTrack> {
   readonly #pointerId: pointerid;
+  readonly #pointerType: string;
+  readonly #primaryPointer: boolean;
   readonly #stream: ReadableStream<PointerTrack>;
   readonly #target: Element;
   #controller: ReadableStreamDefaultController<PointerTrack> | null = null;
@@ -206,6 +206,8 @@ class _PointerTrackSequence implements PointerTrackSequence<PointerTrack> {
 
   constructor(event: PointerEvent, target: Element, options: PointerTrackSequenceOptions = {}) {
     this.#pointerId = event.pointerId;
+    this.#pointerType = event.pointerType;
+    this.#primaryPointer = event.isPrimary;
     const start = (controller: ReadableStreamDefaultController<PointerTrack>): void => {
       if (options.signal) {
         options.signal.addEventListener("abort", () => {
@@ -221,6 +223,12 @@ class _PointerTrackSequence implements PointerTrackSequence<PointerTrack> {
   }
   get pointerId(): pointerid {
     return this.#pointerId;
+  }
+  get pointerType(): string {
+    return this.#pointerType;
+  }
+  get primaryPointer(): boolean {
+    return this.#primaryPointer;
   }
   get startTime(): number {
     return this.#firstTrack ? this.#firstTrack.timestamp : Number.NaN;
@@ -374,17 +382,21 @@ class TargetObservation {
   }
   xxxx1(event: PointerEvent): void {
     let trackSequence: _PointerTrackSequence;
+
     if (event.composedPath().includes(this.#target) === true) {
       if (this.#trackSequences.has(event.pointerId) !== true) {
         trackSequence = new _PointerTrackSequence(event, this.#target);
-        this.#callback(trackSequence);
         this.#trackSequences.set(event.pointerId, trackSequence);
+        trackSequence._append(event);//TODO フィルタリングする
+        this.#callback(trackSequence);
       }
       else {
         trackSequence = this.#trackSequences.get(event.pointerId) as _PointerTrackSequence;
+        trackSequence._append(event);//TODO フィルタリングする
       }
-      trackSequence._append(event);//TODO フィルタリングする
+
       if (event.type === "pointercancel") {
+        this.#trackSequences.delete(event.pointerId);
         trackSequence._terminate();
       }
     }
@@ -403,9 +415,10 @@ class TargetObservation {
   }
 }
 
-//TODO touch*はキャンセルする
+//TODO optionsでtouchmove,contextmenuはキャンセルする
 
 //TODO optionsでpointercapture対応
+//TODO optionsで合成イベント対応
 
 class PointerObserver {
   readonly #callback: PointerObserverCallback;
