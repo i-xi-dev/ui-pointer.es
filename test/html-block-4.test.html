@@ -100,18 +100,12 @@ function onprogress(trackSequence, track) {
   }
 }
 
-//TODO penとtouchで画面から離した場合を検知できない（仕様ではpointercancelが発火するように読める？がchromeもfirefoxも発火しない）
-//     タッチはpointerupかつtouchの場合終了すればよさそう
-//     hover対応のペンがどうしようもない
-// → targetでpointerleaveをlistenするしかなさそう
-//  → pointerleaveにかぎらずtargetでlistenする？（そもそもwindowでlistenしたのは、各ブラウザに特定条件でtargetでpointereventが発火しない場合があるからなので、targetとwindow両方listenすれば当初の問題は解決すると思われる）
-
 const o = new PointerObserver(async (trackSequence) => {
   console.log(`[START] pointerId:${trackSequence.pointerId}, startTime:${trackSequence.startTime}`);
   onstart(trackSequence);
 
   for await (const track of trackSequence) {
-    console.log(`[-] pointerId:${trackSequence.pointerId}, duration:${trackSequence.duration}, movement:${JSON.stringify(trackSequence.movement)}`);
+    console.log(JSON.stringify(track));
     onprogress(trackSequence, track);
   }
 

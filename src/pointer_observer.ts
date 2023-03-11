@@ -62,6 +62,7 @@ interface PointerTrack {
     },
   },
   readonly target: Element | null;
+  readonly _type: string;//TODO
 }
 namespace PointerTrack {
   export function from(event: PointerEvent, target: Element): PointerTrack {
@@ -102,6 +103,7 @@ namespace PointerTrack {
         }),
       }),
       target,
+      _type: event.type,
     });
   }
 }
@@ -369,13 +371,28 @@ class ViewportPointerTrackingService {
 type PointerObserverCallback = (trackSequence: PointerTrackSequence<PointerTrack>) => void;
 
 class TargetObservation {
+  readonly #aborter: AbortController;
   readonly #target: Element;
   readonly #callback: PointerObserverCallback;
   readonly #trackSequences: Map<pointerid, PointerTrackSequence<PointerTrack>>;
   constructor(target: Element, callback: PointerObserverCallback) {
+    this.#aborter = new AbortController();
     this.#target = target;
     this.#callback = callback;
     this.#trackSequences = new Map();
+
+    const passiveOptions = {
+      passive: true,
+      signal: this.#aborter.signal,
+    };
+
+    this.#target.addEventListener("pointerleave", ((event: PointerEvent): void => {
+      this.xxxx1(event);//TODO track追加は不要かも（座標などはwindowのpointerup等とおそらく同じ。常時必ず同じかは？）
+    }) as EventListener, passiveOptions);
+
+    this.#target.addEventListener("pointerenter", ((event: PointerEvent): void => {
+      this.xxxx1(event);//TODO track追加は不要かも（座標などはwindowのpointermove等とおそらく同じ。常時必ず同じかは？）
+    }) as EventListener, passiveOptions);
   }
   get target(): Element {
     return this.#target;
@@ -395,7 +412,7 @@ class TargetObservation {
         trackSequence._append(event);//TODO フィルタリングする
       }
 
-      if (event.type === "pointercancel") {
+      if (["pointercancel", "pointerleave"].includes(event.type) === true) {
         this.#trackSequences.delete(event.pointerId);
         trackSequence._terminate();
       }
@@ -412,6 +429,7 @@ class TargetObservation {
 
   }
   dispose(): void {
+    this.#aborter.abort();
   }
 }
 
@@ -429,7 +447,7 @@ class PointerObserver {
   }
   observe(target: Element): void {
     const observation = new TargetObservation(target, this.#callback);
-    this.#service.addObservation(observation);
+    this.#service.addObservation(observation);//TODO 重複した場合
   }
   unobserve(target: Element): void {
 
