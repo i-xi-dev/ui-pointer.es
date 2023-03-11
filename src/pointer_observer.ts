@@ -180,7 +180,7 @@ type PointerTrackListener<T extends PointerTrack> = (track: T) => void;
 interface PointerTrackSequence<T extends PointerTrack> {
   readonly pointerId: pointerid;
   readonly pointerType: string;
-  readonly primaryPointer: boolean;// 途中で変わることはない？（タッチの場合pointerIdが変わる、マウスの場合pointerIdは変わらない、ペンが複数の場合は？）
+  readonly primaryPointer: boolean;// 途中で変わることはない（複数タッチしてプライマリを離した場合、タッチを全部離すまでプライマリは存在しなくなる）
   readonly startTime: number;
   readonly duration: number;
   readonly stream: ReadableStream<T>;

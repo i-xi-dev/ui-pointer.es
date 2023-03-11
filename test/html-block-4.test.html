@@ -5,22 +5,32 @@
     <title>Test: display:block</title>
     <style>
 *.p1 {
+  --color: #f80;
   --width: 1px;
   --height: 1px;
-  background-color: #f00;
-  box-shadow: 0 0 0 4px #f004;
+  background-color: var(--color);
   height: var(--height);
   margin-left: calc(var(--width) * -0.5);
   margin-top: calc(var(--height) * -0.5);
   min-height: 1px;
   min-width: 1px;
+  outline: 4px solid var(--color);
+  outline-offset: 4px;
   pointer-events: none;
   position: absolute;
+  user-select: none;
   width: var(--width);
+}
+*.p1.primary {
+  --color: #f00;
+}
+*.p1.contact {
+  outline-offset: 8px;
+  outline-width: 8px;
 }
 *.p1i1 {
   font-size: 12px;
-  transform: translate(10px, -30px);
+  transform: translate(10px, -40px);
   white-space: nowrap;
 }
 *#test {
@@ -87,6 +97,28 @@ function onprogress(trackSequence, track) {
   const ti = tiMap.get(id);
 
   const { fromTargetBoundingBox } = track.offset;
+  if (trackSequence.primaryPointer === true) {
+    if (ti.classList.contains("primary") !== true) {
+      ti.classList.add("primary");
+    }
+  }
+  else {
+    if (ti.classList.contains("primary") === true) {
+      ti.classList.remove("primary");
+    }
+  }
+
+  if (track.pointerState === "contact") {
+    if (ti.classList.contains("contact") !== true) {
+      ti.classList.add("contact");
+    }
+  }
+  else {
+    if (ti.classList.contains("contact") === true) {
+      ti.classList.remove("contact");
+    }
+  }
+
   ti.style.setProperty("left", `${fromTargetBoundingBox.x}px`);
   ti.style.setProperty("top", `${fromTargetBoundingBox.y}px`);
   ti.style.setProperty("--width", `${track.contact.radiusX * 2}px`);
