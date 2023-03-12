@@ -121,7 +121,7 @@ type _PointerTrackSequenceOptions = {
   signal?: AbortSignal,
 };
 
-class _PointerTrackSequence implements Pointer.TrackSequence<Pointer.Track> {
+class _PointerTrackSequence implements Pointer.TrackSequence {
   readonly #pointerId: pointerid;
   readonly #pointerType: string;
   readonly #primaryPointer: boolean;
@@ -249,7 +249,7 @@ class _TargetObservation {
   readonly #aborter: AbortController;
   readonly #target: Element;
   readonly #callback: Pointer.ObserverCallback;
-  readonly #trackSequences: Map<pointerid, Pointer.TrackSequence<Pointer.Track>>;
+  readonly #trackSequences: Map<pointerid, Pointer.TrackSequence>;
   readonly #capturingPointerIds: Set<pointerid>;
 
   readonly #highPrecision: boolean;
@@ -579,19 +579,19 @@ namespace Pointer {
     readonly absoluteY: number,
   };
 
-  export interface TrackSequence<T extends Track> {
+  export interface TrackSequence {
     readonly pointerId: pointerid;
     readonly pointerType: string;
     readonly primaryPointer: boolean;// 途中で変わることはない（複数タッチしてプライマリを離した場合、タッチを全部離すまでプライマリは存在しなくなる。その状態でタッチを増やしてもプライマリは無い）
     readonly startTime: timestamp;
     readonly duration: milliseconds;
-    readonly stream: ReadableStream<T>;
+    readonly stream: ReadableStream<Track>;
     readonly movement: Movement;
     readonly target: Element;
-    readonly [Symbol.asyncIterator]: () => AsyncGenerator<T, void, void>;
+    readonly [Symbol.asyncIterator]: () => AsyncGenerator<Track, void, void>;
   }
 
-  export type ObserverCallback = (trackSequence: TrackSequence<Track>) => void;
+  export type ObserverCallback = (trackSequence: TrackSequence) => void;
 
   export type Filter = (event: PointerEvent) => boolean;
 
@@ -652,6 +652,9 @@ TODO
 - Firefoxでpointerenter前後のpointerevent発火順とstreamの順が一致しない
     pointerenterとpointerleaveはstreamに出力しないようにする？
 
+- optionsでモード設定
+  - すべて
+  - 接触のみ
 - visualViewportのscroll,resizeに追随させる？
 - capture始点からの相対距離
 - capture終点はtarget上か否か
