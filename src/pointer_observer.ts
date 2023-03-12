@@ -374,9 +374,12 @@ class _TargetObservation {
       else {
         trackSequence = this.#trackSequences.get(event.pointerId) as _PointerTrackSequence;
         if ((this.#highPrecision === true) && (event.type === "pointermove")) {
+          //let i = 0;
           for (const coalesced of event.getCoalescedEvents()) {
             trackSequence._append(coalesced, event);
+            //i++;
           }
+          //console.log(i);
         }
         else {
           trackSequence._append(event);
