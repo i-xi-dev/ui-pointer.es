@@ -143,7 +143,10 @@ const o = new Pointer.Observer(async (trackSequence) => {
 
   console.log(`[END] pointerId:${trackSequence.pointerId}, duration:${trackSequence.duration}`);
   onend(trackSequence);
-}, {});
+}, {
+  highPrecision: true,
+  pointerCapture: () => true,
+});
 o.observe(test);
     </script>
   </head>

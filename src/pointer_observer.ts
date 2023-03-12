@@ -69,7 +69,7 @@ function _penButtonsOf(event: PointerEvent): Array<Pointer.PenButton> {
   return penButtons;
 }
 
-function _pointerTrackFrom(event: PointerEvent, target: Element): Pointer.Track {
+function _pointerTrackFrom(event: PointerEvent, target: Element, coalescedInto?: PointerEvent): Pointer.Track {
   const dispatcher = (event.target instanceof Element) ? event.target : null;
   let targetX = Number.NaN;
   let targetY = Number.NaN;
@@ -108,6 +108,7 @@ function _pointerTrackFrom(event: PointerEvent, target: Element): Pointer.Track 
     }),
     target,
     _type: event.type,
+    coalescedInto: (coalescedInto ? coalescedInto.timeStamp : null),
   });
 }
 
@@ -210,9 +211,9 @@ class _PointerTrackSequence implements Pointer.TrackSequence<Pointer.Track> {
     }
   }
 
-  _append(event: PointerEvent): void {
+  _append(event: PointerEvent, coalescedInto?: PointerEvent): void {
     if (this.#controller) {
-      const track: Pointer.Track = _pointerTrackFrom(event, this.#target);
+      const track: Pointer.Track = _pointerTrackFrom(event, this.#target, (coalescedInto ? coalescedInto : undefined));
       if (!this.#firstTrack) {
         this.#firstTrack = track;
       }
@@ -253,23 +254,23 @@ class _TargetObservation {
   readonly #preventActions: Array<_PointerAction>;
   readonly #releaseImplicitPointerCapture: boolean;
 
-  constructor(target: Element, callback: Pointer.ObserverCallback, options: _TargetObservationOptions) {
+  constructor(target: Element, callback: Pointer.ObserverCallback, options: _TargetObservationOptions = {}) {
     this.#aborter = new AbortController();
     this.#target = target;
     this.#callback = callback;
     this.#trackSequences = new Map();
     this.#capturingPointerIds = new Set();
 
-    this.#highPrecision = (options?.highPrecision === true) && !!(new PointerEvent("test")).getCoalescedEvents;// webkit未実装:getCoalescedEvents
-    if (typeof options?.pointerCapture === "function") {
+    this.#highPrecision = (options.highPrecision === true) && !!(new PointerEvent("test")).getCoalescedEvents;// webkit未実装:getCoalescedEvents
+    if (typeof options.pointerCapture === "function") {
       this.#pointerCapture = options.pointerCapture;
     }
     else {
       this.#pointerCapture = () => false;
     }
-    //this.#preventActions = ((options?.preventActions) && (Array.isArray(options.preventActions) === true)) ? [...options.preventActions] : ["contextmenu", "pan-and-zoom", "doubletap-zoom", "selection"];
+    //this.#preventActions = ((options.preventActions) && (Array.isArray(options.preventActions) === true)) ? [...options.preventActions] : ["contextmenu", "pan-and-zoom", "doubletap-zoom", "selection"];
     this.#preventActions = ["contextmenu", "pan-and-zoom", "selection"];
-    this.#releaseImplicitPointerCapture = (options?.releaseImplicitPointerCapture === true);
+    this.#releaseImplicitPointerCapture = (options.releaseImplicitPointerCapture === true);
 
     const listenerOptions = {
       passive: true,
@@ -374,7 +375,7 @@ class _TargetObservation {
         trackSequence = this.#trackSequences.get(event.pointerId) as _PointerTrackSequence;
         if ((this.#highPrecision === true) && (event.type === "pointermove")) {
           for (const coalesced of event.getCoalescedEvents()) {
-            trackSequence._append(coalesced);
+            trackSequence._append(coalesced, event);
           }
         }
         else {
@@ -418,23 +419,13 @@ class _ViewportPointerTracker {
       signal: this.#aborter.signal,
     };
 
-    this.#view.addEventListener("pointerenter", (event: PointerEvent) => {
-      if (event.isTrusted !== true) {
-        return;
-      }
+    // this.#view.addEventListener("pointerenter", (event: PointerEvent) => {
+    // Windowでは起きないっぽい（すくなくともChromeとFirefoxは）
+    // }, listenerOptions);
 
-      console.log("1111")//TODO 起きる？
-      this.#handle(event);
-    }, listenerOptions);
-
-    this.#view.addEventListener("pointerleave", (event: PointerEvent) => {
-      if (event.isTrusted !== true) {
-        return;
-      }
-
-      console.log("2222")//TODO 起きる？
-      this.#handle(event);
-    }, listenerOptions);
+    // this.#view.addEventListener("pointerleave", (event: PointerEvent) => {
+    // Windowでは起きないっぽい（すくなくともChromeとFirefoxは）
+    // }, listenerOptions);
 
     this.#view.addEventListener("pointermove", (event: PointerEvent) => {
       if (event.isTrusted !== true) {
@@ -467,6 +458,14 @@ class _ViewportPointerTracker {
 
       this.#handle(event);
     }, listenerOptions);
+
+    // this.#view.screen.orientation.addEventListener("change", (event: Event) => {
+    // 特に何かする必要は無いはず
+    // }, listenerOptions);
+
+    // this.#view.document.addEventListener("visibilitychange", (event: Event) => {
+    // 特に何かする必要は無いはず
+    // }, listenerOptions);
   }
   //TODO 制限事項明記 どこかでpointereventをキャンセルされたら検知できなくなる
 
@@ -551,7 +550,7 @@ namespace Pointer {
   export interface Track {
     readonly timestamp: timestamp;
     readonly pointerId: pointerid;
-    //readonly trustedPointer: boolean;
+    //readonly trusted: boolean;
     readonly pointerState: State;
     readonly modifiers: Array<Modifier>;
     readonly buttons: (Array<MouseButton> | Array<PenButton>);
@@ -561,8 +560,9 @@ namespace Pointer {
       readonly fromTargetBoundingBox: Geometry2d.Point,
     },
     readonly target: Element | null;
-    readonly _type: string;//TODO
-    //readonly _captured: boolean;// targetにcaptureされているか否か
+    readonly _type: string;//TODO 消すか名前変える
+    readonly coalescedInto: timestamp | null;
+    //readonly _captured: boolean;//TODO targetにcaptureされているか否か
     //readonly _capturedBy: Element | null;// captureしている要素 //XXX コストかかるのでは
   }
   // ,composedPath, ...
@@ -577,7 +577,7 @@ namespace Pointer {
   export interface TrackSequence<T extends Track> {
     readonly pointerId: pointerid;
     readonly pointerType: string;
-    readonly primaryPointer: boolean;// 途中で変わることはない（複数タッチしてプライマリを離した場合、タッチを全部離すまでプライマリは存在しなくなる）
+    readonly primaryPointer: boolean;// 途中で変わることはない（複数タッチしてプライマリを離した場合、タッチを全部離すまでプライマリは存在しなくなる。その状態でタッチを増やしてもプライマリは無い）
     readonly startTime: timestamp;
     readonly duration: milliseconds;
     readonly stream: ReadableStream<T>;
@@ -589,28 +589,35 @@ namespace Pointer {
   export type ObserverCallback = (trackSequence: TrackSequence<Track>) => void;
 
   export type ObserverOptions = {
-
+    highPrecision?: boolean,
+    pointerCapture?: _PointerFilter,//TODO 型定義をpublic
   };
 
   export class Observer {
     readonly #callback: ObserverCallback;
     readonly #service: _ViewportPointerTracker;
 
-    constructor(callback: ObserverCallback, options: ObserverOptions) {
+    readonly #highPrecision: boolean;
+    readonly #pointerCapture: _PointerFilter;
+
+    constructor(callback: ObserverCallback, options: ObserverOptions = {}) {
       this.#callback = callback;
+      this.#highPrecision = options.highPrecision ?? false;
+      this.#pointerCapture = options.pointerCapture ?? (() => false);
       this.#service = _ViewportPointerTracker.get(window);
     }
 
     observe(target: Element): void {
       const observation = new _TargetObservation(target, this.#callback, {
-
+        highPrecision: this.#highPrecision,
+        pointerCapture: this.#pointerCapture,
         releaseImplicitPointerCapture: true,
       });
       this.#service.addObservation(observation);
     }
 
     unobserve(target: Element): void {
-  
+  //TODO
     }
 
     disconnect(): void {
@@ -622,12 +629,14 @@ namespace Pointer {
 
 /*
 TODO
+- Firefoxでpointerenter前後のpointerevent発火順とstreamの順が一致しない
+    pointerenterとpointerleaveはstreamに出力しないようにする？
+
+- visualViewportのscroll,resizeに追随させる？
 - capture始点からの相対距離
 - capture終点はtarget上か否か
 - touchmoveキャンセル
 - optionsでフィルタ対応
-- optionsで合成イベント対応
-- orientationchange
 - 中クリックの自動スクロールがpointerdown
 - maxTouchPointsで上限設定する
 */
