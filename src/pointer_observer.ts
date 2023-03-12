@@ -496,7 +496,7 @@ class _ViewportPointerTracker {
     this.#targetObservations.add(targetObservation);
   }
 
-  removeHandler(targetObservation: _TargetObservation): void {
+  removeObservation(targetObservation: _TargetObservation): void {
     this.#targetObservations.delete(targetObservation);
   }
 
@@ -603,15 +603,17 @@ namespace Pointer {
   export class Observer {
     readonly #callback: ObserverCallback;
     readonly #service: _ViewportPointerTracker;
+    readonly #targets: Map<Element, Set<_TargetObservation>>;
 
     readonly #highPrecision: boolean;
     readonly #pointerCapture: Filter;
 
     constructor(callback: ObserverCallback, options: ObserverOptions = {}) {
       this.#callback = callback;
+      this.#service = _ViewportPointerTracker.get(window);
+      this.#targets = new Map();
       this.#highPrecision = options.highPrecision ?? false;
       this.#pointerCapture = options.pointerCapture ?? (() => false);
-      this.#service = _ViewportPointerTracker.get(window);
     }
 
     observe(target: Element): void {
@@ -620,17 +622,29 @@ namespace Pointer {
         pointerCapture: this.#pointerCapture,
       });
       this.#service.addObservation(observation);
+      if (this.#targets.has(target) !== true) {
+        this.#targets.set(target, new Set());
+      }
+      (this.#targets.get(target) as Set<_TargetObservation>).add(observation);
     }
 
     unobserve(target: Element): void {
-      //TODO
+      const observations = (this.#targets.get(target) as Set<_TargetObservation>);
+      for (const observation of observations) {
+        observation.dispose();
+        this.#service.removeObservation(observation);
+      }
+      observations.clear();
+      this.#targets.delete(target);
     }
 
     disconnect(): void {
-      //TODO
+      for (const target of this.#targets.keys()) {
+        this.unobserve(target);
+      }
     }
   }
-  
+
 }
 
 /*
