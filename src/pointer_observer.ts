@@ -9,15 +9,19 @@ type timestamp = number;
 
 type milliseconds = number;
 
+function _inContact(event: PointerEvent): boolean {
+  return ((event.buttons & 0b1) === 0b1);
+}
+
 function _pointerStateOf(event: PointerEvent): Pointer.State {
   if (event.type === "pointercancel") {
     return Pointer.State.INACTIVE;
   }
-  else if (event.buttons === 0) {
-    return Pointer.State.HOVER;
+  else if (_inContact(event) === true) {
+    return Pointer.State.CONTACT;
   }
   else {
-    return Pointer.State.CONTACT;
+    return Pointer.State.HOVER;
   }
 }
 
@@ -107,8 +111,9 @@ function _pointerTrackFrom(event: PointerEvent, target: Element, coalescedInto?:
       }),
     }),
     target,
-    _type: event.type,
+    sourceType: event.type,
     coalescedInto: (coalescedInto ? coalescedInto.timeStamp : null),
+    captured: target.hasPointerCapture(event.pointerId),
   });
 }
 
@@ -315,20 +320,20 @@ class _TargetObservation {
       }
 
       // mouseで左ボタンが押されているか、pen/touchで接触がある場合
-      if ((event.buttons & 0b1) === 0b1) {
+      if (_inContact(event) === true) {
         if (this.#capturingPointerIds.has(event.pointerId) === true) {
           return;
         }
 
         if (this.#pointerCapture(event) === true) {
           this.#capturingPointerIds.add(event.pointerId);
-          dispatcher.setPointerCapture(event.pointerId);
+          this.#target.setPointerCapture(event.pointerId);
         }
       }
     }) as EventListener, listenerOptions);
 
     this.#target.addEventListener("pointerup", ((event: PointerEvent): void => {
-      if ((event.buttons & 0b1) === 0b0) {
+      if (_inContact(event) !== true) {
         (event.target as Element).releasePointerCapture(event.pointerId);
         this.#capturingPointerIds.delete(event.pointerId);
       }
@@ -550,7 +555,7 @@ namespace Pointer {
   export interface Track {
     readonly timestamp: timestamp;
     readonly pointerId: pointerid;
-    //readonly trusted: boolean;
+    //readonly trustedSource: boolean;
     readonly pointerState: State;
     readonly modifiers: Array<Modifier>;
     readonly buttons: (Array<MouseButton> | Array<PenButton>);
@@ -560,10 +565,9 @@ namespace Pointer {
       readonly fromTargetBoundingBox: Geometry2d.Point,
     },
     readonly target: Element | null;
-    readonly _type: string;//TODO 消すか名前変える
+    readonly sourceType: string;
     readonly coalescedInto: timestamp | null;// timestampだと合体先を特定できない可能性があるが、いちいちid振るのもなんなので妥協
-    //readonly _captured: boolean;//TODO targetにcaptureされているか否か
-    //readonly _capturedBy: Element | null;// captureしている要素 //XXX コストかかるのでは
+    readonly captured: boolean;// 「targetに」captureされているか否か
     //XXX touches
   }
   // ,composedPath, ...
