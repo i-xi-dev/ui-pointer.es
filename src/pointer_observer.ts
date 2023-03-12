@@ -227,8 +227,6 @@ class _PointerTrackSequence implements Pointer.TrackSequence<Pointer.Track> {
   }
 }
 
-type _PointerFilter = (event: PointerEvent) => boolean;
-
 // ダブルタップのズームは最近のiOSでは出来ない →他の手段でズームしたのをダブルタップで戻すことはできる
 // パン無効にする場合タブレット等でスクロール手段がなくなるので注意。スクロールが必要な場合は自前でスクロールを実装すること
 // （広い範囲で）ズーム無効にする場合タブレット等で自動ズームを元に戻す手段がなくなるので注意（小さい入力欄にフォーカスしたとき等に自動ズームされる）
@@ -237,9 +235,9 @@ type _PointerAction = "contextmenu" | "pan-and-zoom" | "selection";
 
 type _TargetObservationOptions = {
   highPrecision?: boolean,
-  pointerCapture?: _PointerFilter, // pointerdown前提、接触ありは固定条件
+  pointerCapture?: Pointer.Filter, // pointerdown前提、接触ありは固定条件
   //preventActions?: Array<_PointerAction>,//XXX 初期バージョンではとりあえず変更不可
-  releaseImplicitPointerCapture?: boolean,//XXX 初期バージョンではとりあえず強制true
+  //releaseImplicitPointerCapture?: boolean,//XXX 初期バージョンではとりあえず強制true
 };
 
 class _TargetObservation {
@@ -250,7 +248,7 @@ class _TargetObservation {
   readonly #capturingPointerIds: Set<pointerid>;
 
   readonly #highPrecision: boolean;
-  readonly #pointerCapture: _PointerFilter;
+  readonly #pointerCapture: Pointer.Filter;
   readonly #preventActions: Array<_PointerAction>;
   readonly #releaseImplicitPointerCapture: boolean;
 
@@ -270,7 +268,8 @@ class _TargetObservation {
     }
     //this.#preventActions = ((options.preventActions) && (Array.isArray(options.preventActions) === true)) ? [...options.preventActions] : ["contextmenu", "pan-and-zoom", "doubletap-zoom", "selection"];
     this.#preventActions = ["contextmenu", "pan-and-zoom", "selection"];
-    this.#releaseImplicitPointerCapture = (options.releaseImplicitPointerCapture === true);
+    //this.#releaseImplicitPointerCapture = (options.releaseImplicitPointerCapture === true);
+    this.#releaseImplicitPointerCapture = true;
 
     const listenerOptions = {
       passive: true,
@@ -470,7 +469,6 @@ class _ViewportPointerTracker {
     // 特に何かする必要は無いはず
     // }, listenerOptions);
   }
-  //TODO 制限事項明記 どこかでpointereventをキャンセルされたら検知できなくなる
 
   static get(view: Window): _ViewportPointerTracker {
     if (!_ViewportPointerTracker.#instance) {
@@ -486,10 +484,9 @@ class _ViewportPointerTracker {
   }
 
   addObservation(targetObservation: _TargetObservation): void {
-    //if ([...this.#targetObservations].some((o) => o.target === targetObservation.target) === true) {
-    //TODO 同一要素に対する監視を許すか
-    //     基本的にはどうでもいいが、captureするなら問題になる（mouseのcaptureと、pen/touchのcaptureは両立しない）
-    //}
+    // if ([...this.#targetObservations].some((o) => o.target === targetObservation.target) === true) {
+    // 同一要素に対する多重監視を許さない場合はここで弾く
+    // }
 
     this.#targetObservations.add(targetObservation);
   }
@@ -548,7 +545,7 @@ namespace Pointer {
     readonly radiusY: number,
     readonly pressure: number,
   };
-  // tangentialPressure,tiltX,tiltY,twist,altitudeAngle,azimuthAngle
+  //XXX tangentialPressure,tiltX,tiltY,twist,altitudeAngle,azimuthAngle
 
   export interface Track {
     readonly timestamp: timestamp;
@@ -564,9 +561,10 @@ namespace Pointer {
     },
     readonly target: Element | null;
     readonly _type: string;//TODO 消すか名前変える
-    readonly coalescedInto: timestamp | null;
+    readonly coalescedInto: timestamp | null;// timestampだと合体先を特定できない可能性があるが、いちいちid振るのもなんなので妥協
     //readonly _captured: boolean;//TODO targetにcaptureされているか否か
     //readonly _capturedBy: Element | null;// captureしている要素 //XXX コストかかるのでは
+    //XXX touches
   }
   // ,composedPath, ...
 
@@ -591,9 +589,11 @@ namespace Pointer {
 
   export type ObserverCallback = (trackSequence: TrackSequence<Track>) => void;
 
+  export type Filter = (event: PointerEvent) => boolean;
+
   export type ObserverOptions = {
     highPrecision?: boolean,
-    pointerCapture?: _PointerFilter,//TODO 型定義をpublic
+    pointerCapture?: Filter,
   };
 
   export class Observer {
@@ -601,7 +601,7 @@ namespace Pointer {
     readonly #service: _ViewportPointerTracker;
 
     readonly #highPrecision: boolean;
-    readonly #pointerCapture: _PointerFilter;
+    readonly #pointerCapture: Filter;
 
     constructor(callback: ObserverCallback, options: ObserverOptions = {}) {
       this.#callback = callback;
@@ -614,17 +614,16 @@ namespace Pointer {
       const observation = new _TargetObservation(target, this.#callback, {
         highPrecision: this.#highPrecision,
         pointerCapture: this.#pointerCapture,
-        releaseImplicitPointerCapture: true,
       });
       this.#service.addObservation(observation);
     }
 
     unobserve(target: Element): void {
-  //TODO
+      //TODO
     }
 
     disconnect(): void {
-  
+      //TODO
     }
   }
   

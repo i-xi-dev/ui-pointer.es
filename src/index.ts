@@ -33,6 +33,7 @@ export * from "./pointer_observer";
 //備忘
 
 // - 前提条件として
+//   - windowとtargetでlistenしているので、到達前にpointereventをキャンセルされたら検知できなくなる
 //   - touch-actionはブロックに適用
 //   - display:inlineの場合の座標基点がブラウザによって違う
 //   - その他box数が1ではない場合
@@ -41,6 +42,9 @@ export * from "./pointer_observer";
 //     - 通常は1だが2以上になることがある: page-break以外のbreak (regionは廃止されたのでcolumnだけか？)
 //   - 非trustedなPointerEventは無条件で無視している
 //     受け付けるようにする場合は、pointerdownがtrustedでpointermoveが非trustedの場合の挙動などをどうするか
+//   - 同一要素に対する多重監視を許すか
+//     基本的には許しても許さなくてもどうでもいいが、captureするなら問題になる（mouseのcaptureと、pen/touchのcaptureは両立しない）
+//     →ブラウザの仕様の問題なので、注意喚起のみにとどめる
 
 // - gotpointercaptureは使用しないことにした
 //     - setPointerCapture後、Firefoxは即座にgotpointercaptureが発火するのに対して、Chromeは次にpointermoveなどが発火する直前まで遅延される為
