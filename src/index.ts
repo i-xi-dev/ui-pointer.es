@@ -1,5 +1,7 @@
 
-export * from "./pointer_observer";
+export { Pointer } from "./pointer";
+export { PointerObserver } from "./pointer_observer";
+export { ViewportPointerTracker } from "./viewport_pointer_tracker";
 
 // 既知の問題
 
@@ -61,3 +63,10 @@ export * from "./pointer_observer";
 //   - このとき、PointerEventの座標でelementsFromPoint()したとき、ターゲットはヒットしない
 //   - IntersectionObserverだとどうなるか要確認 TODO
 //   - 
+
+
+
+// 将来検討
+// - pointerrawupdate設定可にする
+// - trackに直前のtrackとの差分なんかも持たせる？
+// - visualViewportのscroll,resizeに追随させる？

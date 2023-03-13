@@ -1,121 +1,9 @@
-import { Geometry2d, Keyboard } from "@i-xi-dev/ui-utils";
-
-/**
- * The identifier for the pointer.
- */
-type pointerid = number;
+import { type pointerid, _inContact, _pointerTrackFrom, Pointer } from "./pointer";
+import { ViewportPointerTracker } from "./viewport_pointer_tracker";
 
 type timestamp = number;
 
 type milliseconds = number;
-
-function _inContact(event: PointerEvent): boolean {
-  return ((event.buttons & 0b1) === 0b1);
-}
-
-function _pointerStateOf(event: PointerEvent): Pointer.State {
-  if (event.type === "pointercancel") {
-    return Pointer.State.INACTIVE;
-  }
-  else if (_inContact(event) === true) {
-    return Pointer.State.CONTACT;
-  }
-  else {
-    return Pointer.State.HOVER;
-  }
-}
-
-function _pointerModifiersOf(event: PointerEvent): Array<Pointer.Modifier> {
-  const modifiers: Array<Pointer.Modifier> = [];
-  if (event.altKey === true) {
-    modifiers.push(Pointer.Modifier.ALT);
-  }
-  if (event.ctrlKey === true) {
-    modifiers.push(Pointer.Modifier.CONTROL);
-  }
-  if (event.metaKey === true) {
-    modifiers.push(Pointer.Modifier.META);
-  }
-  if (event.shiftKey === true) {
-    modifiers.push(Pointer.Modifier.SHIFT);
-  }
-  return modifiers;
-}
-
-function _mouseButtonsOf(event: PointerEvent): Array<Pointer.MouseButton> {
-  const mouseButtons: Array<Pointer.MouseButton> = [];
-  if ((event.buttons & 0b1) === 0b1) {
-    mouseButtons.push(Pointer.MouseButton.LEFT);
-  }
-  if ((event.buttons & 0b10) === 0b10) {
-    mouseButtons.push(Pointer.MouseButton.RIGHT);
-  }
-  if ((event.buttons & 0b100) === 0b100) {
-    mouseButtons.push(Pointer.MouseButton.MIDDLE);
-  }
-  if ((event.buttons & 0b1000) === 0b1000) {
-    mouseButtons.push(Pointer.MouseButton.X1);
-  }
-  if ((event.buttons & 0b10000) === 0b10000) {
-    mouseButtons.push(Pointer.MouseButton.X2);
-  }
-  return mouseButtons;
-}
-
-function _penButtonsOf(event: PointerEvent): Array<Pointer.PenButton> {
-  const penButtons: Array<Pointer.PenButton> = [];
-  if ((event.buttons & 0b10) === 0b10) {
-    penButtons.push(Pointer.PenButton.BARREL);
-  }
-  if ((event.buttons & 0b100000) === 0b100000) {
-    penButtons.push(Pointer.PenButton.ERASER);
-  }
-  return penButtons;
-}
-
-function _pointerTrackFrom(event: PointerEvent, target: Element, coalescedInto?: PointerEvent): Pointer.Track {
-  const dispatcher = (event.target instanceof Element) ? event.target : null;
-  let targetX = Number.NaN;
-  let targetY = Number.NaN;
-  if (dispatcher) {
-    targetX = event.offsetX;
-    targetY = event.offsetY;
-  }
-  if (!!dispatcher && (target !== dispatcher)) {
-    const targetBoundingBox = target.getBoundingClientRect();
-    const dispatcherBoundingBox = dispatcher.getBoundingClientRect();
-    const { x, y } = Geometry2d.Point.distanceBetween(targetBoundingBox, dispatcherBoundingBox);
-    targetX = targetX + x;
-    targetY = targetY + y;
-  }
-
-  return Object.freeze({
-    timestamp: event.timeStamp,
-    pointerId: event.pointerId,
-    pointerState: _pointerStateOf(event),
-    modifiers: _pointerModifiersOf(event),
-    buttons: (event.pointerType === Pointer.Type.PEN) ? _penButtonsOf(event) : _mouseButtonsOf(event),
-    contact: Object.freeze({
-      radiusX: event.width / 2,
-      radiusY: event.height / 2,
-      pressure: event.pressure,
-    }),
-    offset: Object.freeze({
-      fromViewport: Object.freeze({
-        x: event.clientX,
-        y: event.clientY,
-      }),
-      fromTargetBoundingBox: Object.freeze({
-        x: targetX,
-        y: targetY,
-      }),
-    }),
-    target,
-    sourceType: event.type,
-    coalescedInto: (coalescedInto ? coalescedInto.timeStamp : null),
-    captured: target.hasPointerCapture(event.pointerId),
-  });
-}
 
 type _PointerTrackSequenceOptions = {
   signal?: AbortSignal,
@@ -246,9 +134,10 @@ type _TargetObservationOptions = {
 };
 
 class _TargetObservation {
+  readonly #service: ViewportPointerTracker;
   readonly #aborter: AbortController;
   readonly #target: Element;
-  readonly #callback: Pointer.ObserverCallback;
+  readonly #callback: PointerObserver.Callback;
   readonly #trackSequences: Map<pointerid, Pointer.TrackSequence>;
   readonly #capturingPointerIds: Set<pointerid>;
 
@@ -257,7 +146,8 @@ class _TargetObservation {
   readonly #preventActions: Array<_PointerAction>;
   readonly #releaseImplicitPointerCapture: boolean;
 
-  constructor(target: Element, callback: Pointer.ObserverCallback, options: _TargetObservationOptions = {}) {
+  constructor(target: Element, callback: PointerObserver.Callback, options: _TargetObservationOptions = {}) {
+    this.#service = ViewportPointerTracker.get(window);
     this.#aborter = new AbortController();
     this.#target = target;
     this.#callback = callback;
@@ -349,7 +239,9 @@ class _TargetObservation {
         return;
       }
 
-      this.handle(event);//XXX track追加は不要かも（座標などはwindowのpointerup等とおそらく同じ。常時必ず同じかは？）
+      this.#handleAsync(event).catch((reason?: any): void => {
+        console.error(reason);
+      });// pointerleaveでの#handleAsyncは必要。どこに移動したかわからなくなるので。
     }) as EventListener, listenerOptions);
 
     this.#target.addEventListener("pointerenter", ((event: PointerEvent): void => {
@@ -357,15 +249,33 @@ class _TargetObservation {
         return;
       }
 
-      this.handle(event);//XXX track追加は不要かも（座標などはwindowのpointermove等とおそらく同じ。常時必ず同じかは？）
+      this.#handleAsync(event).catch((reason?: any): void => {
+        console.error(reason);
+      });//XXX pointerenterでの#handleAsyncは不要
     }) as EventListener, listenerOptions);
+
+    this.#service.subscribe(this.#handleAsync);
   }
 
   get target(): Element {
     return this.#target;
   }
 
-  handle(event: PointerEvent): void {
+  #handleAsync: (event: PointerEvent) => Promise<void> = (event: PointerEvent) => {
+    const executor = (resolve: (value: void | PromiseLike<void>) => void, reject: (reason?: any) => void) => {
+      try {
+        this.#handle(event);
+        resolve();
+      }
+      catch (exception) {
+        console.log(exception);
+        reject(exception);
+      }
+    };
+    return new Promise(executor);
+  }
+
+  #handle(event: PointerEvent): void {
     let trackSequence: _PointerTrackSequence;
 
     if (event.composedPath().includes(this.#target) === true) {
@@ -406,262 +316,86 @@ class _TargetObservation {
 
   dispose(): void {
     this.#aborter.abort();
+    this.#service.unsubscribe(this.#handleAsync);
   }
 }
 
-class _ViewportPointerTracker {
-  static #instance: _ViewportPointerTracker | null = null;
+class PointerObserver {
+  readonly #callback: PointerObserver.Callback;
+  readonly #targets: Map<Element, Set<_TargetObservation>>;
 
-  readonly #aborter: AbortController;
-  readonly #view: Window;
-  readonly #targetObservations: Set<_TargetObservation>;
+  readonly #highPrecision: boolean;
+  readonly #pointerCapture: Pointer.Filter;
 
-  private constructor(view: Window) {
-    this.#aborter = new AbortController();
-    this.#view = view;
-    this.#targetObservations = new Set();
-
-    const listenerOptions = {
-      passive: true,
-      signal: this.#aborter.signal,
-    };
-
-    // this.#view.addEventListener("pointerenter", (event: PointerEvent) => {
-    // Windowでは起きないっぽい（すくなくともChromeとFirefoxは）
-    // }, listenerOptions);
-
-    // this.#view.addEventListener("pointerleave", (event: PointerEvent) => {
-    // Windowでは起きないっぽい（すくなくともChromeとFirefoxは）
-    // }, listenerOptions);
-
-    this.#view.addEventListener("pointermove", (event: PointerEvent) => {
-      if (event.isTrusted !== true) {
-        return;
-      }
-
-      this.#handle(event);
-    }, listenerOptions);
-
-    this.#view.addEventListener("pointerdown", (event: PointerEvent) => {
-      if (event.isTrusted !== true) {
-        return;
-      }
-
-      this.#handle(event);
-    }, listenerOptions);
-
-    this.#view.addEventListener("pointerup", (event: PointerEvent) => {
-      if (event.isTrusted !== true) {
-        return;
-      }
-
-      this.#handle(event);
-    }, listenerOptions);
-
-    this.#view.addEventListener("pointercancel", (event: PointerEvent) => {
-      if (event.isTrusted !== true) {
-        return;
-      }
-
-      this.#handle(event);
-    }, listenerOptions);
-
-    // this.#view.screen.orientation.addEventListener("change", (event: Event) => {
-    // 特に何かする必要は無いはず
-    // }, listenerOptions);
-
-    // this.#view.document.addEventListener("visibilitychange", (event: Event) => {
-    // 特に何かする必要は無いはず
-    // }, listenerOptions);
+  constructor(callback: PointerObserver.Callback, options: PointerObserver.Options = {}) {
+    this.#callback = callback;
+    this.#targets = new Map();
+    this.#highPrecision = options.highPrecision ?? false;
+    this.#pointerCapture = options.pointerCapture ?? (() => false);
   }
 
-  static get(view: Window): _ViewportPointerTracker {
-    if (!_ViewportPointerTracker.#instance) {
-      _ViewportPointerTracker.#instance = new _ViewportPointerTracker(view);
+  observe(target: Element): void {
+    const observation = new _TargetObservation(target, this.#callback, {
+      highPrecision: this.#highPrecision,
+      pointerCapture: this.#pointerCapture,
+    });
+    if (this.#targets.has(target) !== true) {
+      this.#targets.set(target, new Set());
     }
-    return _ViewportPointerTracker.#instance;
+    (this.#targets.get(target) as Set<_TargetObservation>).add(observation);
   }
 
-  dispose(): void {
-    this.#targetObservations.forEach((targetObservation) => targetObservation.dispose());
-    this.#targetObservations.clear();
-    this.#aborter.abort();
+  unobserve(target: Element): void {
+    const observations = (this.#targets.get(target) as Set<_TargetObservation>);
+    for (const observation of observations) {
+      observation.dispose();
+    }
+    observations.clear();
+    this.#targets.delete(target);
   }
 
-  addObservation(targetObservation: _TargetObservation): void {
-    // if ([...this.#targetObservations].some((o) => o.target === targetObservation.target) === true) {
-    // 同一要素に対する多重監視を許さない場合はここで弾く
-    // }
-
-    this.#targetObservations.add(targetObservation);
-  }
-
-  removeObservation(targetObservation: _TargetObservation): void {
-    this.#targetObservations.delete(targetObservation);
-  }
-
-  #handle(event: PointerEvent): void {
-    for (const targetObservation of this.#targetObservations) {
-      targetObservation.handle(event);
+  disconnect(): void {
+    for (const target of this.#targets.keys()) {
+      this.unobserve(target);
     }
   }
 }
+namespace PointerObserver {
 
-namespace Pointer {
-  export const Type = {
-    MOUSE: "mouse",
-    PEN: "pen",
-    TOUCH: "touch",
-    UNKNOWN: "",
-  } as const;
+  export type Callback = (trackSequence: Pointer.TrackSequence) => void;
 
-  export const State = {
-    CONTACT: "contact",
-    HOVER: "hover",
-    INACTIVE: "inactive",
-  } as const;
-  export type State = typeof State[keyof typeof State];
-
-  export const Modifier = {
-    ALT: Keyboard.Key.ALT,
-    CONTROL: Keyboard.Key.CONTROL,
-    META: Keyboard.Key.META,
-    SHIFT: Keyboard.Key.SHIFT,
-  } as const;
-  export type Modifier = typeof Modifier[keyof typeof Modifier];
-
-  export const MouseButton = {
-    LEFT: "left",
-    MIDDLE: "middle",
-    RIGHT: "right",
-    X1: "x1",
-    X2: "x2",
-  } as const;
-  export type MouseButton = typeof MouseButton[keyof typeof MouseButton];
-
-  export const PenButton = {
-    BARREL: "barrel",
-    ERASER: "eraser",
-  } as const;
-  export type PenButton = typeof PenButton[keyof typeof PenButton];
-
-  export type Contact = {
-    readonly radiusX: number,
-    readonly radiusY: number,
-    readonly pressure: number,
-  };
-  //XXX tangentialPressure,tiltX,tiltY,twist,altitudeAngle,azimuthAngle
-
-  export interface Track {
-    readonly timestamp: timestamp;
-    readonly pointerId: pointerid;
-    //readonly trustedSource: boolean;
-    readonly pointerState: State;
-    readonly modifiers: Array<Modifier>;
-    readonly buttons: (Array<MouseButton> | Array<PenButton>);
-    readonly contact: Contact,
-    readonly offset: {
-      readonly fromViewport: Geometry2d.Point,
-      readonly fromTargetBoundingBox: Geometry2d.Point,
-    },
-    readonly target: Element | null;
-    readonly sourceType: string;
-    readonly coalescedInto: timestamp | null;// timestampだと合体先を特定できない可能性があるが、いちいちid振るのもなんなので妥協
-    readonly captured: boolean;// 「targetに」captureされているか否か
-    //XXX touches
-  }
-  // ,composedPath, ...
-
-  export type Movement = {
-    readonly relativeX: number,
-    readonly relativeY: number,
-    readonly absoluteX: number,
-    readonly absoluteY: number,
-  };
-
-  export interface TrackSequence {
-    readonly pointerId: pointerid;
-    readonly pointerType: string;
-    readonly primaryPointer: boolean;// 途中で変わることはない（複数タッチしてプライマリを離した場合、タッチを全部離すまでプライマリは存在しなくなる。その状態でタッチを増やしてもプライマリは無い）
-    readonly startTime: timestamp;
-    readonly duration: milliseconds;
-    readonly stream: ReadableStream<Track>;
-    readonly movement: Movement;
-    readonly target: Element;
-    readonly [Symbol.asyncIterator]: () => AsyncGenerator<Track, void, void>;
-  }
-
-  export type ObserverCallback = (trackSequence: TrackSequence) => void;
-
-  export type Filter = (event: PointerEvent) => boolean;
-
-  export type ObserverOptions = {
+  export type Options = {
     highPrecision?: boolean,
-    pointerCapture?: Filter,
+    pointerCapture?: Pointer.Filter,
   };
 
-  export class Observer {
-    readonly #callback: ObserverCallback;
-    readonly #service: _ViewportPointerTracker;
-    readonly #targets: Map<Element, Set<_TargetObservation>>;
-
-    readonly #highPrecision: boolean;
-    readonly #pointerCapture: Filter;
-
-    constructor(callback: ObserverCallback, options: ObserverOptions = {}) {
-      this.#callback = callback;
-      this.#service = _ViewportPointerTracker.get(window);
-      this.#targets = new Map();
-      this.#highPrecision = options.highPrecision ?? false;
-      this.#pointerCapture = options.pointerCapture ?? (() => false);
-    }
-
-    observe(target: Element): void {
-      const observation = new _TargetObservation(target, this.#callback, {
-        highPrecision: this.#highPrecision,
-        pointerCapture: this.#pointerCapture,
-      });
-      this.#service.addObservation(observation);
-      if (this.#targets.has(target) !== true) {
-        this.#targets.set(target, new Set());
-      }
-      (this.#targets.get(target) as Set<_TargetObservation>).add(observation);
-    }
-
-    unobserve(target: Element): void {
-      const observations = (this.#targets.get(target) as Set<_TargetObservation>);
-      for (const observation of observations) {
-        observation.dispose();
-        this.#service.removeObservation(observation);
-      }
-      observations.clear();
-      this.#targets.delete(target);
-    }
-
-    disconnect(): void {
-      for (const target of this.#targets.keys()) {
-        this.unobserve(target);
-      }
-    }
-  }
-
 }
+
+export {
+  PointerObserver,
+};
+
+
+
+
 
 /*
 TODO
 - Firefoxでpointerenter前後のpointerevent発火順とstreamの順が一致しない
-    pointerenterとpointerleaveはstreamに出力しないようにする？
+    → おそらく、firefoxのEvent.timeStampがそもそもおかしい
+
+- 要素境界をまたいでもpointermoveは合体されてる（windowでpointermoveをlistenしているので当然だが）
+    → 境界外のはstreamに出力しないように除外するか
 
 - optionsでモード設定
   - すべて
   - 接触のみ
-- visualViewportのscroll,resizeに追随させる？
 - capture始点からの相対距離
 - capture終点はtarget上か否か
 - touchmoveキャンセル
 - optionsでフィルタ対応
 - 中クリックの自動スクロールがpointerdown
-- maxTouchPointsで上限設定する
+- maxTouchPointsで上限設定する（ロストしたときに必ず_terminateしていれば不要なはず）（取りこぼしがなければ）
 */
 
 /*
@@ -674,7 +408,4 @@ TODO
       contact,  (mouse-left-button, pen-contact, touch-contact)
     modifier: mouse-button, pen-button, key
 */
-export {
-  Pointer,
-};
 

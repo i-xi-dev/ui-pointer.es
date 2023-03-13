@@ -61,9 +61,3 @@ class _PointerCaptureTarget extends Pointer.TrackingTarget<PointerCapture.Track>
 // - $31 Chrome
 //   mouseでpointer capture中にtouchして、mouseをtargetの外に出しpointerupしてもpointerupが発火しない
 //   lostpointercaptureは、touchのpointerupの後、かつ、mouseが動く直前まで遅延される
-
-// 将来検討
-// - pointerrawupdate設定可にする
-// - callbackでなく、{ start(track) => {}, progress(track) => {}, end(track) => {} }の方が便利か？
-//   trackに直前のtrackとの差分なんかも持たせる？
-// - 終了条件を設定可にする？（今はmouseはボタンは1つも押していない、pen,touchは接触を失った）

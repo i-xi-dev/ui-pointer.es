@@ -70,7 +70,7 @@
       </div>
     </template>
     <script type="module">
-import { Pointer } from "../dist/index.js";
+import { PointerObserver } from "../dist/index.js";
 const test = document.getElementById("test");
 
 const tiMap = new Map();
@@ -132,7 +132,7 @@ function onprogress(trackSequence, track) {
   }
 }
 
-const o = new Pointer.Observer(async (trackSequence) => {
+const o = new PointerObserver(async (trackSequence) => {
   console.log(`[START] pointerId:${trackSequence.pointerId}, startTime:${trackSequence.startTime}`);
   onstart(trackSequence);
 
