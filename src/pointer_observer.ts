@@ -391,9 +391,8 @@ TODO
   - すべて
   - 接触のみ
 - capture始点からの相対距離
-- capture終点はtarget上か否か
+- capture終点はtarget上か否か →stream終了時点でtarget上か検査するoptionを追加する（pointercaptureしない場合は無意味なoptionとして）
 - touchmoveキャンセル
-- optionsでフィルタ対応
 - 中クリックの自動スクロールがpointerdown
 - maxTouchPointsで上限設定する（ロストしたときに必ず_terminateしていれば不要なはず）（取りこぼしがなければ）
 */

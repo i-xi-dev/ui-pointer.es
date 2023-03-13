@@ -60,4 +60,3 @@ class _PointerCaptureTarget extends Pointer.TrackingTarget<PointerCapture.Track>
 
 // - $31 Chrome
 //   mouseでpointer capture中にtouchして、mouseをtargetの外に出しpointerupしてもpointerupが発火しない
-//   lostpointercaptureは、touchのpointerupの後、かつ、mouseが動く直前まで遅延される

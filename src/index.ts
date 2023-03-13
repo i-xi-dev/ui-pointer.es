@@ -53,6 +53,7 @@ export { ViewportPointerTracker } from "./viewport_pointer_tracker";
 //     - Chromeで発火しない場合があるため（mouseでtargetのスクロールバー上でpointerdownした場合とか）
 // - lostpointercaptureは使用しないことにした
 //     - Chromeで発火しない場合があるため（gotopointercaptureとおそらく同じ問題）
+//     - Chromeでgotpointercapture同様に遅延発火されるため
 
 
 
@@ -67,6 +68,7 @@ export { ViewportPointerTracker } from "./viewport_pointer_tracker";
 
 
 // 将来検討
+// - optionsでフィルタ対応 streamの読み取り側でフィルタ出来るので初期バージョンでは対応しない
 // - pointerrawupdate設定可にする
 // - trackに直前のtrackとの差分なんかも持たせる？
 // - visualViewportのscroll,resizeに追随させる？
