@@ -126,9 +126,12 @@ class _PointerTrackSequence implements Pointer.TrackSequence {
 //type _PointerAction = "contextmenu" | "pan" | "pinch-zoom" | "double-tap-zoom" | "selection";// CSS touch-actionでは、ダブルタップズームだけを有効化する手段がない
 type _PointerAction = "contextmenu" | "pan-and-zoom" | "selection";
 
+type _TargetObservationFilter = (event: PointerEvent) => boolean;
+
 type _TargetObservationOptions = {
-  highPrecision?: boolean,
-  pointerCapture?: Pointer.Filter, // pointerdown前提、接触ありは固定条件
+  highPrecision: boolean,
+  //pointerCaptureFilter: Pointer.Filter, // pointerdown前提、接触ありは固定条件
+  filter: _TargetObservationFilter,
   //preventActions?: Array<_PointerAction>,//XXX 初期バージョンではとりあえず変更不可
   //releaseImplicitPointerCapture?: boolean,//XXX 初期バージョンではとりあえず強制true
 };
@@ -142,11 +145,12 @@ class _TargetObservation {
   readonly #capturingPointerIds: Set<pointerid>;
 
   readonly #highPrecision: boolean;
-  readonly #pointerCapture: Pointer.Filter;
+  //readonly #pointerCaptureFilter: Pointer.Filter;
+  readonly #filter: _TargetObservationFilter;
   readonly #preventActions: Array<_PointerAction>;
   readonly #releaseImplicitPointerCapture: boolean;
 
-  constructor(target: Element, callback: PointerObserver.Callback, options: _TargetObservationOptions = {}) {
+  constructor(target: Element, callback: PointerObserver.Callback, options: _TargetObservationOptions) {
     this.#service = ViewportPointerTracker.get(window);
     this.#aborter = new AbortController();
     this.#target = target;
@@ -155,12 +159,8 @@ class _TargetObservation {
     this.#capturingPointerIds = new Set();
 
     this.#highPrecision = (options.highPrecision === true) && !!(new PointerEvent("test")).getCoalescedEvents;// webkit未実装:getCoalescedEvents
-    if (typeof options.pointerCapture === "function") {
-      this.#pointerCapture = options.pointerCapture;
-    }
-    else {
-      this.#pointerCapture = () => false;
-    }
+    //this.#pointerCaptureFilter = options.pointerCaptureFilter;
+    this.#filter = options.filter;
     //this.#preventActions = ((options.preventActions) && (Array.isArray(options.preventActions) === true)) ? [...options.preventActions] : ["contextmenu", "pan-and-zoom", "doubletap-zoom", "selection"];
     this.#preventActions = ["contextmenu", "pan-and-zoom", "selection"];
     //this.#releaseImplicitPointerCapture = (options.releaseImplicitPointerCapture === true);
@@ -215,10 +215,10 @@ class _TargetObservation {
           return;
         }
 
-        if (this.#pointerCapture(event) === true) {
-          this.#capturingPointerIds.add(event.pointerId);
-          this.#target.setPointerCapture(event.pointerId);
-        }
+        // if (this.#pointerCaptureFilter(event) === true) { TODO
+        //   this.#capturingPointerIds.add(event.pointerId);
+        //   this.#target.setPointerCapture(event.pointerId);
+        // }
       }
     }) as EventListener, listenerOptions);
 
@@ -276,6 +276,10 @@ class _TargetObservation {
   }
 
   #handle(event: PointerEvent): void {
+    if (this.#filter(event) !== true) {
+      return;
+    }
+
     let trackSequence: _PointerTrackSequence;
 
     if (event.composedPath().includes(this.#target) === true) {
@@ -320,24 +324,53 @@ class _TargetObservation {
   }
 }
 
+const _DEFAULT_POINTER_TYPE_FILTER = Object.freeze([
+  Pointer.Type.MOUSE,
+  Pointer.Type.PEN,
+  Pointer.Type.TOUCH,
+]);
+
+// filterSourceは参照渡し
+function _createTargetObservationFilter(filterSource?: Pointer.Filter): _TargetObservationFilter {
+  return (event: PointerEvent): boolean => {
+    if (!filterSource) {
+      return true;
+    }
+
+    const pointerTypes = filterSource.pointerType ? [...filterSource.pointerType] : [..._DEFAULT_POINTER_TYPE_FILTER];
+    if (pointerTypes.includes(event.pointerType) !== true) {
+      return false;
+    }
+
+    const isPrimaryPointer = (filterSource.primaryPointer === true);
+    if ((isPrimaryPointer === true) && (event.isPrimary !== true)) {
+      return false;
+    }
+
+    // const customFilter = (typeof filterSource.custom === "function") ? filterSource.custom : () => true;
+    // return customFilter(event);
+    return true;
+  }
+}
+
 class PointerObserver {
   readonly #callback: PointerObserver.Callback;
   readonly #targets: Map<Element, Set<_TargetObservation>>;
 
   readonly #highPrecision: boolean;
-  readonly #pointerCapture: Pointer.Filter;
+  readonly #filter: _TargetObservationFilter;
 
   constructor(callback: PointerObserver.Callback, options: PointerObserver.Options = {}) {
     this.#callback = callback;
     this.#targets = new Map();
     this.#highPrecision = options.highPrecision ?? false;
-    this.#pointerCapture = options.pointerCapture ?? (() => false);
+    this.#filter = _createTargetObservationFilter(options.filter);
   }
 
   observe(target: Element): void {
     const observation = new _TargetObservation(target, this.#callback, {
       highPrecision: this.#highPrecision,
-      pointerCapture: this.#pointerCapture,
+      filter: this.#filter,
     });
     if (this.#targets.has(target) !== true) {
       this.#targets.set(target, new Set());
@@ -366,7 +399,11 @@ namespace PointerObserver {
 
   export type Options = {
     highPrecision?: boolean,
-    pointerCapture?: Pointer.Filter,
+    //pointerCaptureFilter?: Pointer.Filter,//TODO pointerCapture関連のオプションはオブジェクトにまとめる
+    // pointerCapture?: {
+    //   filter?: Pointer.Filter,
+    // },
+    filter?: Pointer.Filter,
   };
 
 }
@@ -396,15 +433,3 @@ TODO
 - 中クリックの自動スクロールがpointerdown
 - maxTouchPointsで上限設定する（ロストしたときに必ず_terminateしていれば不要なはず）（取りこぼしがなければ）
 */
-
-/*
-  options
-    type: "mouse" | "pen" | "touch"
-    primary: boolean
-    captureWhenContact: boolean
-    mode: 
-      hover,    (mouse-no-buttons, pen-hover, -)
-      contact,  (mouse-left-button, pen-contact, touch-contact)
-    modifier: mouse-button, pen-button, key
-*/
-

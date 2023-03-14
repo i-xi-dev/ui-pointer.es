@@ -145,6 +145,16 @@ const o = new PointerObserver(async (trackSequence) => {
   onend(trackSequence);
 }, {
   highPrecision: true,
+  filter: {
+    pointerType: ["touch", "pen"],
+    primaryPointer: false,
+    // custom: (event) => {
+    //   return event.clientX < 200;// こういうことをすると、streamが死なないまま残ってしまうので注意
+    // },
+  },
+  
+
+
   pointerCapture: () => true,
 });
 o.observe(test);
