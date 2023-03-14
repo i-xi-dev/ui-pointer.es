@@ -1,5 +1,6 @@
 import { type pointerid, _inContact, _pointerTrackFrom, Pointer } from "./pointer";
 import { ViewportPointerTracker } from "./viewport_pointer_tracker";
+import { PointerCapture } from "./pointer_capture";
 
 type timestamp = number;
 
@@ -126,12 +127,13 @@ class _PointerTrackSequence implements Pointer.TrackSequence {
 //type _PointerAction = "contextmenu" | "pan" | "pinch-zoom" | "double-tap-zoom" | "selection";// CSS touch-actionでは、ダブルタップズームだけを有効化する手段がない
 type _PointerAction = "contextmenu" | "pan-and-zoom" | "selection";
 
-type _TargetObservationFilter = (event: PointerEvent) => boolean;
+type _PointerFilter = (event: PointerEvent) => boolean;
 
 type _TargetObservationOptions = {
   highPrecision: boolean,
-  //pointerCaptureFilter: Pointer.Filter, // pointerdown前提、接触ありは固定条件
-  filter: _TargetObservationFilter,
+  streamInitFilter: _PointerFilter,
+  autoCaptureEnabled: boolean,
+  autoCaptureFilter: _PointerFilter, // フィルタ設定と関係なく、「接触あり」は絶対条件
   //preventActions?: Array<_PointerAction>,//XXX 初期バージョンではとりあえず変更不可
   //releaseImplicitPointerCapture?: boolean,//XXX 初期バージョンではとりあえず強制true
 };
@@ -145,8 +147,9 @@ class _TargetObservation {
   readonly #capturingPointerIds: Set<pointerid>;
 
   readonly #highPrecision: boolean;
-  //readonly #pointerCaptureFilter: Pointer.Filter;
-  readonly #filter: _TargetObservationFilter;
+  readonly #streamInitFilter: _PointerFilter;
+  readonly #autoCaptureEnabled: boolean;
+  readonly #autoCaptureFilter: _PointerFilter;
   readonly #preventActions: Array<_PointerAction>;
   readonly #releaseImplicitPointerCapture: boolean;
 
@@ -159,8 +162,9 @@ class _TargetObservation {
     this.#capturingPointerIds = new Set();
 
     this.#highPrecision = (options.highPrecision === true) && !!(new PointerEvent("test")).getCoalescedEvents;// webkit未実装:getCoalescedEvents
-    //this.#pointerCaptureFilter = options.pointerCaptureFilter;
-    this.#filter = options.filter;
+    this.#streamInitFilter = options.streamInitFilter;
+    this.#autoCaptureEnabled = options.autoCaptureEnabled;
+    this.#autoCaptureFilter = options.autoCaptureFilter;
     //this.#preventActions = ((options.preventActions) && (Array.isArray(options.preventActions) === true)) ? [...options.preventActions] : ["contextmenu", "pan-and-zoom", "doubletap-zoom", "selection"];
     this.#preventActions = ["contextmenu", "pan-and-zoom", "selection"];
     //this.#releaseImplicitPointerCapture = (options.releaseImplicitPointerCapture === true);
@@ -215,10 +219,12 @@ class _TargetObservation {
           return;
         }
 
-        // if (this.#pointerCaptureFilter(event) === true) { TODO
-        //   this.#capturingPointerIds.add(event.pointerId);
-        //   this.#target.setPointerCapture(event.pointerId);
-        // }
+        if (this.#autoCaptureEnabled === true) {
+          if (this.#autoCaptureFilter(event) === true) {
+            this.#capturingPointerIds.add(event.pointerId);
+            this.#target.setPointerCapture(event.pointerId);
+          }
+        }
       }
     }) as EventListener, listenerOptions);
 
@@ -276,7 +282,7 @@ class _TargetObservation {
   }
 
   #handle(event: PointerEvent): void {
-    if (this.#filter(event) !== true) {
+    if (this.#streamInitFilter(event) !== true) {
       return;
     }
 
@@ -331,7 +337,7 @@ const _DEFAULT_POINTER_TYPE_FILTER = Object.freeze([
 ]);
 
 // filterSourceは参照渡し
-function _createTargetObservationFilter(filterSource?: Pointer.Filter): _TargetObservationFilter {
+function _createStartFilter(filterSource?: Pointer.Filter): _PointerFilter {
   return (event: PointerEvent): boolean => {
     if (!filterSource) {
       return true;
@@ -347,10 +353,19 @@ function _createTargetObservationFilter(filterSource?: Pointer.Filter): _TargetO
       return false;
     }
 
-    // const customFilter = (typeof filterSource.custom === "function") ? filterSource.custom : () => true;
-    // return customFilter(event);
     return true;
-  }
+  };
+}
+
+function _createPointerCaptureFilter(filterSource?: PointerCapture.Filter): _PointerFilter {
+  return (event: PointerEvent): boolean => {
+    const baseFilter = _createStartFilter(filterSource);
+    if (baseFilter(event) !== true) {
+      return false;
+    }
+
+    return true;
+  };
 }
 
 class PointerObserver {
@@ -358,19 +373,25 @@ class PointerObserver {
   readonly #targets: Map<Element, Set<_TargetObservation>>;
 
   readonly #highPrecision: boolean;
-  readonly #filter: _TargetObservationFilter;
+  readonly #streamInitFilter: _PointerFilter;
+  readonly #autoCaptureEnabled: boolean;
+  readonly #autoCaptureFilter: _PointerFilter;
 
   constructor(callback: PointerObserver.Callback, options: PointerObserver.Options = {}) {
     this.#callback = callback;
     this.#targets = new Map();
     this.#highPrecision = options.highPrecision ?? false;
-    this.#filter = _createTargetObservationFilter(options.filter);
+    this.#streamInitFilter = _createStartFilter(options.filter);
+    this.#autoCaptureEnabled = (options.autoCapture?.enabled === true);
+    this.#autoCaptureFilter = _createPointerCaptureFilter(options.autoCapture?.filter);
   }
 
   observe(target: Element): void {
     const observation = new _TargetObservation(target, this.#callback, {
       highPrecision: this.#highPrecision,
-      filter: this.#filter,
+      streamInitFilter: this.#streamInitFilter,
+      autoCaptureEnabled: this.#autoCaptureEnabled,
+      autoCaptureFilter: this.#autoCaptureFilter,
     });
     if (this.#targets.has(target) !== true) {
       this.#targets.set(target, new Set());
@@ -399,11 +420,11 @@ namespace PointerObserver {
 
   export type Options = {
     highPrecision?: boolean,
-    //pointerCaptureFilter?: Pointer.Filter,//TODO pointerCapture関連のオプションはオブジェクトにまとめる
-    // pointerCapture?: {
-    //   filter?: Pointer.Filter,
-    // },
     filter?: Pointer.Filter,
+    autoCapture?: {
+      enabled?: boolean,
+      filter?: PointerCapture.Filter,
+    },
   };
 
 }

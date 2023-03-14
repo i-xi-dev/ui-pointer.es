@@ -201,10 +201,12 @@ namespace Pointer {
     readonly [Symbol.asyncIterator]: () => AsyncGenerator<Track, void, void>;
   }
 
-  export type Filter = {
-    pointerType?: Iterable<string>,
-    primaryPointer?: boolean,
-    // custom?: (event: PointerEvent) => boolean, //XXX これに対応するなら終了条件も必ず指定させる必要 → これこそstreamの消費側でフィルタすれば良いので、とりあえず対応しない
+  export interface Filter {
+    pointerType?: Iterable<string>;
+    primaryPointer?: boolean;
+    // 不変のフィルタ条件と可変のフィルタ条件は別になる
+    // - 不変条件はstreamを生成しない
+    // - 可変条件はstreamにenqueueしない → streamの消費側でフィルタすれば良いので、とりあえず対応しない
   };
 
 }

@@ -155,7 +155,12 @@ const o = new PointerObserver(async (trackSequence) => {
   
 
 
-  pointerCapture: () => true,
+  autoCapture: {
+    enabled: true,
+    filter: {
+      pointerType: ["pen"],
+    },
+  },
 });
 o.observe(test);
     </script>
