@@ -7,15 +7,15 @@ type timestamp = number;
 type milliseconds = number;
 
 type _PointerTrackSequenceOptions = {
-  signal?: AbortSignal,
+  signal: AbortSignal,
 };
 
 class _PointerTrackSequence implements Pointer.TrackSequence {
   readonly #pointerId: pointerid;
   readonly #pointerType: string;
   readonly #primaryPointer: boolean;
-  readonly #stream: ReadableStream<Pointer.Track>;
   readonly #target: Element;
+  readonly #stream: ReadableStream<Pointer.Track>;
 
   #controller: ReadableStreamDefaultController<Pointer.Track> | null = null;
   #firstTrack: Pointer.Track | null = null;
@@ -23,22 +23,28 @@ class _PointerTrackSequence implements Pointer.TrackSequence {
   #absoluteX: number = 0;
   #absoluteY: number = 0;
 
-  constructor(event: PointerEvent, target: Element, options: _PointerTrackSequenceOptions = {}) {
+  constructor(event: PointerEvent, target: Element, options: _PointerTrackSequenceOptions) {
     this.#pointerId = event.pointerId;
     this.#pointerType = event.pointerType;
     this.#primaryPointer = event.isPrimary;
+    this.#target = target;
     const start = (controller: ReadableStreamDefaultController<Pointer.Track>): void => {
-      if (options.signal) {
-        options.signal.addEventListener("abort", () => {
-          controller.close();
-        }, { passive: true });
-      }
+      options.signal.addEventListener("abort", () => {
+        controller.close();
+      }, { passive: true });
       this.#controller = controller;
     };
+    if (options.signal.aborted === true) {
+      this.#stream = new ReadableStream({
+        start(controller) {
+          controller.close();
+        }
+      });
+      return;
+    }
     this.#stream = new ReadableStream({
       start,
     });
-    this.#target = target;
   }
 
   get pointerId(): pointerid {
@@ -290,7 +296,9 @@ class _TargetObservation {
 
     if (event.composedPath().includes(this.#target) === true) {
       if (this.#trackSequences.has(event.pointerId) !== true) {
-        trackSequence = new _PointerTrackSequence(event, this.#target);
+        trackSequence = new _PointerTrackSequence(event, this.#target, {
+          signal: this.#aborter.signal,
+        });
         this.#trackSequences.set(event.pointerId, trackSequence);
         trackSequence._append(event);
         this.#callback(trackSequence);
