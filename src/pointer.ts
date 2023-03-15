@@ -117,6 +117,17 @@ function _pointerTrackFrom(event: PointerEvent, target: Element, coalescedInto?:
   });
 }
 
+interface _PointerFilterBase {
+  // 監視フィルタの場合、マッチしない場合streamを生成しない（pointerTypeは不変なので生成してからフィルタする必要はない）
+  // キャプチャフィルタの場合、マッチしない場合キャプチャしない
+  pointerType?: Iterable<string>;
+
+  // 監視フィルタの場合、マッチしない場合streamを生成しない（isPrimaryは不変なので生成してからフィルタする必要はない）
+  // キャプチャフィルタの場合、マッチしない場合キャプチャしない
+  primaryPointer?: boolean;
+
+}
+
 namespace Pointer {
   export const Type = {
     MOUSE: "mouse",
@@ -201,17 +212,18 @@ namespace Pointer {
     readonly [Symbol.asyncIterator]: () => AsyncGenerator<Track, void, void>;
   }
 
-  export interface Filter {
-    pointerType?: Iterable<string>;
-    primaryPointer?: boolean;
-    // 不変のフィルタ条件と可変のフィルタ条件は別になる
-    // - 不変条件はstreamを生成しない
-    // - 可変条件はstreamにenqueueしない → streamの消費側でフィルタすれば良いので、とりあえず対応しない
+  export interface Filter extends _PointerFilterBase {
+    // hoverの場合、pointerenterでstream生成、pointerleaveで破棄
+    // contactの場合、buttons&1==1でstream生成、buttons&1!=1で破棄
+    pointerState?: typeof State.HOVER | typeof State.CONTACT;
+
+    // その他 streamにenqueueしない条件 → streamの消費側でフィルタすれば良いので、とりあえず対応しない
   };
 
 }
 
 export {
+  type _PointerFilterBase,
   type pointerid,
   _inContact,
   _pointerTrackFrom,

@@ -142,15 +142,14 @@ const o = new PointerObserver(async (trackSequence) => {
   }
 
   console.log(`[END] pointerId:${trackSequence.pointerId}, duration:${trackSequence.duration}`);
+  console.log(trackSequence);
   onend(trackSequence);
 }, {
   highPrecision: true,
   filter: {
-    pointerType: ["touch", "pen"],
-    primaryPointer: false,
-    // custom: (event) => {
-    //   return event.clientX < 200;// こういうことをすると、streamが死なないまま残ってしまうので注意
-    // },
+    //pointerType: ["touch", "pen"],
+    //primaryPointer: false,
+    pointerState: "contact",
   },
   
 
@@ -158,7 +157,7 @@ const o = new PointerObserver(async (trackSequence) => {
   autoCapture: {
     enabled: true,
     filter: {
-      pointerType: ["pen"],
+      //pointerType: ["pen"],
     },
   },
 });

@@ -72,3 +72,6 @@ export { ViewportPointerTracker } from "./viewport_pointer_tracker";
 // - pointerrawupdate設定可にする
 // - trackに直前のtrackとの差分なんかも持たせる？
 // - visualViewportのscroll,resizeに追随させる？
+// - touchmoveキャンセル（touch-action:none強制設定を解除できるようにした場合）
+// - 中クリックの自動スクロールがpointerdown(chrome) おそらく対処不能
+// - 念のためmaxTouchPointsで上限設定する（ロストしたときに必ず_terminateしていれば不要なはず）（監視漏れがなければ）

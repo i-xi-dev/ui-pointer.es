@@ -1,4 +1,4 @@
-import { Pointer } from "./pointer";
+import { type _PointerFilterBase } from "./pointer";
 
 /*
 function _hitTest(element: Element, { x, y, rx, ry }: Pointer.Geometry): { insideHitRegion: boolean, insideBoundingBox: boolean } { // x,yはviewport座標
@@ -63,9 +63,7 @@ class _PointerCaptureTarget extends Pointer.TrackingTarget<PointerCapture.Track>
 //   mouseでpointer capture中にtouchして、mouseをtargetの外に出しpointerupしてもpointerupが発火しない
 
 namespace PointerCapture {
-  export interface Filter extends Pointer.Filter {
-    //XXX 条件に合致する間capture、合致しなくなったらrelease → 要る？
-    //    → とりあえず初期バージョンでは対応しない
+  export interface Filter extends _PointerFilterBase {
   }
 }
 
