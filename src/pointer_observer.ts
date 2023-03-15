@@ -69,12 +69,8 @@ class _PointerTrackSequence implements Pointer.TrackSequence {
     return this.#primaryPointer;
   }
 
-  get startTime(): timestamp {
-    return this.#firstTrack ? this.#firstTrack.timestamp : Number.NaN;
-  }
-
   get duration(): milliseconds {
-    return this.#lastTrack ? (this.#lastTrack.timestamp - this.startTime) : Number.NaN;
+    return (this.#lastTrack && this.#firstTrack) ? (this.#lastTrack.timestamp - this.#firstTrack.timestamp) : Number.NaN;
   }
 
   get stream(): ReadableStream<Pointer.Track> {
@@ -100,6 +96,14 @@ class _PointerTrackSequence implements Pointer.TrackSequence {
 
   get target(): Element {
     return this.#target;
+  }
+
+  get firstTrack(): Pointer.Track | null {
+    return this.#firstTrack ? this.#firstTrack : null;
+  }
+
+  get lastTrack(): Pointer.Track | null {
+    return this.#firstTrack ? this.#firstTrack : null;
   }
 
   async *[Symbol.asyncIterator](): AsyncGenerator<Pointer.Track, void, void> {
@@ -336,7 +340,7 @@ class _TargetObservation {
           //console.log(i);
         }
         else {
-          trackSequence._append(event);
+          trackSequence._append(event);//XXX pointercancel（だけ？）は除外しないと座標が0,0？の場合がある 先にpointerleaveになるから問題ない？
         }
       }
 
@@ -470,18 +474,13 @@ export {
   PointerObserver,
 };
 
-
-
-
-
 /*
 TODO 下記対処したら脱alpha
-1. stream終了時点でpointerはtarget上にあるか検査するoptionを追加する（pointercaptureしない場合は無意味なoptionとして）
-2. 要素境界をまたいでもpointermoveは合体されてる（windowでpointermoveをlistenしているので当然だが）
+1. 要素境界をまたいでもpointermoveは合体されてる（windowでpointermoveをlistenしているので当然だが）
     → 境界外のはstreamに出力しないように除外する
-3. Firefoxでpointerenter前後のpointerevent発火順とstreamの順が一致しない
+      → 厳密に判定するのは高コストなので（角が丸い場合とか子孫が境界外に出ている場合とか）
+        無視するか？firefoxのtimeStampがあてになるならtemeStampで絞れば良いが・・・
+2. Firefoxでpointerenter前後のpointerevent発火順とstreamの順が一致しない
     → おそらく、firefoxのEvent.timeStampがそもそもおかしい
      → そちらはsourceTimestampとして、ストリーム追加時点の時刻を別途持たせる？
-
-
 */

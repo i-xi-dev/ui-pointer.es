@@ -133,7 +133,7 @@ function onprogress(trackSequence, track) {
 }
 
 const o = new PointerObserver(async (trackSequence) => {
-  console.log(`[START] pointerId:${trackSequence.pointerId}, startTime:${trackSequence.startTime}`);
+  console.log(`[START] pointerId:${trackSequence.pointerId}, startTime:${trackSequence.firstTrack?.timestamp}`);
   onstart(trackSequence);
 
   for await (const track of trackSequence) {
@@ -149,7 +149,7 @@ const o = new PointerObserver(async (trackSequence) => {
   filter: {
     //pointerType: ["touch", "pen"],
     //primaryPointer: false,
-    pointerState: "contact",
+    pointerState: "hover",
   },
   
 

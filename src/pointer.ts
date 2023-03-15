@@ -204,12 +204,13 @@ namespace Pointer {
     readonly pointerId: pointerid;
     readonly pointerType: string;
     readonly primaryPointer: boolean;// 途中で変わることはない（複数タッチしてプライマリを離した場合、タッチを全部離すまでプライマリは存在しなくなる。その状態でタッチを増やしてもプライマリは無い）
-    readonly startTime: timestamp;
     readonly duration: milliseconds;
     readonly stream: ReadableStream<Track>;
     readonly movement: Movement;
     readonly target: Element;
     readonly [Symbol.asyncIterator]: () => AsyncGenerator<Track, void, void>;
+    readonly firstTrack: Track | null;
+    readonly lastTrack: Track | null;
   }
 
   export interface Filter extends _PointerFilterBase {

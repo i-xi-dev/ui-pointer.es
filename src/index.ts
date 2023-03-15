@@ -55,6 +55,13 @@ export { ViewportPointerTracker } from "./viewport_pointer_tracker";
 //     - Chromeで発火しない場合があるため（gotopointercaptureとおそらく同じ問題）
 //     - Chromeでgotpointercapture同様に遅延発火されるため
 
+// - stream終了時点でpointerはtarget上にあるか検査するか
+//   → streamの各trackもしくは、trackSequence.lastTrackで判定すればよい
+//     お手軽なのは、
+//     - viewport座標がbounding-box内にあるか判定
+//     - viewport座標をelementsFromPointでヒットテスト
+//     のいずれかだが、いずれもpointerleaveの発火条件とは一致しない
+//     厳密にやるなら後者をtargetの全子孫に対して行う必要がある（ただしelementsFromPointはgetBoundingClientRectより有意に遅い）
 
 
 // ターゲットのboundingBox外に位置する子孫の扱い
