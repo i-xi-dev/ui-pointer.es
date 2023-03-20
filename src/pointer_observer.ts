@@ -1,87 +1,87 @@
 import {
+  type milliseconds,
   type pointerid,
-  _inContact,
-  _pointerTrackFrom,
+  type timestamp,
+  type PointerActivity,
+  type PointerMovement,
+  type PointerMotion,
+  _pointerFrom,
+  _pointerIsInContact,
+  _pointerMotionFrom,
   Pointer,
+  PointerModifier,
+  PointerType,
 } from "./pointer";
 import { ViewportPointerTracker } from "./viewport_pointer_tracker";
-import { PointerCapture } from "./pointer_capture";
 
-type timestamp = number;
-
-type milliseconds = number;
-
-type _PointerTrackSequenceOptions = {
+type _PointerActivityOptions = {
   signal: AbortSignal,
+  watchModifiers: Set<PointerModifier>,
 };
 
-class _PointerTrackSequence implements Pointer.TrackSequence {
-  readonly #sequenceTerminator: AbortController;
-  readonly #pointerId: pointerid;
-  readonly #pointerType: string;
-  readonly #primaryPointer: boolean;
+class _PointerActivity implements PointerActivity {
+  readonly #watchModifiers: Set<PointerModifier>;
+  readonly #motionStreamTerminator: AbortController;
+  readonly #pointer: Pointer;
   readonly #target: Element;
-  readonly #stream: ReadableStream<Pointer.Track>;
+  readonly #motionStream: ReadableStream<PointerMotion>;
 
-  #controller: ReadableStreamDefaultController<Pointer.Track> | null = null;
-  #firstTrack: Pointer.Track | null = null;
-  #lastTrack: Pointer.Track | null = null;
+  #motionStreamController: ReadableStreamDefaultController<PointerMotion> | null = null;
+  #firstMotion: PointerMotion | null = null;
+  #lastMotion: PointerMotion | null = null;
   #absoluteX: number = 0;
   #absoluteY: number = 0;
 
-  constructor(event: PointerEvent, target: Element, options: _PointerTrackSequenceOptions) {
-    this.#sequenceTerminator = new AbortController();
-    this.#pointerId = event.pointerId;
-    this.#pointerType = event.pointerType;
-    this.#primaryPointer = event.isPrimary;
+  constructor(event: PointerEvent, target: Element, options: _PointerActivityOptions) {
+    this.#watchModifiers = options.watchModifiers;
+    this.#motionStreamTerminator = new AbortController();
+    this.#pointer = _pointerFrom(event);
     this.#target = target;
-    const start = (controller: ReadableStreamDefaultController<Pointer.Track>): void => {
+    const start = (controller: ReadableStreamDefaultController<PointerMotion>): void => {
       options.signal.addEventListener("abort", () => {
         controller.close();
       }, {
         passive: true,
-        signal: this.#sequenceTerminator.signal,
+        signal: this.#motionStreamTerminator.signal,
       });
-      this.#controller = controller;
+      this.#motionStreamController = controller;
     };
     if (options.signal.aborted === true) {
-      this.#stream = new ReadableStream({
+      this.#motionStream = new ReadableStream({
         start(controller) {
           controller.close();
         }
       });
       return;
     }
-    this.#stream = new ReadableStream({
+    this.#motionStream = new ReadableStream({
       start,
     });
   }
 
-  get pointerId(): pointerid {
-    return this.#pointerId;
+  get pointer(): Pointer {
+    return this.#pointer;
   }
 
-  get pointerType(): string {
-    return this.#pointerType;
+  get startTime(): timestamp {
+    return this.#firstMotion ? this.#firstMotion._source.timeStamp : Number.NaN;
   }
 
-  get primaryPointer(): boolean {
-    return this.#primaryPointer;
+  get duration(): milliseconds {//TODO firefoxのpointerenterのtimeStampは同じ座標の最初のpointermoveより後になる
+    return (this.#lastMotion && this.#firstMotion) ? (this.#lastMotion._source.timeStamp - this.#firstMotion._source.timeStamp) : Number.NaN;
   }
 
-  get duration(): milliseconds {
-    return (this.#lastTrack && this.#firstTrack) ? (this.#lastTrack.timestamp - this.#firstTrack.timestamp) : Number.NaN;
+  get motionStream(): ReadableStream<PointerMotion> {
+    return this.#motionStream;
   }
 
-  get stream(): ReadableStream<Pointer.Track> {
-    return this.#stream;
-  }
-
-  get movement(): Pointer.Movement {
-    if (this.#lastTrack && this.#firstTrack) {
+  get movement(): PointerMovement {
+    if (this.#lastMotion && this.#firstMotion) {
+      const lastViewportOffset = this.#lastMotion.viewportOffset;
+      const firstViewportOffset = this.#firstMotion.viewportOffset;
       return Object.freeze({
-        relativeX: (this.#lastTrack.offset.fromViewport.x - this.#firstTrack.offset.fromViewport.x),
-        relativeY: (this.#lastTrack.offset.fromViewport.y - this.#firstTrack.offset.fromViewport.y),
+        relativeX: (lastViewportOffset.x - firstViewportOffset.x),
+        relativeY: (lastViewportOffset.y - firstViewportOffset.y),
         absoluteX: this.#absoluteX,
         absoluteY: this.#absoluteY,
       });
@@ -98,16 +98,16 @@ class _PointerTrackSequence implements Pointer.TrackSequence {
     return this.#target;
   }
 
-  get firstTrack(): Pointer.Track | null {
-    return this.#firstTrack ? this.#firstTrack : null;
+  get firstMotion(): PointerMotion | null {
+    return this.#firstMotion ? this.#firstMotion : null;
   }
 
-  get lastTrack(): Pointer.Track | null {
-    return this.#firstTrack ? this.#firstTrack : null;
+  get lastMotion(): PointerMotion | null {
+    return this.#lastMotion ? this.#lastMotion : null;
   }
 
-  async *[Symbol.asyncIterator](): AsyncGenerator<Pointer.Track, void, void> {
-    const streamReader = this.#stream.getReader();
+  async *[Symbol.asyncIterator](): AsyncGenerator<PointerMotion, void, void> {
+    const streamReader = this.#motionStream.getReader();
     try {
       for (let i = await streamReader.read(); (i.done !== true); i = await streamReader.read()) {
         yield i.value;
@@ -120,46 +120,50 @@ class _PointerTrackSequence implements Pointer.TrackSequence {
   }
 
   _terminate(): void {
-    if (this.#controller) {
-      this.#controller.close();
-      this.#sequenceTerminator.abort();
+    if (this.#motionStreamController) {
+      this.#motionStreamController.close();
+      this.#motionStreamTerminator.abort();
     }
   }
 
-  _append(event: PointerEvent, coalescedInto?: PointerEvent): void {
-    if (this.#controller) {
-      const track: Pointer.Track = _pointerTrackFrom(event, this.#target, (coalescedInto ? coalescedInto : undefined));
-      if (!this.#firstTrack) {
-        this.#firstTrack = track;
+  _append(event: PointerEvent): void {
+    if (this.#motionStreamController) {
+      const motion: PointerMotion = _pointerMotionFrom(event, this.#target, {
+        watchModifiers: this.#watchModifiers,
+      });
+      if (!this.#firstMotion) {
+        this.#firstMotion = motion;
       }
-      if (this.#lastTrack) {
-        this.#absoluteX = this.#absoluteX + Math.abs(this.#lastTrack.offset.fromViewport.x - track.offset.fromViewport.x);
-        this.#absoluteY = this.#absoluteY + Math.abs(this.#lastTrack.offset.fromViewport.y - track.offset.fromViewport.y);
+      if (this.#lastMotion) {
+        const lastViewportOffset = this.#lastMotion.viewportOffset;
+        const currViewportOffset = motion.viewportOffset;
+        this.#absoluteX = this.#absoluteX + Math.abs(lastViewportOffset.x - currViewportOffset.x);
+        this.#absoluteY = this.#absoluteY + Math.abs(lastViewportOffset.y - currViewportOffset.y);
       }
-      this.#lastTrack = track;
-      this.#controller.enqueue(track);
+      this.#lastMotion = motion;
+      this.#motionStreamController.enqueue(motion);
     }
   }
 }
+
+type _PointerTypeFilter = (event: PointerEvent) => boolean;
 
 // ダブルタップのズームは最近のiOSでは出来ない →他の手段でズームしたのをダブルタップで戻すことはできる
 // パン無効にする場合タブレット等でスクロール手段がなくなるので注意。スクロールが必要な場合は自前でスクロールを実装すること
 // （広い範囲で）ズーム無効にする場合タブレット等で自動ズームを元に戻す手段がなくなるので注意（小さい入力欄にフォーカスしたとき等に自動ズームされる）
 //type _PointerAction = "contextmenu" | "pan" | "pinch-zoom" | "double-tap-zoom" | "selection";// CSS touch-actionでは、ダブルタップズームだけを有効化する手段がない
-type _PointerAction = "contextmenu" | "pan-and-zoom" | "selection";
+const _PointerAction = {
+  CONTEXTMENU: "contextmenu",
+  PAN_AND_ZOOM: "pan-and-zoom",
+  SELECTION: "selection",
+} as const;
+export type _PointerAction = typeof _PointerAction[keyof typeof _PointerAction];
 
-type _PointerFilter = (event: PointerEvent) => boolean;
-
-type _PointerActiveState = typeof Pointer.State.HOVER | typeof Pointer.State.CONTACT;
-
-type _TargetObservationOptions = {
-  highPrecision: boolean,
-  streamInitFilter: _PointerFilter,
-  streamInitMode: _PointerActiveState,
+type _ObservationOptions = {
+  pointerTypeFilter: _PointerTypeFilter,
+  activeStateFilter: boolean,
   autoCaptureEnabled: boolean,
-  autoCaptureFilter: _PointerFilter, // フィルタ設定と関係なく、「接触あり」は絶対条件
-  //preventActions?: Array<_PointerAction>,//XXX 初期バージョンではとりあえず変更不可
-  //releaseImplicitPointerCapture?: boolean,//XXX 初期バージョンではとりあえず強制true
+  watchModifiers: Set<PointerModifier>,
 };
 
 class _TargetObservation {
@@ -167,34 +171,36 @@ class _TargetObservation {
   readonly #observationCanceller: AbortController;
   readonly #target: Element;
   readonly #callback: PointerObserver.Callback;
-  readonly #trackSequences: Map<pointerid, Pointer.TrackSequence>;
+  readonly #activities: Map<pointerid, PointerActivity>;
   readonly #capturingPointerIds: Set<pointerid>;
 
   readonly #highPrecision: boolean;
-  readonly #streamInitFilter: _PointerFilter;
-  readonly #streamInitMode: _PointerActiveState;
+  readonly #pointerTypeFilter: _PointerTypeFilter;
+  readonly #activeStateFilter: boolean;
   readonly #autoCaptureEnabled: boolean;
-  readonly #autoCaptureFilter: _PointerFilter;
+  readonly #watchModifiers: Set<PointerModifier>;
   readonly #preventActions: Array<_PointerAction>;
   readonly #releaseImplicitPointerCapture: boolean;
 
-  constructor(target: Element, callback: PointerObserver.Callback, options: _TargetObservationOptions) {
+  constructor(target: Element, callback: PointerObserver.Callback, options: _ObservationOptions) {
     this.#service = ViewportPointerTracker.get(window);
     this.#observationCanceller = new AbortController();
     this.#target = target;
     this.#callback = callback;
-    this.#trackSequences = new Map();
+    this.#activities = new Map();
     this.#capturingPointerIds = new Set();
 
-    this.#highPrecision = (options.highPrecision === true) && !!(new PointerEvent("test")).getCoalescedEvents;// webkit未実装:getCoalescedEvents
-    this.#streamInitFilter = options.streamInitFilter;
-    this.#streamInitMode = options.streamInitMode;
+    this.#highPrecision = false;//XXX webkit未実装:getCoalescedEvents
+    this.#pointerTypeFilter = options.pointerTypeFilter;
+    this.#activeStateFilter = options.activeStateFilter;
     this.#autoCaptureEnabled = options.autoCaptureEnabled;
-    this.#autoCaptureFilter = options.autoCaptureFilter;
-    //this.#preventActions = ((options.preventActions) && (Array.isArray(options.preventActions) === true)) ? [...options.preventActions] : ["contextmenu", "pan-and-zoom", "doubletap-zoom", "selection"];
-    this.#preventActions = ["contextmenu", "pan-and-zoom", "selection"];
-    //this.#releaseImplicitPointerCapture = (options.releaseImplicitPointerCapture === true);
-    this.#releaseImplicitPointerCapture = true;
+    this.#watchModifiers = options.watchModifiers;
+    this.#preventActions = [
+      _PointerAction.CONTEXTMENU,
+      _PointerAction.PAN_AND_ZOOM,
+      _PointerAction.SELECTION,
+    ];//XXX とりあえず固定
+    this.#releaseImplicitPointerCapture = true;//XXX とりあえず固定
 
     const listenerOptions = {
       passive: true,
@@ -224,6 +230,18 @@ class _TargetObservation {
           event.preventDefault();
         }) as EventListener, activeListenerOptions);
       }
+
+      // if () {
+      //   // touch-actionを一律禁止すると、タブレット等でスクロールできなくなってしまうので
+      //   // 代わりにpointer capture中のtouchmoveをキャンセルする
+      //   // いくつかの環境で試してみた結果ではtouchmoveのみキャンセルすれば問題なさそうだったが、
+      //   //   Pointer Events仕様でもTouch Events仕様でも preventDefaultすると何が起きるのかがほぼ未定義なのはリスク
+      //   this.target.addEventListener("touchmove", ((event: TouchEvent) => {
+      //     if (this._trackingMap.size > 0) {
+      //       event.preventDefault();
+      //     }
+      //   }) as EventListener, activeListenerOptions);
+      // }
     }
 
     this.#target.addEventListener("pointerdown", ((event: PointerEvent): void => {
@@ -240,13 +258,13 @@ class _TargetObservation {
       }
 
       // mouseで左ボタンが押されているか、pen/touchで接触がある場合
-      if (_inContact(event) === true) {
+      if (_pointerIsInContact(event) === true) {
         if (this.#capturingPointerIds.has(event.pointerId) === true) {
           return;
         }
 
         if (this.#autoCaptureEnabled === true) {
-          if (this.#autoCaptureFilter(event) === true) {
+          if (this.#pointerTypeFilter(event) === true) {
             this.#capturingPointerIds.add(event.pointerId);
             this.#target.setPointerCapture(event.pointerId);
           }
@@ -255,7 +273,7 @@ class _TargetObservation {
     }) as EventListener, listenerOptions);
 
     this.#target.addEventListener("pointerup", ((event: PointerEvent): void => {
-      if (_inContact(event) !== true) {
+      if (_pointerIsInContact(event) !== true) {
         (event.target as Element).releasePointerCapture(event.pointerId);
         this.#capturingPointerIds.delete(event.pointerId);
       }
@@ -283,7 +301,7 @@ class _TargetObservation {
 
       this.#handleAsync(event).catch((reason?: any): void => {
         console.error(reason);
-      });//XXX pointerenterでの#handleAsyncは不要
+      });//TODO pointerenterでの#handleAsyncは不要 開始のみ実施
     }) as EventListener, listenerOptions);
 
     this.#service.subscribe(this.#handleAsync);
@@ -308,56 +326,53 @@ class _TargetObservation {
   }
 
   #handle(event: PointerEvent): void {
-    if (this.#streamInitFilter(event) !== true) {
+    if (this.#pointerTypeFilter(event) !== true) {
       return;
     }
 
-    const initModeIsContact = (this.#streamInitMode === Pointer.State.CONTACT);
-    const pointerHasContact = (_inContact(event) === true);
-    let trackSequence: _PointerTrackSequence;
+    const pointerHasContact = (_pointerIsInContact(event) === true);
+    let activity: _PointerActivity;
 
     if (event.composedPath().includes(this.#target) === true) {
-      if (this.#trackSequences.has(event.pointerId) !== true) {
-        if ((initModeIsContact === true) && (pointerHasContact !== true)) {
+      if (this.#activities.has(event.pointerId) !== true) {
+        if ((this.#activeStateFilter === true) && (pointerHasContact !== true)) {
           return;
         }
 
-        trackSequence = new _PointerTrackSequence(event, this.#target, {
+        activity = new _PointerActivity(event, this.#target, {
           signal: this.#observationCanceller.signal,
+          watchModifiers: this.#watchModifiers,
         });
-        this.#trackSequences.set(event.pointerId, trackSequence);
-        trackSequence._append(event);
-        this.#callback(trackSequence);
+        this.#activities.set(event.pointerId, activity);
+        activity._append(event);
+        this.#callback(activity);
       }
       else {
-        trackSequence = this.#trackSequences.get(event.pointerId) as _PointerTrackSequence;
+        activity = this.#activities.get(event.pointerId) as _PointerActivity;
         if ((this.#highPrecision === true) && (event.type === "pointermove")) {
-          //let i = 0;
           for (const coalesced of event.getCoalescedEvents()) {
-            trackSequence._append(coalesced, event);
-            //i++;
+            activity._append(coalesced);
           }
-          //console.log(i);
         }
         else {
-          trackSequence._append(event);//XXX pointercancel（だけ？）は除外しないと座標が0,0？の場合がある 先にpointerleaveになるから問題ない？
+          activity._append(event);//XXX pointercancel（だけ？）は除外しないと座標が0,0？の場合がある 先にpointerleaveになるから問題ない？
         }
       }
 
       if (
-        ((initModeIsContact === true) && (pointerHasContact !== true))
+        ((this.#activeStateFilter === true) && (pointerHasContact !== true))
         || (["pointercancel", "pointerleave"].includes(event.type) === true)
       ) {
-        this.#trackSequences.delete(event.pointerId);
-        trackSequence._terminate();
+        this.#activities.delete(event.pointerId);
+        activity._terminate();
       }
     }
     else {
       // targetのみの監視だと、ブラウザ毎に特定条件でpointerupが発火しないだの何だの様々な問題があって監視に漏れが発生するので、windowを監視してれば余程漏れは無いであろうということで。
-      if (this.#trackSequences.has(event.pointerId) === true) {
-        trackSequence = this.#trackSequences.get(event.pointerId) as _PointerTrackSequence;
-        this.#trackSequences.delete(event.pointerId);
-        trackSequence._terminate();
+      if (this.#activities.has(event.pointerId) === true) {
+        activity = this.#activities.get(event.pointerId) as _PointerActivity;
+        this.#activities.delete(event.pointerId);
+        activity._terminate();
       }
     }
   }
@@ -369,25 +384,20 @@ class _TargetObservation {
 }
 
 const _DEFAULT_POINTER_TYPE_FILTER = Object.freeze([
-  Pointer.Type.MOUSE,
-  Pointer.Type.PEN,
-  Pointer.Type.TOUCH,
+  PointerType.MOUSE,
+  PointerType.PEN,
+  PointerType.TOUCH,
 ]);
 
 // filterSourceは参照渡し
-function _createStartFilter(filterSource?: Pointer.Filter): _PointerFilter {
+function _createPointerTypeFilter(filterSource?: PointerObserver.Filter): _PointerTypeFilter {
   return (event: PointerEvent): boolean => {
     if (!filterSource) {
       return true;
     }
 
-    const pointerTypes = filterSource.pointerType ? [...filterSource.pointerType] : [..._DEFAULT_POINTER_TYPE_FILTER];
+    const pointerTypes = filterSource.pointerTypes ? [...filterSource.pointerTypes] : [..._DEFAULT_POINTER_TYPE_FILTER];
     if (pointerTypes.includes(event.pointerType) !== true) {
-      return false;
-    }
-
-    const isPrimaryPointer = (filterSource.primaryPointer === true);
-    if ((isPrimaryPointer === true) && (event.isPrimary !== true)) {
       return false;
     }
 
@@ -395,44 +405,38 @@ function _createStartFilter(filterSource?: Pointer.Filter): _PointerFilter {
   };
 }
 
-function _createPointerCaptureFilter(filterSource?: PointerCapture.Filter): _PointerFilter {
-  return (event: PointerEvent): boolean => {
-    const baseFilter = _createStartFilter(filterSource);
-    if (baseFilter(event) !== true) {
-      return false;
-    }
-
-    return true;
-  };
+function _normalizeModifiers(modifiers?: Iterable<string>): Set<PointerModifier> {
+  if (modifiers) {
+    const validModifiers = Object.values(PointerModifier);
+    return new Set([...modifiers].filter((modifier) => validModifiers.includes(modifier as PointerModifier)) as Array<PointerModifier>);
+  }
+  return new Set();
 }
 
 class PointerObserver {
   readonly #callback: PointerObserver.Callback;
   readonly #targets: Map<Element, Set<_TargetObservation>>;
 
-  readonly #highPrecision: boolean;
-  readonly #streamInitFilter: _PointerFilter;
-  readonly #streamInitMode: _PointerActiveState;
+  readonly #pointerTypeFilter: _PointerTypeFilter;
+  readonly #activeStateFilter: boolean;
   readonly #autoCaptureEnabled: boolean;
-  readonly #autoCaptureFilter: _PointerFilter;
+  readonly #watchModifiers: Set<PointerModifier>;
 
   constructor(callback: PointerObserver.Callback, options: PointerObserver.Options = {}) {
     this.#callback = callback;
     this.#targets = new Map();
-    this.#highPrecision = options.highPrecision ?? false;
-    this.#streamInitFilter = _createStartFilter(options.filter);
-    this.#streamInitMode = (options.filter?.pointerState === Pointer.State.HOVER) ? Pointer.State.HOVER : Pointer.State.CONTACT;
-    this.#autoCaptureEnabled = (options.autoCapture?.enabled === true);
-    this.#autoCaptureFilter = _createPointerCaptureFilter(options.autoCapture?.filter);
+    this.#pointerTypeFilter = _createPointerTypeFilter(options.filter);
+    this.#activeStateFilter = (options.filter?.contact === true);
+    this.#autoCaptureEnabled = (options.pointerCapture?.autoSet === true);
+    this.#watchModifiers = _normalizeModifiers(options.watch?.modifiers);
   }
 
   observe(target: Element): void {
     const observation = new _TargetObservation(target, this.#callback, {
-      highPrecision: this.#highPrecision,
-      streamInitFilter: this.#streamInitFilter,
-      streamInitMode: this.#streamInitMode,
+      pointerTypeFilter: this.#pointerTypeFilter,
+      activeStateFilter: this.#activeStateFilter,
       autoCaptureEnabled: this.#autoCaptureEnabled,
-      autoCaptureFilter: this.#autoCaptureFilter,
+      watchModifiers: this.#watchModifiers,
     });
     if (this.#targets.has(target) !== true) {
       this.#targets.set(target, new Set());
@@ -455,16 +459,36 @@ class PointerObserver {
     }
   }
 }
+
 namespace PointerObserver {
 
-  export type Callback = (trackSequence: Pointer.TrackSequence) => void;
+  export type Callback = (activity: PointerActivity) => void;
 
+  export type Filter = {
+      // 監視フィルタの場合、マッチしない場合streamを生成しない（pointerTypeは不変なので生成してからフィルタする必要はない）
+      // キャプチャフィルタの場合、マッチしない場合キャプチャしない
+      pointerTypes?: Iterable<string>,
+
+      // falseの場合、pointerenterでstream生成、pointerleaveで破棄
+      // trueの場合、buttons&1==1でstream生成、buttons&1!=1で破棄
+      contact?: boolean;
+  };
+
+  /**
+   * @experimental
+   * TODO 項目の命名がイマイチ
+   */
   export type Options = {
-    highPrecision?: boolean,
-    filter?: Pointer.Filter,
-    autoCapture?: {
-      enabled?: boolean,
-      filter?: PointerCapture.Filter,
+    filter?: Filter,
+
+    pointerCapture?: {
+      // 接触したときpointer captureを行うか否か
+      autoSet?: boolean,
+
+    },
+
+    watch?: {
+      modifiers?: Iterable<string>,
     },
   };
 
@@ -473,14 +497,3 @@ namespace PointerObserver {
 export {
   PointerObserver,
 };
-
-/*
-TODO 下記対処したら脱alpha
-1. 要素境界をまたいでもpointermoveは合体されてる（windowでpointermoveをlistenしているので当然だが）
-    → 境界外のはstreamに出力しないように除外する
-      → 厳密に判定するのは高コストなので（角が丸い場合とか子孫が境界外に出ている場合とか）
-        無視するか？firefoxのtimeStampがあてになるならtemeStampで絞れば良いが・・・
-2. Firefoxでpointerenter前後のpointerevent発火順とstreamの順が一致しない
-    → おそらく、firefoxのEvent.timeStampがそもそもおかしい
-     → そちらはsourceTimestampとして、ストリーム追加時点の時刻を別途持たせる？
-*/

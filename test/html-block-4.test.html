@@ -75,29 +75,31 @@ const test = document.getElementById("test");
 
 const tiMap = new Map();
 
-function idOf(trackSequence) {
-  return `ti-${trackSequence.pointerId}`;
+function idOf(activity) {
+  return `ti-${activity.pointer.id}`;
 }
 
-function onstart(trackSequence) {
-  const id = idOf(trackSequence);
+function onstart(activity) {
+  const id = idOf(activity);
   const ti = document.getElementById("template1").content.cloneNode(true).firstElementChild;
   ti.id = id;
-  ti.querySelector("*.p1i1").textContent = `${trackSequence.pointerId}::${trackSequence.pointerType}${trackSequence.primaryPointer ? "[primary]" : ""}`;
+  ti.querySelector("*.p1i1").textContent = `${activity.pointer.id}::${activity.pointer.type}${activity.pointer.isPrimary ? "[primary]" : ""}`;
   tiMap.set(id, ti);
 }
-function onend(trackSequence) {
-  const id = idOf(trackSequence);
+
+function onend(activity) {
+  const id = idOf(activity);
   const ti = tiMap.get(id);
   tiMap.delete(id);
   ti.remove();
 }
-function onprogress(trackSequence, track) {
-  const id = idOf(trackSequence);
+
+function onprogress(activity, motion) {
+  const id = idOf(activity);
   const ti = tiMap.get(id);
 
-  const { fromTargetBoundingBox } = track.offset;
-  if (trackSequence.primaryPointer === true) {
+  const { targetOffset } = motion;
+  if (activity.pointer.isPrimary === true) {
     if (ti.classList.contains("primary") !== true) {
       ti.classList.add("primary");
     }
@@ -108,7 +110,7 @@ function onprogress(trackSequence, track) {
     }
   }
 
-  if (track.pointerState === "contact") {
+  if (motion.inContact === true) {
     if (ti.classList.contains("contact") !== true) {
       ti.classList.add("contact");
     }
@@ -119,31 +121,31 @@ function onprogress(trackSequence, track) {
     }
   }
 
-  ti.style.setProperty("left", `${fromTargetBoundingBox.x}px`);
-  ti.style.setProperty("top", `${fromTargetBoundingBox.y}px`);
-  ti.style.setProperty("--width", `${track.contact.radiusX * 2}px`);
-  ti.style.setProperty("--height", `${track.contact.radiusY * 2}px`);
-  //ti.style.setProperty("", `${track.contact.pressure}`);
+  ti.style.setProperty("left", `${targetOffset.x}px`);
+  ti.style.setProperty("top", `${targetOffset.y}px`);
+  ti.style.setProperty("--width", `${motion.properties.radiusX * 2}px`);
+  ti.style.setProperty("--height", `${motion.properties.radiusY * 2}px`);
+  //ti.style.setProperty("", `${motion.properties.pressure}`);
 
   //timestamp,timestamp,pointerState,modifiers,buttons,offset.fromViewport
   
   if (ti.isConnected !== true) {
-    trackSequence.target.append(ti);
+    activity.target.append(ti);
   }
 }
 
-const o = new PointerObserver(async (trackSequence) => {
-  console.log(`[START] pointerId:${trackSequence.pointerId}, startTime:${trackSequence.firstTrack?.timestamp}`);
-  onstart(trackSequence);
+const o = new PointerObserver(async (activity) => {
+  console.log(`[START] pointerId:${activity.pointer.id}, startTime:${activity.startTime}`);
+  onstart(activity);
 
-  for await (const track of trackSequence) {
-    console.log(JSON.stringify(track));
-    onprogress(trackSequence, track);
+  for await (const motion of activity) {
+    console.log(JSON.stringify(motion));
+    onprogress(activity, motion);
   }
 
-  console.log(`[END] pointerId:${trackSequence.pointerId}, duration:${trackSequence.duration}`);
-  console.log(trackSequence);
-  onend(trackSequence);
+  console.log(`[END] pointerId:${activity.pointer.id}, duration:${activity.duration}`);
+  console.log(activity);
+  onend(activity);
 }, {
   highPrecision: true,
   filter: {

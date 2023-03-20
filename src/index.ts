@@ -1,7 +1,5 @@
 
-export { Pointer } from "./pointer";
 export { PointerObserver } from "./pointer_observer";
-export { ViewportPointerTracker } from "./viewport_pointer_tracker";
 
 // 既知の問題
 
@@ -17,6 +15,9 @@ export { ViewportPointerTracker } from "./viewport_pointer_tracker";
 //   ターゲット要素のスクロールバー上のpointerdownでsetPointerCaptureしたとき、pointer captureされるがpointermoveが発火しない
 //   おそらくスクロールバーにcaptureを取られている
 //   firefoxは問題ない
+
+// - Chrome
+//   mouseでpointer capture中にtouchして、mouseをtargetの外に出しpointerupしてもpointerupが発火しない
 
 // - Firefox
 //   mouse操作中にタッチすると、マウスのカーソルがタッチ地点に移動する
@@ -82,3 +83,17 @@ export { ViewportPointerTracker } from "./viewport_pointer_tracker";
 // - touchmoveキャンセル（touch-action:none強制設定を解除できるようにした場合）
 // - 中クリックの自動スクロールがpointerdown(chrome) おそらく対処不能
 // - 念のためmaxTouchPointsで上限設定する（ロストしたときに必ず_terminateしていれば不要なはず）（監視漏れがなければ）
+
+/*
+TODO 下記対処したら脱alpha
+1. 要素境界をまたいでもpointermoveは合体されてる（windowでpointermoveをlistenしているので当然だが）
+    → 境界外のはstreamに出力しないように除外する
+      → 厳密に判定するのは高コストなので（角が丸い場合とか子孫が境界外に出ている場合とか）
+        無視するか？firefoxのtimeStampがあてになるならtemeStampで絞れば良いが・・・
+2. Firefoxでpointerenter前後のpointerevent発火順とstreamの順が一致しない
+    → おそらく、firefoxのEvent.timeStampがそもそもおかしい
+     → そちらはsourceTimestampとして、ストリーム追加時点の時刻を別途持たせる？
+3. absoluteX/Yは要るか？どうでもよくないか？
+4. mouseButton,penButtonも指定されたもの以外は監視しない？
+
+*/

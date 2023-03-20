@@ -9,71 +9,64 @@ type timestamp = number;
 
 type milliseconds = number;
 
-function _inContact(event: PointerEvent): boolean {
+function _pointerIsInContact(event: PointerEvent): boolean {
   return ((event.buttons & 0b1) === 0b1);
 }
 
-function _pointerStateOf(event: PointerEvent): Pointer.State {
-  if (event.type === "pointercancel") {
-    return Pointer.State.INACTIVE;
-  }
-  else if (_inContact(event) === true) {
-    return Pointer.State.CONTACT;
-  }
-  else {
-    return Pointer.State.HOVER;
-  }
+function _pointerFrom(event: PointerEvent): Pointer {
+  return Object.freeze({
+    id: event.pointerId,
+    type: event.pointerType,
+    isPrimary: event.isPrimary,
+  });
 }
 
-function _pointerModifiersOf(event: PointerEvent): Array<Pointer.Modifier> {
-  const modifiers: Array<Pointer.Modifier> = [];
-  if (event.altKey === true) {
-    modifiers.push(Pointer.Modifier.ALT);
-  }
-  if (event.ctrlKey === true) {
-    modifiers.push(Pointer.Modifier.CONTROL);
-  }
-  if (event.metaKey === true) {
-    modifiers.push(Pointer.Modifier.META);
-  }
-  if (event.shiftKey === true) {
-    modifiers.push(Pointer.Modifier.SHIFT);
+function _pointerModifiersOf(event: PointerEvent, watchModifiers: Set<PointerModifier>): Array<PointerModifier> {
+  const modifiers: Array<PointerModifier> = [];
+  for (const modifier of watchModifiers) {
+    if (event.getModifierState(modifier) === true) {
+      modifiers.push(modifier);
+    }
   }
   return modifiers;
 }
 
-function _mouseButtonsOf(event: PointerEvent): Array<Pointer.MouseButton> {
-  const mouseButtons: Array<Pointer.MouseButton> = [];
+function _mouseButtonsOf(event: PointerEvent): Array<MouseButton> {
+  const mouseButtons: Array<MouseButton> = [];
   if ((event.buttons & 0b1) === 0b1) {
-    mouseButtons.push(Pointer.MouseButton.LEFT);
+    mouseButtons.push(MouseButton.LEFT);
   }
   if ((event.buttons & 0b10) === 0b10) {
-    mouseButtons.push(Pointer.MouseButton.RIGHT);
+    mouseButtons.push(MouseButton.RIGHT);
   }
   if ((event.buttons & 0b100) === 0b100) {
-    mouseButtons.push(Pointer.MouseButton.MIDDLE);
+    mouseButtons.push(MouseButton.MIDDLE);
   }
   if ((event.buttons & 0b1000) === 0b1000) {
-    mouseButtons.push(Pointer.MouseButton.X1);
+    mouseButtons.push(MouseButton.X_BUTTON_1);
   }
   if ((event.buttons & 0b10000) === 0b10000) {
-    mouseButtons.push(Pointer.MouseButton.X2);
+    mouseButtons.push(MouseButton.X_BUTTON_2);
   }
   return mouseButtons;
 }
 
-function _penButtonsOf(event: PointerEvent): Array<Pointer.PenButton> {
-  const penButtons: Array<Pointer.PenButton> = [];
+function _penButtonsOf(event: PointerEvent): Array<PenButton> {
+  const penButtons: Array<PenButton> = [];
   if ((event.buttons & 0b10) === 0b10) {
-    penButtons.push(Pointer.PenButton.BARREL);
+    penButtons.push(PenButton.BARREL);
   }
   if ((event.buttons & 0b100000) === 0b100000) {
-    penButtons.push(Pointer.PenButton.ERASER);
+    penButtons.push(PenButton.ERASER);
   }
   return penButtons;
 }
 
-function _pointerTrackFrom(event: PointerEvent, target: Element, coalescedInto?: PointerEvent): Pointer.Track {
+type _PointerMotionOptions = {
+  watchModifiers: Set<PointerModifier>,
+};
+
+function _pointerMotionFrom(event: PointerEvent, target: Element, options: _PointerMotionOptions): PointerMotion {
   const dispatcher = (event.target instanceof Element) ? event.target : null;
   let targetX = Number.NaN;
   let targetY = Number.NaN;
@@ -90,143 +83,155 @@ function _pointerTrackFrom(event: PointerEvent, target: Element, coalescedInto?:
   }
 
   return Object.freeze({
-    timestamp: event.timeStamp,
-    pointerId: event.pointerId,
-    pointerState: _pointerStateOf(event),
-    modifiers: _pointerModifiersOf(event),
-    buttons: (event.pointerType === Pointer.Type.PEN) ? _penButtonsOf(event) : _mouseButtonsOf(event),
-    contact: Object.freeze({
+
+    viewportOffset: Object.freeze({
+      x: event.clientX,
+      y: event.clientY,
+    }),
+    targetOffset: Object.freeze({
+      x: targetX,
+      y: targetY,
+    }),
+    inContact: _pointerIsInContact(event),
+    properties: Object.freeze({
+      pressure: event.pressure,
       radiusX: event.width / 2,
       radiusY: event.height / 2,
-      pressure: event.pressure,
+      tangentialPressure: event.tangentialPressure,
+      tiltX: event.tiltX,
+      tiltY: event.tiltY,
+      twist: event.twist,
     }),
-    offset: Object.freeze({
-      fromViewport: Object.freeze({
-        x: event.clientX,
-        y: event.clientY,
-      }),
-      fromTargetBoundingBox: Object.freeze({
-        x: targetX,
-        y: targetY,
-      }),
-    }),
-    target,
-    sourceType: event.type,
-    coalescedInto: (coalescedInto ? coalescedInto.timeStamp : null),
+    buttons: (event.pointerType === PointerType.PEN) ? _penButtonsOf(event) : _mouseButtonsOf(event),
     captured: target.hasPointerCapture(event.pointerId),
+    _source: event,
+    modifiers: _pointerModifiersOf(event, options.watchModifiers),
   });
 }
 
-interface _PointerFilterBase {
-  // 監視フィルタの場合、マッチしない場合streamを生成しない（pointerTypeは不変なので生成してからフィルタする必要はない）
-  // キャプチャフィルタの場合、マッチしない場合キャプチャしない
-  pointerType?: Iterable<string>;
-
-  // 監視フィルタの場合、マッチしない場合streamを生成しない（isPrimaryは不変なので生成してからフィルタする必要はない）
-  // キャプチャフィルタの場合、マッチしない場合キャプチャしない
-  primaryPointer?: boolean;
-
+interface Pointer {
+  readonly id: pointerid;
+  readonly type: string;
+  readonly isPrimary: boolean;// 途中で変わることはない（複数タッチしてプライマリを離した場合、タッチを全部離すまでプライマリは存在しなくなる。その状態でタッチを増やしてもプライマリは無い）
 }
 
-namespace Pointer {
-  export const Type = {
-    MOUSE: "mouse",
-    PEN: "pen",
-    TOUCH: "touch",
-    UNKNOWN: "",
-  } as const;
+const PointerType = {
+  MOUSE: "mouse",
+  PEN: "pen",
+  TOUCH: "touch",
+  UNKNOWN: "",
+} as const;
 
-  export const State = {
-    CONTACT: "contact",
-    HOVER: "hover",
-    INACTIVE: "inactive",
-  } as const;
-  export type State = typeof State[keyof typeof State];
+/** @experimental */
+const MouseButton = {
+  LEFT: "left",
+  MIDDLE: "middle",
+  RIGHT: "right",
+  X_BUTTON_1: "xbutton1",
+  X_BUTTON_2: "xbutton2",
+} as const;
+type MouseButton = typeof MouseButton[keyof typeof MouseButton];
 
-  export const Modifier = {
-    ALT: Keyboard.Key.ALT,
-    CONTROL: Keyboard.Key.CONTROL,
-    META: Keyboard.Key.META,
-    SHIFT: Keyboard.Key.SHIFT,
-  } as const;
-  export type Modifier = typeof Modifier[keyof typeof Modifier];
+/** @experimental */
+const PenButton = {
+  BARREL: "barrel",// ボタン
+  ERASER: "eraser",// 副先端での接触
+} as const;
+type PenButton = typeof PenButton[keyof typeof PenButton];
 
-  export const MouseButton = {
-    LEFT: "left",
-    MIDDLE: "middle",
-    RIGHT: "right",
-    X1: "x1",
-    X2: "x2",
-  } as const;
-  export type MouseButton = typeof MouseButton[keyof typeof MouseButton];
+type PointerProperties = {
+  readonly pressure: number,
+  readonly radiusX: number,
+  readonly radiusY: number,
+  readonly tangentialPressure: number,
+  readonly tiltX: number,
+  readonly tiltY: number,
+  readonly twist: number,
+  // altitudeAngle 未実装のブラウザが多い
+  // azimuthAngle 未実装のブラウザが多い
+  // relatedTarget →PointerActivity
+  // sourceCapabilities →PointerActivity
+  // composedPath() →PointerActivity
+  // getPredictedEvents() 
+};
 
-  export const PenButton = {
-    BARREL: "barrel",
-    ERASER: "eraser",
-  } as const;
-  export type PenButton = typeof PenButton[keyof typeof PenButton];
+const PointerModifier = {
+  ALT: Keyboard.Key.ALT,
+  ALT_GRAPH: Keyboard.Key.ALT_GRAPH,
+  CAPS_LOCK: Keyboard.Key.CAPS_LOCK,
+  CONTROL: Keyboard.Key.CONTROL,
+  F1: Keyboard.Key.F1,
+  F2: Keyboard.Key.F2,
+  F3: Keyboard.Key.F3,
+  F4: Keyboard.Key.F4,
+  F5: Keyboard.Key.F5,
+  F6: Keyboard.Key.F6,
+  F7: Keyboard.Key.F7,
+  F8: Keyboard.Key.F8,
+  F9: Keyboard.Key.F9,
+  F10: Keyboard.Key.F10,
+  F11: Keyboard.Key.F11,
+  F12: Keyboard.Key.F12,
+  F13: Keyboard.Key.F13,
+  F14: Keyboard.Key.F14,
+  F15: Keyboard.Key.F15,
+  FN_LOCK: Keyboard.Key.FN_LOCK,
+  HYPER: Keyboard.Key.HYPER,
+  META: Keyboard.Key.META,
+  NUM_LOCK: Keyboard.Key.NUM_LOCK,
+  SCROLL_LOCK: Keyboard.Key.SCROLL_LOCK,
+  SHIFT: Keyboard.Key.SHIFT,
+  SUPER: Keyboard.Key.SUPER,
+  SYMBOL: Keyboard.Key.SYMBOL,
+  SYMBOL_LOCK: Keyboard.Key.SYMBOL_LOCK,
+} as const;
+type PointerModifier = typeof PointerModifier[keyof typeof PointerModifier];
 
-  export type Contact = {
-    readonly radiusX: number,
-    readonly radiusY: number,
-    readonly pressure: number,
-  };
-  //XXX tangentialPressure,tiltX,tiltY,twist,altitudeAngle,azimuthAngle
+interface PointerMotion {
+  readonly viewportOffset: Geometry2d.Point, // from viewport top left
+  readonly targetOffset: Geometry2d.Point, // from target bounding box top left
+  readonly inContact: boolean;// pointerがactiveかつ接触があるか否か
+  readonly properties: PointerProperties,
+  readonly buttons: (Array<MouseButton> | Array<PenButton>),
+  readonly captured: boolean;// 「targetに」captureされているか否か
 
-  export interface Track {
-    readonly timestamp: timestamp;
-    readonly pointerId: pointerid;
-    //readonly trustedSource: boolean;
-    readonly pointerState: State;
-    readonly modifiers: Array<Modifier>;
-    readonly buttons: (Array<MouseButton> | Array<PenButton>);
-    readonly contact: Contact,
-    readonly offset: {
-      readonly fromViewport: Geometry2d.Point,
-      readonly fromTargetBoundingBox: Geometry2d.Point,
-    },
-    readonly target: Element | null;
-    readonly sourceType: string;
-    readonly coalescedInto: timestamp | null;// timestampだと合体先を特定できない可能性があるが、いちいちid振るのもなんなので妥協
-    readonly captured: boolean;// 「targetに」captureされているか否か
-    //XXX touches
-  }
-  // ,composedPath, ...
+  /** @experimental */
+  readonly _source: PointerEvent;
 
-  export type Movement = {
-    readonly relativeX: number,
-    readonly relativeY: number,
-    readonly absoluteX: number,
-    readonly absoluteY: number,
-  };
+  readonly modifiers: Array<PointerModifier>;// タッチ間で共有だが現在値なのでここに持たせる
+}
 
-  export interface TrackSequence {
-    readonly pointerId: pointerid;
-    readonly pointerType: string;
-    readonly primaryPointer: boolean;// 途中で変わることはない（複数タッチしてプライマリを離した場合、タッチを全部離すまでプライマリは存在しなくなる。その状態でタッチを増やしてもプライマリは無い）
-    readonly duration: milliseconds;
-    readonly stream: ReadableStream<Track>;
-    readonly movement: Movement;
-    readonly target: Element;
-    readonly [Symbol.asyncIterator]: () => AsyncGenerator<Track, void, void>;
-    readonly firstTrack: Track | null;
-    readonly lastTrack: Track | null;
-  }
+type PointerMovement = {
+  readonly relativeX: number,
+  readonly relativeY: number,
+  readonly absoluteX: number,
+  readonly absoluteY: number,
+};
 
-  export interface Filter extends _PointerFilterBase {
-    // hoverの場合、pointerenterでstream生成、pointerleaveで破棄
-    // contactの場合、buttons&1==1でstream生成、buttons&1!=1で破棄
-    pointerState?: typeof State.HOVER | typeof State.CONTACT;
-
-    // その他 streamにenqueueしない条件 → streamの消費側でフィルタすれば良いので、とりあえず対応しない
-  };
-
+interface PointerActivity {
+  readonly pointer: Pointer;
+  readonly startTime: timestamp;
+  readonly duration: milliseconds;
+  readonly motionStream: ReadableStream<PointerMotion>;
+  readonly movement: PointerMovement;
+  readonly target: Element;
+  readonly [Symbol.asyncIterator]: () => AsyncGenerator<PointerMotion, void, void>;
+  readonly firstMotion: PointerMotion | null;
+  readonly lastMotion: PointerMotion | null;
+  //TODO 監視対象PointerModifierをここに持たせる？
 }
 
 export {
-  type _PointerFilterBase,
+  type milliseconds,
   type pointerid,
-  _inContact,
-  _pointerTrackFrom,
+  type timestamp,
+  type PointerActivity,
+  type PointerMovement,
+  type PointerMotion,
+  _pointerFrom,
+  _pointerIsInContact,
+  _pointerMotionFrom,
   Pointer,
+  PointerModifier,
+  PointerType,
 };
