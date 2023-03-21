@@ -1,26 +1,23 @@
+import { Geometry2d } from "@i-xi-dev/ui-utils";
 import {
   type milliseconds,
   type pointerid,
   type timestamp,
   type PointerActivity,
-  type PointerMovement,
   type PointerMotion,
-  _pointerFrom,
   _pointerIsInContact,
   _pointerMotionFrom,
   Pointer,
-  PointerModifier,
-  PointerType,
 } from "./pointer";
 import { ViewportPointerTracker } from "./viewport_pointer_tracker";
 
 type _PointerActivityOptions = {
   signal: AbortSignal,
-  watchModifiers: Set<PointerModifier>,
+  modifiersToWatch: Set<Pointer.Modifier>,
 };
 
 class _PointerActivity implements PointerActivity {
-  readonly #watchModifiers: Set<PointerModifier>;
+  readonly #modifiersToWatch: Set<Pointer.Modifier>;
   readonly #motionStreamTerminator: AbortController;
   readonly #pointer: Pointer;
   readonly #target: Element;
@@ -29,13 +26,12 @@ class _PointerActivity implements PointerActivity {
   #motionStreamController: ReadableStreamDefaultController<PointerMotion> | null = null;
   #firstMotion: PointerMotion | null = null;
   #lastMotion: PointerMotion | null = null;
-  #absoluteX: number = 0;
-  #absoluteY: number = 0;
+  #trackLength: number = 0;
 
   constructor(event: PointerEvent, target: Element, options: _PointerActivityOptions) {
-    this.#watchModifiers = options.watchModifiers;
+    this.#modifiersToWatch = options.modifiersToWatch;
     this.#motionStreamTerminator = new AbortController();
-    this.#pointer = _pointerFrom(event);
+    this.#pointer = Pointer.from(event);
     this.#target = target;
     const start = (controller: ReadableStreamDefaultController<PointerMotion>): void => {
       options.signal.addEventListener("abort", () => {
@@ -75,23 +71,23 @@ class _PointerActivity implements PointerActivity {
     return this.#motionStream;
   }
 
-  get movement(): PointerMovement {
+  get movement(): Geometry2d.Point {
     if (this.#lastMotion && this.#firstMotion) {
       const lastViewportOffset = this.#lastMotion.viewportOffset;
       const firstViewportOffset = this.#firstMotion.viewportOffset;
       return Object.freeze({
-        relativeX: (lastViewportOffset.x - firstViewportOffset.x),
-        relativeY: (lastViewportOffset.y - firstViewportOffset.y),
-        absoluteX: this.#absoluteX,
-        absoluteY: this.#absoluteY,
+        x: (lastViewportOffset.x - firstViewportOffset.x),
+        y: (lastViewportOffset.y - firstViewportOffset.y),
       });
     }
     return Object.freeze({
-      relativeX: 0,
-      relativeY: 0,
-      absoluteX: 0,
-      absoluteY: 0,
+      x: 0,
+      y: 0,
     });
+  }
+
+  get trackLength(): number {
+    return this.#trackLength;
   }
 
   get target(): Element {
@@ -104,6 +100,10 @@ class _PointerActivity implements PointerActivity {
 
   get lastMotion(): PointerMotion | null {
     return this.#lastMotion ? this.#lastMotion : null;
+  }
+
+  get watchedModifiers(): Array<Pointer.Modifier> {
+    return [...this.#modifiersToWatch];
   }
 
   async *[Symbol.asyncIterator](): AsyncGenerator<PointerMotion, void, void> {
@@ -129,17 +129,19 @@ class _PointerActivity implements PointerActivity {
   _append(event: PointerEvent): void {
     if (this.#motionStreamController) {
       const motion: PointerMotion = _pointerMotionFrom(event, this.#target, {
-        watchModifiers: this.#watchModifiers,
+        modifiersToWatch: this.#modifiersToWatch,
+        prevMotion: this.#lastMotion,
       });
       if (!this.#firstMotion) {
         this.#firstMotion = motion;
       }
-      if (this.#lastMotion) {
-        const lastViewportOffset = this.#lastMotion.viewportOffset;
-        const currViewportOffset = motion.viewportOffset;
-        this.#absoluteX = this.#absoluteX + Math.abs(lastViewportOffset.x - currViewportOffset.x);
-        this.#absoluteY = this.#absoluteY + Math.abs(lastViewportOffset.y - currViewportOffset.y);
-      }
+
+      const movement = motion.movement;
+      this.#trackLength = this.#trackLength + Geometry2d.Area.diagonal({
+        width: Math.abs(movement.x),
+        height: Math.abs(movement.y),
+      });
+
       this.#lastMotion = motion;
       this.#motionStreamController.enqueue(motion);
     }
@@ -161,9 +163,9 @@ export type _PointerAction = typeof _PointerAction[keyof typeof _PointerAction];
 
 type _ObservationOptions = {
   pointerTypeFilter: _PointerTypeFilter,
-  activeStateFilter: boolean,
-  autoCaptureEnabled: boolean,
-  watchModifiers: Set<PointerModifier>,
+  contactStateFilter: boolean,
+  usePointerCapture: boolean,
+  modifiersToWatch: Set<Pointer.Modifier>,
 };
 
 class _TargetObservation {
@@ -176,9 +178,9 @@ class _TargetObservation {
 
   readonly #highPrecision: boolean;
   readonly #pointerTypeFilter: _PointerTypeFilter;
-  readonly #activeStateFilter: boolean;
-  readonly #autoCaptureEnabled: boolean;
-  readonly #watchModifiers: Set<PointerModifier>;
+  readonly #contactStateFilter: boolean;
+  readonly #usePointerCapture: boolean;
+  readonly #modifiersToWatch: Set<Pointer.Modifier>;
   readonly #preventActions: Array<_PointerAction>;
   readonly #releaseImplicitPointerCapture: boolean;
 
@@ -192,9 +194,9 @@ class _TargetObservation {
 
     this.#highPrecision = false;//XXX webkit未実装:getCoalescedEvents
     this.#pointerTypeFilter = options.pointerTypeFilter;
-    this.#activeStateFilter = options.activeStateFilter;
-    this.#autoCaptureEnabled = options.autoCaptureEnabled;
-    this.#watchModifiers = options.watchModifiers;
+    this.#contactStateFilter = options.contactStateFilter;
+    this.#usePointerCapture = options.usePointerCapture;
+    this.#modifiersToWatch = options.modifiersToWatch;
     this.#preventActions = [
       _PointerAction.CONTEXTMENU,
       _PointerAction.PAN_AND_ZOOM,
@@ -263,7 +265,7 @@ class _TargetObservation {
           return;
         }
 
-        if (this.#autoCaptureEnabled === true) {
+        if (this.#usePointerCapture === true) {
           if (this.#pointerTypeFilter(event) === true) {
             this.#capturingPointerIds.add(event.pointerId);
             this.#target.setPointerCapture(event.pointerId);
@@ -335,13 +337,13 @@ class _TargetObservation {
 
     if (event.composedPath().includes(this.#target) === true) {
       if (this.#activities.has(event.pointerId) !== true) {
-        if ((this.#activeStateFilter === true) && (pointerHasContact !== true)) {
+        if ((this.#contactStateFilter === true) && (pointerHasContact !== true)) {
           return;
         }
 
         activity = new _PointerActivity(event, this.#target, {
           signal: this.#observationCanceller.signal,
-          watchModifiers: this.#watchModifiers,
+          modifiersToWatch: this.#modifiersToWatch,
         });
         this.#activities.set(event.pointerId, activity);
         activity._append(event);
@@ -360,7 +362,7 @@ class _TargetObservation {
       }
 
       if (
-        ((this.#activeStateFilter === true) && (pointerHasContact !== true))
+        ((this.#contactStateFilter === true) && (pointerHasContact !== true))
         || (["pointercancel", "pointerleave"].includes(event.type) === true)
       ) {
         this.#activities.delete(event.pointerId);
@@ -384,33 +386,42 @@ class _TargetObservation {
 }
 
 const _DEFAULT_POINTER_TYPE_FILTER = Object.freeze([
-  PointerType.MOUSE,
-  PointerType.PEN,
-  PointerType.TOUCH,
+  Pointer.Type.MOUSE,
+  Pointer.Type.PEN,
+  Pointer.Type.TOUCH,
 ]);
 
 // filterSourceは参照渡し
-function _createPointerTypeFilter(filterSource?: PointerObserver.Filter): _PointerTypeFilter {
+function _createPointerTypeFilter(pointerTypeFilterSource?: Array<string>): _PointerTypeFilter {
+  if (!pointerTypeFilterSource ) {
+    return () => true;
+  }
+  if (Array.isArray(pointerTypeFilterSource) !== true) {
+    return () => true;
+  }
+  if (pointerTypeFilterSource.every((s) => typeof s === "string") !== true) {
+    return () => true;
+  }
+
+  const pointerTypes = pointerTypeFilterSource ? [...pointerTypeFilterSource] : [..._DEFAULT_POINTER_TYPE_FILTER];
   return (event: PointerEvent): boolean => {
-    if (!filterSource) {
-      return true;
-    }
-
-    const pointerTypes = filterSource.pointerTypes ? [...filterSource.pointerTypes] : [..._DEFAULT_POINTER_TYPE_FILTER];
-    if (pointerTypes.includes(event.pointerType) !== true) {
-      return false;
-    }
-
-    return true;
+    return (pointerTypes.includes(event.pointerType) === true);
   };
 }
 
-function _normalizeModifiers(modifiers?: Iterable<string>): Set<PointerModifier> {
-  if (modifiers) {
-    const validModifiers = Object.values(PointerModifier);
-    return new Set([...modifiers].filter((modifier) => validModifiers.includes(modifier as PointerModifier)) as Array<PointerModifier>);
+function _normalizeModifiers(modifiers?: Array<string>): Set<Pointer.Modifier> {
+  if (!modifiers) {
+    return new Set();
   }
-  return new Set();
+  if (Array.isArray(modifiers) !== true) {
+    return new Set();
+  }
+  if (modifiers.every((s) => typeof s === "string") !== true) {
+    return new Set();
+  }
+
+  const validModifiers = Object.values(Pointer.Modifier);
+  return new Set([...modifiers].filter((modifier) => validModifiers.includes(modifier as Pointer.Modifier)) as Array<Pointer.Modifier>);
 }
 
 class PointerObserver {
@@ -418,25 +429,25 @@ class PointerObserver {
   readonly #targets: Map<Element, Set<_TargetObservation>>;
 
   readonly #pointerTypeFilter: _PointerTypeFilter;
-  readonly #activeStateFilter: boolean;
-  readonly #autoCaptureEnabled: boolean;
-  readonly #watchModifiers: Set<PointerModifier>;
+  readonly #contactStateFilter: boolean;
+  readonly #usePointerCapture: boolean;
+  readonly #modifiersToWatch: Set<Pointer.Modifier>;
 
   constructor(callback: PointerObserver.Callback, options: PointerObserver.Options = {}) {
     this.#callback = callback;
     this.#targets = new Map();
-    this.#pointerTypeFilter = _createPointerTypeFilter(options.filter);
-    this.#activeStateFilter = (options.filter?.contact === true);
-    this.#autoCaptureEnabled = (options.pointerCapture?.autoSet === true);
-    this.#watchModifiers = _normalizeModifiers(options.watch?.modifiers);
+    this.#pointerTypeFilter = _createPointerTypeFilter(options.pointerTypeFilter);
+    this.#contactStateFilter = (options.contactStateFilter === true);
+    this.#usePointerCapture = (options.usePointerCapture === true);
+    this.#modifiersToWatch = _normalizeModifiers(options.modifiersToWatch);
   }
 
   observe(target: Element): void {
     const observation = new _TargetObservation(target, this.#callback, {
       pointerTypeFilter: this.#pointerTypeFilter,
-      activeStateFilter: this.#activeStateFilter,
-      autoCaptureEnabled: this.#autoCaptureEnabled,
-      watchModifiers: this.#watchModifiers,
+      contactStateFilter: this.#contactStateFilter,
+      usePointerCapture: this.#usePointerCapture,
+      modifiersToWatch: this.#modifiersToWatch,
     });
     if (this.#targets.has(target) !== true) {
       this.#targets.set(target, new Set());
@@ -460,36 +471,20 @@ class PointerObserver {
   }
 }
 
+type _UsePointerCapture = boolean;//XXX 将来対応とする | ((event: PointerEvent) => boolean);
+
 namespace PointerObserver {
 
   export type Callback = (activity: PointerActivity) => void;
 
-  export type Filter = {
-      // 監視フィルタの場合、マッチしない場合streamを生成しない（pointerTypeは不変なので生成してからフィルタする必要はない）
-      // キャプチャフィルタの場合、マッチしない場合キャプチャしない
-      pointerTypes?: Iterable<string>,
-
-      // falseの場合、pointerenterでstream生成、pointerleaveで破棄
-      // trueの場合、buttons&1==1でstream生成、buttons&1!=1で破棄
-      contact?: boolean;
-  };
-
   /**
-   * @experimental
-   * TODO 項目の命名がイマイチ
+   * 
    */
   export type Options = {
-    filter?: Filter,
-
-    pointerCapture?: {
-      // 接触したときpointer captureを行うか否か
-      autoSet?: boolean,
-
-    },
-
-    watch?: {
-      modifiers?: Iterable<string>,
-    },
+    contactStateFilter?: boolean,//TODO これの命名がイマイチ // trueの場合、buttons&1==1でstream生成、buttons&1!=1で破棄 falseの場合、pointerenterでstream生成、pointerleaveで破棄
+    modifiersToWatch?: Array<string>,// PointerEvent発生時にgetModifierState()で検査する対象
+    pointerTypeFilter?: Array<string>, // マッチしない場合streamを生成しない（pointerTypeは不変なので生成してからフィルタする必要はない）
+    usePointerCapture?: _UsePointerCapture,// 「接触したとき」に、pointer captureを行うか否か
   };
 
 }

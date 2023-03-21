@@ -64,6 +64,8 @@ export { PointerObserver } from "./pointer_observer";
 //     のいずれかだが、いずれもpointerleaveの発火条件とは一致しない
 //     厳密にやるなら後者をtargetの全子孫に対して行う必要がある（ただしelementsFromPointはgetBoundingClientRectより有意に遅い）
 
+// - wheel →wheelでスクロールしたときブラウザによってpointerenter,pointerleaveが発火しない
+
 
 // ターゲットのboundingBox外に位置する子孫の扱い
 // Trackingは開始する仕様とする
@@ -93,7 +95,6 @@ TODO 下記対処したら脱alpha
 2. Firefoxでpointerenter前後のpointerevent発火順とstreamの順が一致しない
     → おそらく、firefoxのEvent.timeStampがそもそもおかしい
      → そちらはsourceTimestampとして、ストリーム追加時点の時刻を別途持たせる？
-3. absoluteX/Yは要るか？どうでもよくないか？
 4. mouseButton,penButtonも指定されたもの以外は監視しない？
 
 */
