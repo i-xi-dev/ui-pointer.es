@@ -87,6 +87,7 @@ function _pointerMotionFrom(event: PointerEvent, target: Element, options: _Poin
   const modifiers: Array<Pointer.Modifier> = [...options.modifiersToWatch].filter((modifier) => event.getModifierState(modifier) === true);
 
   return Object.freeze({
+    timeStamp: event.timeStamp,
     viewportOffset: Object.freeze({
       x: viewportX,
       y: viewportY,
@@ -109,7 +110,9 @@ function _pointerMotionFrom(event: PointerEvent, target: Element, options: _Poin
     buttons: (event.pointerType === Pointer.Type.PEN) ? _penButtonsOf(event) : _mouseButtonsOf(event),
     modifiers,
     captured: target.hasPointerCapture(event.pointerId),
-    _source: event,
+    source: Object.freeze({
+      isTrusted: event.isTrusted,
+    }),
   });
 }
 
@@ -203,7 +206,15 @@ namespace Pointer {
 
 }
 
+type PointerMotionSource = {
+  //XXX composedPath
+  //XXX sourceCapabilities
+  //XXX relatedTarget
+  readonly isTrusted: boolean,
+};
+
 interface PointerMotion {
+  readonly timeStamp: timestamp;
   readonly viewportOffset: Geometry2d.Point, // from viewport top left
   readonly targetOffset: Geometry2d.Point, // from target bounding box top left
   readonly movement: Geometry2d.Point;// 直前のPointerMotionからの相対位置
@@ -212,10 +223,7 @@ interface PointerMotion {
   readonly buttons: (Array<Pointer.MouseButton> | Array<Pointer.PenButton>),
   readonly modifiers: Array<Pointer.Modifier>;// タッチ間で共有だが現在値なのでここに持たせる
   readonly captured: boolean;// 「targetに」captureされているか否か
-
-  /** @experimental */
-  readonly _source: PointerEvent;
-  // dispatcher, timeStamp, movementX/Y, relatedTarget, sourceCapabilities, composedPath
+  readonly source: PointerMotionSource;
 }
 
 interface PointerActivity {

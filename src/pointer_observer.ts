@@ -60,11 +60,11 @@ class _PointerActivity implements PointerActivity {
   }
 
   get startTime(): timestamp {
-    return this.#firstMotion ? this.#firstMotion._source.timeStamp : Number.NaN;
+    return this.#firstMotion ? this.#firstMotion.timeStamp : Number.NaN;
   }
 
   get duration(): milliseconds {//TODO firefoxのpointerenterのtimeStampは同じ座標の最初のpointermoveより後になる
-    return (this.#lastMotion && this.#firstMotion) ? (this.#lastMotion._source.timeStamp - this.#firstMotion._source.timeStamp) : Number.NaN;
+    return (this.#lastMotion && this.#firstMotion) ? (this.#lastMotion.timeStamp - this.#firstMotion.timeStamp) : Number.NaN;
   }
 
   get motionStream(): ReadableStream<PointerMotion> {
