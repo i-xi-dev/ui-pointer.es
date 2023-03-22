@@ -139,7 +139,7 @@ const o = new PointerObserver(async (activity) => {
   onstart(activity);
 
   for await (const motion of activity) {
-    console.log(JSON.stringify(motion));
+    console.log(JSON.stringify(motion), JSON.stringify(activity));
     onprogress(activity, motion);
   }
 

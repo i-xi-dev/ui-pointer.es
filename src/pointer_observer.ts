@@ -20,9 +20,12 @@ class _PointerActivity implements PointerActivity {
   readonly #modifiersToWatch: Set<Pointer.Modifier>;
   readonly #motionStreamTerminator: AbortController;
   readonly #pointer: Pointer;
-  readonly #target: Element;
+  readonly #target: WeakRef<Element>;
+  readonly #progress: Promise<void>;
   readonly #motionStream: ReadableStream<PointerMotion>;
 
+  #terminated: boolean = false;
+  #progressResolver: () => void = (): void => {};
   #motionStreamController: ReadableStreamDefaultController<PointerMotion> | null = null;
   #firstMotion: PointerMotion | null = null;
   #lastMotion: PointerMotion | null = null;
@@ -32,7 +35,10 @@ class _PointerActivity implements PointerActivity {
     this.#modifiersToWatch = options.modifiersToWatch;
     this.#motionStreamTerminator = new AbortController();
     this.#pointer = Pointer.from(event);
-    this.#target = target;
+    this.#progress = new Promise((resolve: () => void) => {
+      this.#progressResolver = resolve;
+    });
+    this.#target = new WeakRef(target);
     const start = (controller: ReadableStreamDefaultController<PointerMotion>): void => {
       options.signal.addEventListener("abort", () => {
         controller.close();
@@ -71,7 +77,15 @@ class _PointerActivity implements PointerActivity {
     return this.#motionStream;
   }
 
-  get movement(): Geometry2d.Point {
+  get startViewportOffset(): Geometry2d.Point | null {
+    return this.#firstMotion ? this.#firstMotion.viewportOffset : null;
+  }
+
+  get startTargetOffset(): Geometry2d.Point | null {
+    return this.#firstMotion ? this.#firstMotion.targetOffset : null;
+  }
+
+  get currentMovement(): Geometry2d.Point {
     if (this.#lastMotion && this.#firstMotion) {
       const lastViewportOffset = this.#lastMotion.viewportOffset;
       const firstViewportOffset = this.#firstMotion.viewportOffset;
@@ -86,12 +100,36 @@ class _PointerActivity implements PointerActivity {
     });
   }
 
-  get trackLength(): number {
+  get resultMovement(): Promise<Geometry2d.Point> {
+    return new Promise((resolve, reject) => {
+      this.#progress.then(() => {
+        resolve(this.currentMovement);
+      }).catch((r) => {
+        reject(r);
+      });
+    });
+  }
+
+  get currentTrackLength(): number {
     return this.#trackLength;
   }
 
-  get target(): Element {
-    return this.#target;
+  get resultTrackLength(): Promise<number> {
+    return new Promise((resolve, reject) => {
+      this.#progress.then(() => {
+        resolve(this.currentTrackLength);
+      }).catch((r) => {
+        reject(r);
+      });
+    });
+  }
+
+  get target(): Element | null {
+    return this.#target.deref() ?? null;
+  }
+
+  get inProgress(): boolean {
+    return (this.#terminated !== true);
   }
 
   get firstMotion(): PointerMotion | null {
@@ -119,16 +157,36 @@ class _PointerActivity implements PointerActivity {
     }
   }
 
+  toJSON() {//TODO
+    return {
+      pointer: this.pointer,
+    };
+  }
+
   _terminate(): void {
-    if (this.#motionStreamController) {
+    console.assert(this.#terminated !== true, "slready terminated");
+
+    if (this.#motionStreamController && this.#motionStream.locked) {
+      console.log("terminated");
       this.#motionStreamController.close();
       this.#motionStreamTerminator.abort();
     }
+
+    this.#terminated = true;
+    this.#progressResolver();
   }
 
   _append(event: PointerEvent): void {
+    if (this.#terminated === true) {
+      throw new Error("TODO");
+    }
+
     if (this.#motionStreamController) {
-      const motion: PointerMotion = _pointerMotionFrom(event, this.#target, {
+      const target = this.target;
+      if (!target) {
+        throw new Error("TODO");
+      }
+      const motion: PointerMotion = _pointerMotionFrom(event, target, {
         modifiersToWatch: this.#modifiersToWatch,
         prevMotion: this.#lastMotion,
       });
@@ -337,6 +395,7 @@ class _TargetObservation {
 
     if (event.composedPath().includes(this.#target) === true) {
       if (this.#activities.has(event.pointerId) !== true) {
+        console.log(666)
         if ((this.#contactStateFilter === true) && (pointerHasContact !== true)) {
           return;
         }
@@ -350,6 +409,7 @@ class _TargetObservation {
         this.#callback(activity);
       }
       else {
+        console.log(777)
         activity = this.#activities.get(event.pointerId) as _PointerActivity;
         if ((this.#highPrecision === true) && (event.type === "pointermove")) {
           for (const coalesced of event.getCoalescedEvents()) {
@@ -366,10 +426,12 @@ class _TargetObservation {
         || (["pointercancel", "pointerleave"].includes(event.type) === true)
       ) {
         this.#activities.delete(event.pointerId);
+        console.log(event)
         activity._terminate();
       }
     }
     else {
+      console.log(888)
       // targetのみの監視だと、ブラウザ毎に特定条件でpointerupが発火しないだの何だの様々な問題があって監視に漏れが発生するので、windowを監視してれば余程漏れは無いであろうということで。
       if (this.#activities.has(event.pointerId) === true) {
         activity = this.#activities.get(event.pointerId) as _PointerActivity;

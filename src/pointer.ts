@@ -112,6 +112,7 @@ function _pointerMotionFrom(event: PointerEvent, target: Element, options: _Poin
     captured: target.hasPointerCapture(event.pointerId),
     source: Object.freeze({
       isTrusted: event.isTrusted,
+      eventType: event.type,
     }),
   });
 }
@@ -211,6 +212,7 @@ type PointerMotionSource = {
   //XXX sourceCapabilities
   //XXX relatedTarget
   readonly isTrusted: boolean,
+  readonly eventType: string,
 };
 
 interface PointerMotion {
@@ -231,14 +233,18 @@ interface PointerActivity {
   readonly startTime: timestamp;
   readonly duration: milliseconds;
   readonly motionStream: ReadableStream<PointerMotion>;
-  readonly movement: Geometry2d.Point;// 始点からの相対位置
-  readonly trackLength: number;// 軌跡の近似値
-  readonly target: Element;
+  readonly startViewportOffset: Geometry2d.Point | null;
+  readonly startTargetOffset: Geometry2d.Point | null;
+  readonly currentMovement: Geometry2d.Point;// 始点からの相対位置
+  readonly resultMovement: Promise<Geometry2d.Point>;// 始点からの相対位置
+  readonly currentTrackLength: number;// 軌跡の近似値
+  readonly resultTrackLength: Promise<number>;// 軌跡の近似値
+  readonly target: Element | null;// 終了後はnullになるかも
   readonly [Symbol.asyncIterator]: () => AsyncGenerator<PointerMotion, void, void>;
+  readonly inProgress: boolean;
   readonly firstMotion: PointerMotion | null;
   readonly lastMotion: PointerMotion | null;
   readonly watchedModifiers: Array<Pointer.Modifier>;
-  //TODO startPointとか
 }
 
 export {

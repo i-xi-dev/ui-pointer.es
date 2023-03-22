@@ -27,6 +27,9 @@ export { PointerObserver } from "./pointer_observer";
 //   mouseのpointer capture中にtouchすると、おそらくタッチで発生した暗黙のpointer ceptureが優先になる
 //   mouseの方のpointermove等がその間発火しない（すぐに暗黙のreleaseが起きるので重大な問題は無い？？）
 
+// - Chrome
+//   いつのまにかpenのpointerenter,pointerleaveで、pointerType:mouseのpointerenter,pointerleaveが発火するようになった
+
 // - 仕様未定義に起因
 //   タッチのpointerupのwidth/heightがブラウザによって違う
 //    - chrome: 離した後扱い？（1×1）
