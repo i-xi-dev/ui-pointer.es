@@ -157,9 +157,29 @@ class _PointerActivity implements PointerActivity {
     }
   }
 
-  toJSON() {//TODO
+  toJSON() {
     return {
       pointer: this.pointer,
+      startTime: this.startTime,
+      duration: this.duration,
+      //motionStream
+      startViewportOffset: this.startViewportOffset ? {
+        x: this.startViewportOffset.x,
+        y: this.startViewportOffset.y,
+      } : null,
+      startTargetOffset: this.startTargetOffset ? {
+        x: this.startTargetOffset.x,
+        y: this.startTargetOffset.y,
+      } : null,
+      movement: {
+        x: this.currentMovement.x,
+        y: this.currentMovement.y,
+      },
+      trackLength: this.currentTrackLength,
+      inProgress: this.inProgress,
+      //firstMotion
+      //lastMotion
+      watchedModifiers: [...this.watchedModifiers],
     };
   }
 
@@ -220,10 +240,10 @@ const _PointerAction = {
 export type _PointerAction = typeof _PointerAction[keyof typeof _PointerAction];
 
 type _ObservationOptions = {
-  pointerTypeFilter: _PointerTypeFilter,
-  contactStateFilter: boolean,
-  usePointerCapture: boolean,
+  includesHover: boolean,
   modifiersToWatch: Set<Pointer.Modifier>,
+  pointerTypeFilter: _PointerTypeFilter,
+  usePointerCapture: boolean,
 };
 
 class _TargetObservation {
@@ -234,11 +254,11 @@ class _TargetObservation {
   readonly #activities: Map<pointerid, PointerActivity>;
   readonly #capturingPointerIds: Set<pointerid>;
 
-  readonly #highPrecision: boolean;
-  readonly #pointerTypeFilter: _PointerTypeFilter;
-  readonly #contactStateFilter: boolean;
-  readonly #usePointerCapture: boolean;
+  readonly #includesHover: boolean;
   readonly #modifiersToWatch: Set<Pointer.Modifier>;
+  readonly #pointerTypeFilter: _PointerTypeFilter;
+  readonly #usePointerCapture: boolean;
+  readonly #highPrecision: boolean;
   readonly #preventActions: Array<_PointerAction>;
   readonly #releaseImplicitPointerCapture: boolean;
 
@@ -250,11 +270,11 @@ class _TargetObservation {
     this.#activities = new Map();
     this.#capturingPointerIds = new Set();
 
-    this.#highPrecision = false;//XXX webkit未実装:getCoalescedEvents
-    this.#pointerTypeFilter = options.pointerTypeFilter;
-    this.#contactStateFilter = options.contactStateFilter;
-    this.#usePointerCapture = options.usePointerCapture;
+    this.#includesHover = options.includesHover;
     this.#modifiersToWatch = options.modifiersToWatch;
+    this.#pointerTypeFilter = options.pointerTypeFilter;
+    this.#usePointerCapture = options.usePointerCapture;
+    this.#highPrecision = false;//XXX webkit未実装:getCoalescedEvents
     this.#preventActions = [
       _PointerAction.CONTEXTMENU,
       _PointerAction.PAN_AND_ZOOM,
@@ -396,7 +416,7 @@ class _TargetObservation {
     if (event.composedPath().includes(this.#target) === true) {
       if (this.#activities.has(event.pointerId) !== true) {
         console.log(666)
-        if ((this.#contactStateFilter === true) && (pointerHasContact !== true)) {
+        if ((this.#includesHover !== true) && (pointerHasContact !== true)) {
           return;
         }
 
@@ -422,7 +442,7 @@ class _TargetObservation {
       }
 
       if (
-        ((this.#contactStateFilter === true) && (pointerHasContact !== true))
+        ((this.#includesHover !== true) && (pointerHasContact !== true))
         || (["pointercancel", "pointerleave"].includes(event.type) === true)
       ) {
         this.#activities.delete(event.pointerId);
@@ -490,26 +510,26 @@ class PointerObserver {
   readonly #callback: PointerObserver.Callback;
   readonly #targets: Map<Element, Set<_TargetObservation>>;
 
-  readonly #pointerTypeFilter: _PointerTypeFilter;
-  readonly #contactStateFilter: boolean;
-  readonly #usePointerCapture: boolean;
+  readonly #includesHover: boolean;
   readonly #modifiersToWatch: Set<Pointer.Modifier>;
+  readonly #pointerTypeFilter: _PointerTypeFilter;
+  readonly #usePointerCapture: boolean;
 
   constructor(callback: PointerObserver.Callback, options: PointerObserver.Options = {}) {
     this.#callback = callback;
     this.#targets = new Map();
-    this.#pointerTypeFilter = _createPointerTypeFilter(options.pointerTypeFilter);
-    this.#contactStateFilter = (options.contactStateFilter === true);
-    this.#usePointerCapture = (options.usePointerCapture === true);
+    this.#includesHover = (options.includesHover === true);
     this.#modifiersToWatch = _normalizeModifiers(options.modifiersToWatch);
+    this.#pointerTypeFilter = _createPointerTypeFilter(options.pointerTypeFilter);
+    this.#usePointerCapture = (options.usePointerCapture === true);
   }
 
   observe(target: Element): void {
     const observation = new _TargetObservation(target, this.#callback, {
-      pointerTypeFilter: this.#pointerTypeFilter,
-      contactStateFilter: this.#contactStateFilter,
-      usePointerCapture: this.#usePointerCapture,
+      includesHover: this.#includesHover,
       modifiersToWatch: this.#modifiersToWatch,
+      pointerTypeFilter: this.#pointerTypeFilter,
+      usePointerCapture: this.#usePointerCapture,
     });
     if (this.#targets.has(target) !== true) {
       this.#targets.set(target, new Set());
@@ -543,7 +563,7 @@ namespace PointerObserver {
    * 
    */
   export type Options = {
-    contactStateFilter?: boolean,//TODO これの命名がイマイチ // trueの場合、buttons&1==1でstream生成、buttons&1!=1で破棄 falseの場合、pointerenterでstream生成、pointerleaveで破棄
+    includesHover?: boolean, // falseの場合、buttons&1==1でstream生成、buttons&1!=1で破棄 trueの場合、pointerenterでstream生成、pointerleaveで破棄
     modifiersToWatch?: Array<string>,// PointerEvent発生時にgetModifierState()で検査する対象
     pointerTypeFilter?: Array<string>, // マッチしない場合streamを生成しない（pointerTypeは不変なので生成してからフィルタする必要はない）
     usePointerCapture?: _UsePointerCapture,// 「接触したとき」に、pointer captureを行うか否か
