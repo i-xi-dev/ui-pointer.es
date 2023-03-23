@@ -186,7 +186,7 @@ class _PointerActivity implements PointerActivity {
   _terminate(): void {
     console.assert(this.#terminated !== true, "slready terminated");
 
-    if (this.#motionStreamController && this.#motionStream.locked) {
+    if (this.#motionStreamController) {
       console.log("terminated");
       this.#motionStreamController.close();
       this.#motionStreamTerminator.abort();
@@ -198,14 +198,11 @@ class _PointerActivity implements PointerActivity {
 
   _append(event: PointerEvent): void {
     if (this.#terminated === true) {
-      throw new Error("TODO");
+      throw new Error("InvalidStateError _append#1");
     }
 
     if (this.#motionStreamController) {
-      const target = this.target;
-      if (!target) {
-        throw new Error("TODO");
-      }
+      const target = this.target as Element;// （終了後に外部から呼び出したのでもなければ）nullはありえない
       const motion: PointerMotion = _pointerMotionFrom(event, target, {
         modifiersToWatch: this.#modifiersToWatch,
         prevMotion: this.#lastMotion,

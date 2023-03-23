@@ -147,21 +147,11 @@ const o = new PointerObserver(async (activity) => {
   console.log(activity);
   onend(activity);
 }, {
-  highPrecision: true,
-  filter: {
-    //pointerType: ["touch", "pen"],
-    //primaryPointer: false,
-    pointerState: "hover",
-  },
+  includesHover: true,
   
-
-
-  autoCapture: {
-    enabled: true,
-    filter: {
-      //pointerType: ["pen"],
-    },
-  },
+  //modifiersToWatch: [],
+  //pointerTypeFilter: [],
+  usePointerCapture: true,
 });
 o.observe(test);
     </script>
