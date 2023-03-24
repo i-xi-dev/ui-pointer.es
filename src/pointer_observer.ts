@@ -374,7 +374,7 @@ class _TargetObservation {
 
       this.#handleAsync(event, true).catch((reason?: any): void => {
         console.error(reason);
-      });// pointerleaveは一応streamに追加する。どこに移動したかわからなくなるので。
+      });// pointerleaveは一応streamに追加する。どこに移動したかわからなくなるので。//XXX どこに出て行ったかはstreamとは別にするか？
     }) as EventListener, listenerOptions);
 
     this.#target.addEventListener("pointerenter", ((event: PointerEvent): void => {
