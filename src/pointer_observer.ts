@@ -24,6 +24,7 @@ class _PointerActivity implements PointerActivity {
   readonly #progress: Promise<void>;
   readonly #motionStream: ReadableStream<PointerMotion>;
 
+  #appendCount: number = 0;
   #terminated: boolean = false;
   #progressResolver: () => void = (): void => {};
   #motionStreamController: ReadableStreamDefaultController<PointerMotion> | null = null;
@@ -69,7 +70,7 @@ class _PointerActivity implements PointerActivity {
     return this.#firstMotion ? this.#firstMotion.timeStamp : Number.NaN;
   }
 
-  get duration(): milliseconds {//TODO firefoxのpointerenterのtimeStampは同じ座標の最初のpointermoveより後になる
+  get duration(): milliseconds {
     return (this.#lastMotion && this.#firstMotion) ? (this.#lastMotion.timeStamp - this.#firstMotion.timeStamp) : Number.NaN;
   }
 
@@ -142,6 +143,10 @@ class _PointerActivity implements PointerActivity {
 
   get watchedModifiers(): Array<Pointer.Modifier> {
     return [...this.#modifiersToWatch];
+  }
+
+  get _appendCount(): number {
+    return this.#appendCount;
   }
 
   async *[Symbol.asyncIterator](): AsyncGenerator<PointerMotion, void, void> {
@@ -219,6 +224,7 @@ class _PointerActivity implements PointerActivity {
 
       this.#lastMotion = motion;
       this.#motionStreamController.enqueue(motion);
+      this.#appendCount++;
     }
   }
 }
@@ -366,9 +372,9 @@ class _TargetObservation {
         return;
       }
 
-      this.#handleAsync(event).catch((reason?: any): void => {
+      this.#handleAsync(event, true).catch((reason?: any): void => {
         console.error(reason);
-      });// pointerleaveでの#handleAsyncは必要。どこに移動したかわからなくなるので。
+      });// pointerleaveは一応streamに追加する。どこに移動したかわからなくなるので。
     }) as EventListener, listenerOptions);
 
     this.#target.addEventListener("pointerenter", ((event: PointerEvent): void => {
@@ -376,22 +382,23 @@ class _TargetObservation {
         return;
       }
 
-      this.#handleAsync(event).catch((reason?: any): void => {
+      console.log(`pointerenter: ${event.clientX}, ${event.clientY} / ${event.timeStamp}`);
+      this.#handleAsync(event, false).catch((reason?: any): void => {
         console.error(reason);
-      });//TODO pointerenterでの#handleAsyncは不要 開始のみ実施
+      });// pointerenterはstreamに追加しない（firefoxで同時に起きたはずの同座標のwindowのpointermoveよりtimeStampが遅い（2回目のpointermoveの後くらいになる））（chromeはpointermoveと必ず？同座標になるため無駄）
     }) as EventListener, listenerOptions);
 
-    this.#service.subscribe(this.#handleAsync);
+    this.#service.subscribe(this.#handleAsync2);
   }
 
   get target(): Element {
     return this.#target;
   }
 
-  #handleAsync: (event: PointerEvent) => Promise<void> = (event: PointerEvent) => {
+  #handleAsync2: (event: PointerEvent) => Promise<void> = (event: PointerEvent) => {
     const executor = (resolve: (value: void | PromiseLike<void>) => void, reject: (reason?: any) => void) => {
       try {
-        this.#handle(event);
+        this.#handle(event, true);
         resolve();
       }
       catch (exception) {
@@ -402,7 +409,21 @@ class _TargetObservation {
     return new Promise(executor);
   }
 
-  #handle(event: PointerEvent): void {
+  #handleAsync: (event: PointerEvent, toAppend: boolean) => Promise<void> = (event: PointerEvent, toAppend: boolean) => {
+    const executor = (resolve: (value: void | PromiseLike<void>) => void, reject: (reason?: any) => void) => {
+      try {
+        this.#handle(event, toAppend);
+        resolve();
+      }
+      catch (exception) {
+        console.log(exception);
+        reject(exception);
+      }
+    };
+    return new Promise(executor);
+  }
+
+  #handle(event: PointerEvent, toAppend: boolean): void {
     if (this.#pointerTypeFilter(event) !== true) {
       return;
     }
@@ -422,8 +443,9 @@ class _TargetObservation {
           modifiersToWatch: this.#modifiersToWatch,
         });
         this.#activities.set(event.pointerId, activity);
-        activity._append(event);
-        this.#callback(activity);
+        if (toAppend === true) {
+          activity._append(event);
+        }
       }
       else {
         console.log(777)
@@ -436,6 +458,10 @@ class _TargetObservation {
         else {
           activity._append(event);//XXX pointercancel（だけ？）は除外しないと座標が0,0？の場合がある 先にpointerleaveになるから問題ない？
         }
+      }
+
+      if (activity._appendCount === 1) {
+        this.#callback(activity);
       }
 
       if (
@@ -460,7 +486,7 @@ class _TargetObservation {
 
   dispose(): void {
     this.#observationCanceller.abort();
-    this.#service.unsubscribe(this.#handleAsync);
+    this.#service.unsubscribe(this.#handleAsync2);
   }
 }
 

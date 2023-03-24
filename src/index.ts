@@ -23,6 +23,12 @@ export { PointerObserver } from "./pointer_observer";
 //   mouse操作中にタッチすると、マウスのカーソルがタッチ地点に移動する
 //   （pointerIdを区別してほしい）
 
+// - Firefox
+//   同時に起きたはずのPointerEventのtimeStampがずれてる
+//     - 同座標での windowのpointermove と elementのpointerenter
+//     - 同座標での elementのpointermove と 同elementのpointerenter
+//     いずれも発火順はpointereneterが先なのにtimeStampは15ms前後遅れる
+
 // - Chrome, Edge
 //   mouseのpointer capture中にtouchすると、おそらくタッチで発生した暗黙のpointer ceptureが優先になる
 //   mouseの方のpointermove等がその間発火しない（すぐに暗黙のreleaseが起きるので重大な問題は無い？？）
@@ -88,16 +94,16 @@ export { PointerObserver } from "./pointer_observer";
 // - touchmoveキャンセル（touch-action:none強制設定を解除できるようにした場合）
 // - 中クリックの自動スクロールがpointerdown(chrome) おそらく対処不能
 // - 念のためmaxTouchPointsで上限設定する（ロストしたときに必ず_terminateしていれば不要なはず）（監視漏れがなければ）
+// - 合体イベントの分解
+//     → 要素境界をまたいでもpointermoveは合体されてる（windowでpointermoveをlistenしているので当然だが）
+//       → 境界外のはstreamに出力しないように除外する？
+//         → 厳密に判定するのは高コストなので（角が丸い場合とか子孫が境界外に出ている場合とか）
+//           無視するか？firefoxのpointerenterのtimeStampがあてになるならtemeStampで絞れば良いが・・・
+//           → とりあえず初期バージョンでは対応しないことにした
 
 /*
 TODO 下記対処したら脱alpha
-1. 要素境界をまたいでもpointermoveは合体されてる（windowでpointermoveをlistenしているので当然だが）
-    → 境界外のはstreamに出力しないように除外する
-      → 厳密に判定するのは高コストなので（角が丸い場合とか子孫が境界外に出ている場合とか）
-        無視するか？firefoxのtimeStampがあてになるならtemeStampで絞れば良いが・・・
-2. Firefoxでpointerenter前後のpointerevent発火順とstreamの順が一致しない
-    → おそらく、firefoxのEvent.timeStampがそもそもおかしい
-     → そちらはsourceTimestampとして、ストリーム追加時点の時刻を別途持たせる？
+
 4. mouseButton,penButtonも指定されたもの以外は監視しない？
 
 */
