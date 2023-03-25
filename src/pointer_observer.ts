@@ -474,9 +474,9 @@ class _TargetObservation {
       }
     }
     else {
-      console.log(888)
       // targetのみの監視だと、ブラウザ毎に特定条件でpointerupが発火しないだの何だの様々な問題があって監視に漏れが発生するので、windowを監視してれば余程漏れは無いであろうということで。
       if (this.#activities.has(event.pointerId) === true) {
+        console.log(888);
         activity = this.#activities.get(event.pointerId) as _PointerActivity;
         this.#activities.delete(event.pointerId);
         activity._terminate();
@@ -530,47 +530,47 @@ function _normalizeModifiers(modifiers?: Array<string>): Set<Pointer.Modifier> {
 }
 
 class PointerObserver {
-  readonly #callback: PointerObserver.Callback;
-  readonly #targets: Map<Element, Set<_TargetObservation>>;
+  private readonly _callback: PointerObserver.Callback;//[$85] #callbackにするとVueから使ったときエラーになるのでprivateを使用
+  private readonly _targets: Map<Element, Set<_TargetObservation>>;//[$85]
 
-  readonly #includesHover: boolean;
-  readonly #modifiersToWatch: Set<Pointer.Modifier>;
-  readonly #pointerTypeFilter: _PointerTypeFilter;
-  readonly #usePointerCapture: boolean;
+  private readonly _includesHover: boolean;//[$85]
+  private readonly _modifiersToWatch: Set<Pointer.Modifier>;//[$85]
+  private readonly _pointerTypeFilter: _PointerTypeFilter;//[$85]
+  private readonly _usePointerCapture: boolean;//[$85]
 
   constructor(callback: PointerObserver.Callback, options: PointerObserver.Options = {}) {
-    this.#callback = callback;
-    this.#targets = new Map();
-    this.#includesHover = (options.includesHover === true);
-    this.#modifiersToWatch = _normalizeModifiers(options.modifiersToWatch);
-    this.#pointerTypeFilter = _createPointerTypeFilter(options.pointerTypeFilter);
-    this.#usePointerCapture = (options.usePointerCapture === true);
+    this._callback = callback;
+    this._targets = new Map();
+    this._includesHover = (options.includesHover === true);
+    this._modifiersToWatch = _normalizeModifiers(options.modifiersToWatch);
+    this._pointerTypeFilter = _createPointerTypeFilter(options.pointerTypeFilter);
+    this._usePointerCapture = (options.usePointerCapture === true);
   }
 
   observe(target: Element): void {
-    const observation = new _TargetObservation(target, this.#callback, {
-      includesHover: this.#includesHover,
-      modifiersToWatch: this.#modifiersToWatch,
-      pointerTypeFilter: this.#pointerTypeFilter,
-      usePointerCapture: this.#usePointerCapture,
+    const observation = new _TargetObservation(target, this._callback, {
+      includesHover: this._includesHover,
+      modifiersToWatch: this._modifiersToWatch,
+      pointerTypeFilter: this._pointerTypeFilter,
+      usePointerCapture: this._usePointerCapture,
     });
-    if (this.#targets.has(target) !== true) {
-      this.#targets.set(target, new Set());
+    if (this._targets.has(target) !== true) {
+      this._targets.set(target, new Set());
     }
-    (this.#targets.get(target) as Set<_TargetObservation>).add(observation);
+    (this._targets.get(target) as Set<_TargetObservation>).add(observation);
   }
 
   unobserve(target: Element): void {
-    const observations = (this.#targets.get(target) as Set<_TargetObservation>);
+    const observations = (this._targets.get(target) as Set<_TargetObservation>);
     for (const observation of observations) {
       observation.dispose();
     }
     observations.clear();
-    this.#targets.delete(target);
+    this._targets.delete(target);
   }
 
   disconnect(): void {
-    for (const target of this.#targets.keys()) {
+    for (const target of this._targets.keys()) {
       this.unobserve(target);
     }
   }

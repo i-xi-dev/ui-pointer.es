@@ -1,0 +1,177 @@
+*:root {
+  overflow: hidden;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+}
+
+*.v-app {
+  background-color: #525252;
+  box-sizing: border-box;
+  column-gap: 30px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto 1fr;
+  height: 100vh;
+  padding: 20px;
+  row-gap: 30px;
+  width: 100vw;
+}
+
+*.v-input {
+  background-color: #5e5e5e;
+  background-image: url("./checkered.svg");
+  background-size: 100px 100px;
+  box-shadow: 0 0 0 2px #2a2a2a;
+  position: relative;
+  grid-column: 1;
+  grid-row: 1;
+  height: 400px;
+  width: 400px;
+}
+*.v-input:hover {
+  background-color: #616161;
+}
+*.v-input:active {
+  cursor: none;
+}
+
+*.v-input-indicator {
+  --color: #f808;
+  --width: 1px;
+  --height: 1px;
+  height: 1px;
+  pointer-events: none;
+  position: absolute;
+  width: 1px;
+}
+
+*.v-input-indicator-crosshair,
+*.v-input-indicator-circle,
+*.v-input-indicator-contact {
+  --i-color: #f808;
+  --c-radius: 0;
+  --c-radius-a: 0;
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+}
+
+*.v-input-indicator.v--mouse *.v-input-indicator-crosshair,
+*.v-input-indicator.v--pen *.v-input-indicator-crosshair {
+  --c-radius: 30px;
+}
+*.v-input-indicator.v--touch *.v-input-indicator-crosshair {
+  --c-radius: 80px;
+}
+
+*.v-input-indicator.v--mouse *.v-input-indicator-circle,
+*.v-input-indicator.v--pen *.v-input-indicator-circle {
+  --c-radius: 20px;
+  --c-radius-a: 10px;
+}
+*.v-input-indicator.v--touch *.v-input-indicator-circle {
+  --c-radius: 60px;
+  --c-radius-a: 60px;
+}
+
+*.v-input-indicator-crosshair::before,
+*.v-input-indicator-crosshair::after,
+*.v-input-indicator-circle::before,
+*.v-input-indicator-circle::after,
+*.v-input-indicator-contact::before,
+*.v-input-indicator-contact::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+}
+
+*.v-input-indicator-crosshair::before {
+  border-top: 1px solid var(--i-color);
+  margin-left: calc(var(--c-radius) * -1);
+  width: calc(calc(var(--c-radius) * 2) + 1px);
+}
+
+*.v-input-indicator-crosshair::after {
+  border-left: 1px solid var(--i-color);
+  height: calc(calc(var(--c-radius) * 2) + 1px);
+  margin-top: calc(var(--c-radius) * -1);
+}
+
+*.v-input-indicator-circle::after {
+  border: 2px dashed var(--i-color);
+  border-radius: 50%;
+  inset: calc(var(--c-radius) * -1);
+  opacity: 0.6;
+  transition: inset 100ms, opacity 100ms;
+}
+*.v-input-indicator.v--primary *.v-input-indicator-circle::after {
+  border-style: solid;
+}
+*.v-input-indicator.v--contact *.v-input-indicator-circle::after {
+  inset: calc(var(--c-radius-a) * -1);
+  opacity: 1;
+}
+
+*.v-input-indicator-contact {
+  --i-color: #f508;
+}
+
+*.v-input-indicator-contact::before,
+*.v-input-indicator-contact::after {
+  height: var(--height);
+  margin-left: calc(calc(var(--width) - 1px) * -0.5);
+  margin-top: calc(calc(var(--height) - 1px) * -0.5);
+  min-height: 1px;
+  min-width: 1px;
+  width: var(--width);
+}
+*.v-input-indicator-contact::before {
+  background-color: var(--i-color);
+  opacity: 0.3;
+}
+*.v-input-indicator-contact::after {
+  box-shadow: 0 0 0 2px var(--i-color);
+}
+
+*.v-control {
+  align-content: start;
+  background-color: #2a2a2a;
+  box-shadow: 0 0 0 2px #2a2a2a;
+  display: grid;
+  grid-column: 2;
+  grid-row: 1;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+}
+
+*.v-control-button {
+  align-items: center;
+  background-color: #ccc;
+  column-gap: 5px;
+  display: flex;
+  flex-flow: row nowrap;
+}
+
+*.v-control-button.v--switch-mode {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+*.v-control-button > svg {
+  height: 24px;
+  width: 24px;
+}
+
+
+
+
+*.v-output {
+  background-color: #2a2a2a;
+  box-shadow: 0 0 0 2px #2a2a2a;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  overflow: scroll;
+}

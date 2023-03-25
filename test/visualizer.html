@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title></title>
+    <link href="./asset/visualizer.css" rel="stylesheet" />
+    <script type="module">
+import { createApp, reactive } from "https://unpkg.com/vue@3/dist/vue.esm-browser.js";
+import { PointerObserver } from "../dist/index.js";
+
+const template = `
+<div class="v-app">
+  <div class="v-input" ref="input1">
+    <div
+    :class="{
+      'v-input-indicator': true,
+      'v--primary': indicator.primary === true,
+      'v--contact': indicator.inContact === true,
+      'v--mouse': indicator.type === 'mouse',
+      'v--pen': indicator.type === 'pen',
+      'v--touch': indicator.type === 'touch',
+    }"
+    :style="{
+      'left': indicator.offsetX + 'px',
+      'top': indicator.offsetY + 'px',
+      '--width': indicator.width + 'px',
+      '--height': indicator.height + 'px',
+    }"
+    v-for="indicator of indicators">
+      <div class="v-input-indicator-crosshair"></div>
+      <div class="v-input-indicator-circle"></div>
+      <div class="v-input-indicator-contact"></div>
+    </div>
+  </div>
+  <div class="v-control">
+    <div>Recording</div>
+    <button class="v-control-button v--switch-mode" @click="recording = !recording">
+      <svg v-if="recording === true" viewBox="0 0 24 24">
+        <path d="M 3 3 L 21 3 L 21 21 L 3 21 z" fill="#000"/>
+      </svg>
+      <svg v-else viewBox="0 0 24 24">
+        <path d="M 3 3 L 22 12 L 3 21 z" fill="#000"/>
+      </svg>
+      <span>{{ (recording === true) ? "Stop" : "Start" }}</span>
+    </button>
+    <label v-if="recording !== true">
+      <input type="checkbox" v-model="usePointerCapture"/>
+      <span>Set pointer capture when pointer is contacted</span>
+    </label>
+  </div>
+  <div class="v-output">
+  </div>
+</div>
+`;
+
+createApp({
+  data() {
+    return {
+      observer: null,
+      indicatorMap: new Map(),
+      idGen: (function*() {
+        for (let i = 1; i <= Number.MAX_SAFE_INTEGER; i++) {
+          yield i;
+        }
+        throw new Error("id overflow");
+      })(),
+      history: [],
+      recording: false,
+      usePointerCapture: false,
+    };
+  },
+  template,
+  computed: {
+    indicators() {
+      return [...this.indicatorMap.values()];
+    },
+  },
+  methods: {
+    nextId() {
+      return this.idGen.next().value;
+    },
+    onstart(activity) {
+      const { pointer } = activity;
+      const indicator = {
+        id: this.nextId(),
+        type: pointer.type,
+        primary: pointer.isPrimary,
+        name: `${ pointer.type }:${ pointer.id }`,
+        offsetX: activity.startTargetOffset.x,
+        offsetY: activity.startTargetOffset.y,
+        width: 1,
+        height: 1,
+        inContact: false,
+      };
+      this.indicatorMap.set(activity, indicator);
+      this.history.push(indicator);
+    },
+    onend(activity) {
+      this.indicatorMap.delete(activity);
+    },
+    onprogress(activity, motion) {
+      const indicator = this.indicatorMap.get(activity);
+      indicator.offsetX = motion.targetOffset.x;
+      indicator.offsetY = motion.targetOffset.y;
+      indicator.width = motion.properties.radiusX * 2;
+      indicator.height = motion.properties.radiusY * 2;
+      indicator.inContact = motion.inContact;
+    },
+  },
+  mounted() {
+    this.observer = new PointerObserver(async (activity) => {
+      this.onstart(activity);
+      for await (const motion of activity) {
+        this.onprogress(activity, motion);
+      }
+      this.onend(activity);
+    }, {
+      includesHover: true,
+    });
+    console.log(this.$refs.input1.tagName)
+    console.log(this.observer)
+    this.observer.observe(this.$refs.input1);
+  },
+  beforeDestroy() {
+    this.observer.disconnect();
+  },
+
+}).mount("#app");
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+  </body>
+</html>
