@@ -111,6 +111,9 @@ export { PointerObserver } from "./pointer_observer";
 /*
 TODO 下記対処したら脱alpha
 
-1. pointerenterの直前の位置も追加する？
+0. 排他設定（pointer 1つのみ監視）
+1. pointerenterの直前の位置を追加する（開始前位置としてactivityに）leaveの位置も終了後位置に移す
+X: visualizerがiPad mini,iPhoneのsafariで表示すらされない（大きめのiPadやmacなら表示される、動作もする）
+     macに接続してインスペクタ見ないとわからん
 
 */
