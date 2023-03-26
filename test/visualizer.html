@@ -49,7 +49,9 @@ const template = `
 
   <div class="v-input-wrapper">
     <div class="v-input" ref="input1">
-      <div class="v-input-layers">
+      <svg class="v-input-layers" v-if="drawMode === 'svg'" viewBox="0 0 400 400">
+      </svg>
+      <div class="v-input-layers" v-if="drawMode === 'canvas'">
         <canvas class="v-input-layer" height="400" :id="'canvas-' + layer" v-for="layer of layers" width="400"></canvas>
       </div>
 
@@ -84,6 +86,7 @@ const template = `
 createApp({
   data() {
     return {
+      drawMode: "svg", // "svg" | "canvas"
       layerMap: new Map(),
       observer: null,
       indicatorMap: new Map(),
@@ -125,21 +128,31 @@ createApp({
       const offsetY = activity.startTargetOffset.y;
 
       let layerId;
-      for (const entry of this.layerMap) {
-        if (entry[1] !== true) {
-          layerId = entry[0];
-          this.layerMap.set(layerId, true);
-          break;
+      let layerContext;
+      let path;
+      if (this.drawMode === "canvas") {
+        for (const entry of this.layerMap) {
+          if (entry[1] !== true) {
+            layerId = entry[0];
+            this.layerMap.set(layerId, true);
+            break;
+          }
         }
+        if (Number.isSafeInteger(layerId) !== true) {
+          return;
+        }
+        layerContext = document.getElementById(`canvas-${layerId}`).getContext("2d");
+        layerContext.lineWidth = 1;
+        layerContext.strokeStyle = "#d12";
+        layerContext.beginPath();
+        layerContext.moveTo(offsetX, offsetY);
       }
-      if (Number.isSafeInteger(layerId) !== true) {
-        return;
+      else if (this.drawMode === "svg") {
+        path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.classList.add("v-input-layer-path");
+        path.setAttribute("d", `M ${offsetX} ${offsetY}`);
+        document.querySelector("*.v-input-layers").append(path);
       }
-      const layerContext = document.getElementById(`canvas-${layerId}`).getContext("2d");
-      layerContext.lineWidth = 1;
-      layerContext.strokeStyle = "#d12";
-      layerContext.beginPath();
-      layerContext.moveTo(offsetX, offsetY);
 
       const { pointer } = activity;
       const indicator = {
@@ -154,6 +167,7 @@ createApp({
         inContact: false,
         layerId,
         layerContext,
+        path,
       };
       this.indicatorMap.set(activity, indicator);
       this.history.push(indicator);
@@ -163,9 +177,14 @@ createApp({
       const indicator = this.indicatorMap.get(activity);
       this.indicatorMap.delete(activity);
 
-      this.layerMap.set(indicator.layerId, false);
-      //const { layerContext } = indicator.layerId;
-      //layerContext.
+      if (this.drawMode === "canvas") {
+        this.layerMap.set(indicator.layerId, false);
+        //const { layerContext } = indicator.layerId;
+        //layerContext.
+      }
+      else if (this.drawMode === "svg") {
+        //
+      }
     },
 
     onprogress(activity, motion) {
@@ -180,21 +199,29 @@ createApp({
       indicator.height = motion.properties.radiusY * 2;
       indicator.inContact = inContact;
 
-      const { layerContext } = indicator;
-      if (inContact === true) {
-        layerContext.lineTo(offsetX, offsetY);
+      if (this.drawMode === "canvas") {
+        const { layerContext } = indicator;
+        if (inContact === true) {
+          layerContext.lineTo(offsetX, offsetY);
+        }
+        else {
+          layerContext.moveTo(offsetX, offsetY);
+        }
+        layerContext.stroke();
       }
-      else {
-        layerContext.moveTo(offsetX, offsetY);
+      else if (this.drawMode === "svg") {
+        const c = (inContact === true) ? "L" : "M";
+        indicator.path.setAttribute("d", indicator.path.getAttribute("d") + ` ${c} ${offsetX} ${offsetY}`);
       }
-      layerContext.stroke();
     },
   },
 
   created() {
-    const l = 1 + (navigator.maxTouchPoints ? navigator.maxTouchPoints : 10);
-    for (let i = 1; i <= l; i++) {
-      this.layerMap.set(i, false);
+    if (this.drawMode === "canvas") {
+      const l = 1 + (navigator.maxTouchPoints ? navigator.maxTouchPoints : 10);
+      for (let i = 1; i <= l; i++) {
+        this.layerMap.set(i, false);
+      }
     }
   },
 
