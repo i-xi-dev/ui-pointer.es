@@ -258,6 +258,80 @@ input[type="checkbox"]:disabled {
 }
 
 *.v-output {
+  --rowhead-width: 120px;
   height: max-content;
   width: max-content;
+}
+
+*.v-output-head {
+  height: 20px;
+  width: calc(var(--rowhead-width) + var(--len));
+}
+
+*.v-output-detail {
+  background-image: linear-gradient(#15423f 0%, #15423f 100%);
+  background-position: 0% 50%;
+  background-repeat: repeat-x;
+  background-size: 400px 2px;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+  height: 30px;
+  width: 100%;
+}
+
+*.v-output-detail-name {
+  align-items: center;
+  background-color: #2a2a2a;
+  display: flex;
+  grid-column: 1;
+  grid-row: 1;
+  height: 30px;
+  justify-content: end;
+  left: 0;
+  padding-left: 3px;
+  position: sticky;
+  width: var(--rowhead-width);
+  z-index: 1;
+}
+
+*.v-output-detail-name-content {
+  background-color: #10cbbc;
+  border-radius: 12px;
+  height: 24px;
+  padding: 0 8px;
+}
+
+*.v-output-detail-timeline {
+  align-items: center;
+  display: flex;
+  height: 30px;
+  grid-column: 1;
+  grid-row: 1;
+  margin-left: calc(var(--rowhead-width) + var(--start));
+  position: relative;
+  width: var(--len);
+}
+
+*.v-output-detail-timeline::before {
+  background-color: #10cbbc;
+  content: "";
+  height: 4px;
+  width: 100%;
+}
+
+*.v-output-detail-timeline-det {
+  background: #4d4d4d;
+  border-radius: 5px;
+  color: #fff;
+  font-size: 12px;
+  padding: 2px 6px;
+  position: absolute;
+  top: 20px;
+  visibility: hidden;
+  white-space: nowrap;
+}
+
+*.v-output-detail-timeline:hover *.v-output-detail-timeline-det {
+  visibility: visible;
 }

@@ -1,7 +1,7 @@
 export { type PointerActivity, type PointerMotion, Pointer } from "./pointer";
 export { PointerObserver } from "./pointer_observer";
 
-// 既知の問題
+// 既知の問題 //TODO 仕分けする
 
 // - Firefox
 //   mouseで2つのpointerIdが同時にactiveになる事がある
@@ -35,6 +35,12 @@ export { PointerObserver } from "./pointer_observer";
 
 // - Chrome
 //   いつのまにかpenのpointerenter,pointerleaveで、pointerType:mouseのpointerenter,pointerleaveが発火するようになった
+
+// - 
+//   ストリームにpushされるタイミングはブラウザ依存
+//   - Chrome: touch,penが動いている間、mouseは無視される（touchとpenは同時操作でも問題なさそう、複数同時touchも問題なさそう）
+//   - Firefox: touchが動いている間、pen,mouseはほぼ無視される（pointerIdが0でないmouseが検知されたり、相当怪しい）（penとmouseは同時操作でも問題なさそう、複数同時touchも問題なさそう）
+
 
 // - 仕様未定義に起因
 //   タッチのpointerupのwidth/heightがブラウザによって違う

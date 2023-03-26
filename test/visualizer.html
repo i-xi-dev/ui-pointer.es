@@ -10,6 +10,11 @@ import { createApp, reactive } from "https://unpkg.com/vue@3/dist/vue.esm-browse
 //import { PointerObserver } from "../../dist/index.js";
 import { PointerObserver } from "../dist/index.js";
 
+function formatTimeStamp(timestamp) {
+  const dt = new Date(performance.timeOrigin + timestamp);
+  return dt.toISOString();
+}
+
 const template = `
 <div class="v-app">
   <div class="v-control">
@@ -80,11 +85,28 @@ const template = `
     </div>
   </div>
 
-  <div class="v-output-wrapper">
+  <div class="v-output-wrapper" ref="out1">
     <div class="v-output">
-      <div></div>
+      <div
+      class="v-output-head"
+      :style="{
+        '--len': historyHead + 'px',
+      }"></div>
       <div class="v-output-detail" v-for="item of history">
-        <div class="v-output-detail-name">{{ item.name }}</div>
+        <div class="v-output-detail-name">
+          <div class="v-output-detail-name-content">{{ item.name }}</div>
+        </div>
+        <div
+        class="v-output-detail-timeline"
+        :style="{
+          '--start': seg.startTime + 'px',
+          '--len': seg.duration + 'px',
+        }"
+        v-for="seg of item.seqs">
+          <div class="v-output-detail-timeline-det">
+            {{ seg.startTimeStr }}
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -98,6 +120,8 @@ createApp({
       inputSize: 400,
       layerContext: null,
       observer: null,
+      watchingStartAt: 0,
+      timer: undefined,
       indicatorMap: new Map(),
       idGen: (function*() {
         for (let i = 1; i <= Number.MAX_SAFE_INTEGER; i++) {
@@ -106,6 +130,7 @@ createApp({
         throw new Error("id overflow");
       })(),
       history: [],
+      historyHead: 0,
       inWatching: false,
       usePointerCapture: false,
       includesHover: false,
@@ -141,20 +166,34 @@ createApp({
       }
 
       const { pointer } = activity;
+      const name = `${ pointer.type }:${ pointer.id }`;
       const indicator = {
         id: this.nextId(),
         type: pointer.type,
         primary: pointer.isPrimary,
-        name: `${ pointer.type }:${ pointer.id }`,
+        name,
+        startTime: (activity.startTime - this.watchingStartAt) * 0.01,
+        startTimeStr: formatTimeStamp(activity.startTime),
         offsetX,
         offsetY,
         width: 1,
         height: 1,
         inContact: false,
         path,
+        duration: 0,
+        durationStr: "0",
       };
       this.indicatorMap.set(activity, indicator);
-      this.history.push(indicator);
+      const hitem = this.history.find((item) => item.name === name);
+      if (hitem) {
+        hitem.seqs.push(indicator);
+      }
+      else {
+        this.history.push({
+          name,
+          seqs: [indicator],
+        });
+      }
     },
 
     onend(activity) {
@@ -180,6 +219,8 @@ createApp({
       indicator.width = motion.properties.radiusX * 2;
       indicator.height = motion.properties.radiusY * 2;
       indicator.inContact = inContact;
+      indicator.duration = activity.duration * 0.01;
+      indicator.durationStr = activity.duration.toFixed(3);
 
       if (this.drawMode === "canvas") {
         if (inContact === true && prevMotion) {
@@ -200,7 +241,7 @@ createApp({
       }
     },
 
-    clearLayers() {
+    clearRecords() {
       if (this.drawMode === "svg") {
         const svg = document.querySelector("svg.v-input-layers");
         while (svg.firstElementChild) {
@@ -210,6 +251,9 @@ createApp({
       if (this.drawMode === "canvas") {
         this.layerContext.clearRect(0, 0, this.inputSize, this.inputSize);
       }
+
+      this.history.splice(0);
+      this.historyHead = 0;
     },
 
     onToggle() {
@@ -223,6 +267,7 @@ createApp({
 
     resetObserver() {
       this.disposeObserver();
+      this.clearRecords();
       this.inWatching = true;
 
       const pointerTypeFilter = [];
@@ -250,8 +295,17 @@ createApp({
         usePointerCapture: this.usePointerCapture,
       });
 
+      this.watchingStartAt = performance.now();
+      this.timer = setInterval(this.drawOutputHead, 100);
+
       console.log(this.$refs.input1.tagName);
       this.observer.observe(this.$refs.input1);
+    },
+
+    drawOutputHead() {
+      const a = (performance.now() - this.watchingStartAt) * 0.01;
+      this.historyHead = a;
+      this.$refs.out1.scrollLeft = this.$refs.out1.scrollLeft + a;
     },
 
     disposeObserver() {
@@ -260,8 +314,8 @@ createApp({
         this.observer.disconnect();
       }
       this.observer = null;
-
-      this.clearLayers();
+      clearInterval(this.timer);
+      this.timer = undefined;
     },
   },
 
