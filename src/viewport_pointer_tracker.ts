@@ -6,12 +6,12 @@ class ViewportPointerTracker {
   static #instance: ViewportPointerTracker | null = null;
 
   readonly #aborter: AbortController;
-  readonly #broker: PubSub.Broker<PointerEvent>;
+  private readonly _broker: PubSub.Broker<PointerEvent>;//[$85]
   readonly #view: Window;
 
   private constructor(view: Window) {
     this.#aborter = new AbortController();
-    this.#broker = new PubSub.Broker();
+    this._broker = new PubSub.Broker();
     this.#view = view;
 
     const listenerOptions = {
@@ -77,21 +77,21 @@ class ViewportPointerTracker {
 
   dispose(): void {
     this.#aborter.abort();
-    this.#broker.clear();
+    this._broker.clear();
   }
 
   subscribe(callback: (message: PointerEvent) => Promise<void>): void {
-    this.#broker.subscribe(_TOPIC, callback, {
+    this._broker.subscribe(_TOPIC, callback, {
       signal: this.#aborter.signal,
     });
   }
 
   unsubscribe(callback: (message: PointerEvent) => Promise<void>): void {
-    this.#broker.unsubscribe(_TOPIC, callback);
+    this._broker.unsubscribe(_TOPIC, callback);
   }
 
   #publish(event: PointerEvent): void {
-    this.#broker.publish(_TOPIC, event).catch((reason?: any): void => {
+    this._broker.publish(_TOPIC, event).catch((reason?: any): void => {
       console.error(reason);
     });
   }

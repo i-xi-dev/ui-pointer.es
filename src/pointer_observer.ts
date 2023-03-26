@@ -250,8 +250,8 @@ type _ObservationOptions = {
 };
 
 class _TargetObservation {
-  readonly #service: ViewportPointerTracker;
-  readonly #observationCanceller: AbortController;
+  private readonly _service: ViewportPointerTracker;//[$85]
+  private readonly _observationCanceller: AbortController;//[$85]
   readonly #target: Element;
   readonly #callback: PointerObserver.Callback;
   readonly #activities: Map<pointerid, PointerActivity>;
@@ -266,8 +266,8 @@ class _TargetObservation {
   readonly #releaseImplicitPointerCapture: boolean;
 
   constructor(target: Element, callback: PointerObserver.Callback, options: _ObservationOptions) {
-    this.#service = ViewportPointerTracker.get(window);
-    this.#observationCanceller = new AbortController();
+    this._service = ViewportPointerTracker.get(window);
+    this._observationCanceller = new AbortController();
     this.#target = target;
     this.#callback = callback;
     this.#activities = new Map();
@@ -287,12 +287,12 @@ class _TargetObservation {
 
     const listenerOptions = {
       passive: true,
-      signal: this.#observationCanceller.signal,
+      signal: this._observationCanceller.signal,
     };
 
     const activeListenerOptions = {
       passive: false,
-      signal: this.#observationCanceller.signal,
+      signal: this._observationCanceller.signal,
     };
 
     if (this.#preventActions.length > 0) {
@@ -388,14 +388,15 @@ class _TargetObservation {
       });// pointerenterはstreamに追加しない（firefoxで同時に起きたはずの同座標のwindowのpointermoveよりtimeStampが遅い（2回目のpointermoveの後くらいになる））（chromeはpointermoveと必ず？同座標になるため無駄）
     }) as EventListener, listenerOptions);
 
-    this.#service.subscribe(this.#handleAsync2);
+    this._service.subscribe(this._handleAsync2);
   }
 
   get target(): Element {
     return this.#target;
   }
 
-  #handleAsync2: (event: PointerEvent) => Promise<void> = (event: PointerEvent) => {
+  //[$85]
+  private _handleAsync2: (event: PointerEvent) => Promise<void> = (event: PointerEvent) => {
     const executor = (resolve: (value: void | PromiseLike<void>) => void, reject: (reason?: any) => void) => {
       try {
         this.#handle(event, true);
@@ -439,7 +440,7 @@ class _TargetObservation {
         }
 
         activity = new _PointerActivity(event, this.#target, {
-          signal: this.#observationCanceller.signal,
+          signal: this._observationCanceller.signal,
           modifiersToWatch: this.#modifiersToWatch,
         });
         this.#activities.set(event.pointerId, activity);
@@ -485,8 +486,8 @@ class _TargetObservation {
   }
 
   dispose(): void {
-    this.#observationCanceller.abort();
-    this.#service.unsubscribe(this.#handleAsync2);
+    this._observationCanceller.abort();
+    this._service.unsubscribe(this._handleAsync2);
   }
 }
 
@@ -530,7 +531,7 @@ function _normalizeModifiers(modifiers?: Array<string>): Set<Pointer.Modifier> {
 }
 
 class PointerObserver {
-  private readonly _callback: PointerObserver.Callback;//[$85] #callbackにするとVueから使ったときエラーになるのでprivateを使用
+  private readonly _callback: PointerObserver.Callback;//[$85] ES標準（#）でprivateにするとVueから使ったときエラーになるのでTypeScriptのprivate修飾子を使用
   private readonly _targets: Map<Element, Set<_TargetObservation>>;//[$85]
 
   private readonly _includesHover: boolean;//[$85]
@@ -576,11 +577,11 @@ class PointerObserver {
   }
 }
 
-type _UsePointerCapture = boolean;//XXX 将来対応とする | ((event: PointerEvent) => boolean);
-
 namespace PointerObserver {
 
   export type Callback = (activity: PointerActivity) => void;
+
+  export type OptionsUsePointerCapture = boolean;//XXX 将来対応とする | ((event: PointerEvent) => boolean);
 
   /**
    * 
@@ -589,7 +590,7 @@ namespace PointerObserver {
     includesHover?: boolean, // falseの場合、buttons&1==1でstream生成、buttons&1!=1で破棄 trueの場合、pointerenterでstream生成、pointerleaveで破棄
     modifiersToWatch?: Array<string>,// PointerEvent発生時にgetModifierState()で検査する対象
     pointerTypeFilter?: Array<string>, // マッチしない場合streamを生成しない（pointerTypeは不変なので生成してからフィルタする必要はない）
-    usePointerCapture?: _UsePointerCapture,// 「接触したとき」に、pointer captureを行うか否か
+    usePointerCapture?: OptionsUsePointerCapture,// 「接触したとき」に、pointer captureを行うか否か
   };
 
 }

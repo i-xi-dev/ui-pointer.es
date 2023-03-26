@@ -1,4 +1,4 @@
-
+export { type PointerActivity, type PointerMotion, Pointer } from "./pointer";
 export { PointerObserver } from "./pointer_observer";
 
 // 既知の問題

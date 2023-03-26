@@ -11,48 +11,48 @@ import { PointerObserver } from "../dist/index.js";
 const template = `
 <div class="v-app">
   <div class="v-control">
-    <button class="v-control-button v--pushbutton" @click="recording = !recording">
-      <svg v-if="recording === true" viewBox="0 0 24 24">
+    <button class="v-control-button v--pushbutton" @click="onToggle">
+      <svg v-if="inWatching === true" viewBox="0 0 24 24">
         <path d="M 5 5 L 19 5 L 19 19 L 5 19 z" fill="#fff"/>
       </svg>
       <svg v-else viewBox="0 0 24 24">
         <path d="M 3 3 L 22 12 L 3 21 z" fill="#fff"/>
       </svg>
-      <span>{{ (recording === true) ? "Stop" : "Start" }}</span>
+      <span>{{ (inWatching === true) ? "Stop" : "Start" }}</span>
     </button>
-    <label :aria-disabled="recording === true ? 'true' : 'false'" class="v-control-button">
-      <input :disabled="recording === true" type="checkbox" v-model="includesHover"/>
+    <label :aria-disabled="inWatching === true ? 'true' : 'false'" class="v-control-button">
+      <input :disabled="inWatching === true" type="checkbox" v-model="includesHover"/>
       <span>Include pointer hover in watch</span>
     </label>
-    <fieldset class="v-control-group" :disabled="recording === true">
+    <fieldset class="v-control-group" :disabled="inWatching === true">
       <legend>Watch following pointer types</legend>
       <div class="v-control-flow">
-        <label :aria-disabled="recording === true ? 'true' : 'false'" class="v-control-button">
+        <label :aria-disabled="inWatching === true ? 'true' : 'false'" class="v-control-button">
           <input type="checkbox" v-model="watchMouse"/>
           <span>Mouse</span>
         </label>
-        <label :aria-disabled="recording === true ? 'true' : 'false'" class="v-control-button">
+        <label :aria-disabled="inWatching === true ? 'true' : 'false'" class="v-control-button">
           <input type="checkbox" v-model="watchPen"/>
           <span>Pen</span>
         </label>
-        <label :aria-disabled="recording === true ? 'true' : 'false'" class="v-control-button">
+        <label :aria-disabled="inWatching === true ? 'true' : 'false'" class="v-control-button">
           <input type="checkbox" v-model="watchTouch"/>
           <span>Touch</span>
         </label>
       </div>
     </fieldset>
-    <label :aria-disabled="recording === true ? 'true' : 'false'" class="v-control-button">
-      <input :disabled="recording === true" type="checkbox" v-model="usePointerCapture"/>
+    <label :aria-disabled="inWatching === true ? 'true' : 'false'" class="v-control-button">
+      <input :disabled="inWatching === true" type="checkbox" v-model="usePointerCapture"/>
       <span>Pointer-capture when pointer is contacted</span>
     </label>
   </div>
 
   <div class="v-input-wrapper">
     <div class="v-input" ref="input1">
-      <svg class="v-input-layers" v-if="drawMode === 'svg'" viewBox="0 0 400 400">
+      <svg class="v-input-layers" v-if="drawMode === 'svg'" :viewBox="'0 0 ' + inputSize + ' ' + inputSize">
       </svg>
       <div class="v-input-layers" v-if="drawMode === 'canvas'">
-        <canvas class="v-input-layer" height="400" :id="'canvas-' + layer" v-for="layer of layers" width="400"></canvas>
+        <canvas class="v-input-layer" :height="inputSize" :width="inputSize"></canvas>
       </div>
 
       <div
@@ -87,7 +87,8 @@ createApp({
   data() {
     return {
       drawMode: "svg", // "svg" | "canvas"
-      layerMap: new Map(),
+      inputSize: 400,
+      layerContext: null,
       observer: null,
       indicatorMap: new Map(),
       idGen: (function*() {
@@ -97,7 +98,7 @@ createApp({
         throw new Error("id overflow");
       })(),
       history: [],
-      recording: false,
+      inWatching: false,
       usePointerCapture: false,
       includesHover: false,
       watchMouse: true,
@@ -109,10 +110,6 @@ createApp({
   template,
 
   computed: {
-    layers() {
-      return [...this.layerMap.keys()];
-    },
-
     indicators() {
       return [...this.indicatorMap.values()];
     },
@@ -127,27 +124,8 @@ createApp({
       const offsetX = activity.startTargetOffset.x;
       const offsetY = activity.startTargetOffset.y;
 
-      let layerId;
-      let layerContext;
       let path;
-      if (this.drawMode === "canvas") {
-        for (const entry of this.layerMap) {
-          if (entry[1] !== true) {
-            layerId = entry[0];
-            this.layerMap.set(layerId, true);
-            break;
-          }
-        }
-        if (Number.isSafeInteger(layerId) !== true) {
-          return;
-        }
-        layerContext = document.getElementById(`canvas-${layerId}`).getContext("2d");
-        layerContext.lineWidth = 1;
-        layerContext.strokeStyle = "#d12";
-        layerContext.beginPath();
-        layerContext.moveTo(offsetX, offsetY);
-      }
-      else if (this.drawMode === "svg") {
+      if (this.drawMode === "svg") {
         path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         path.classList.add("v-input-layer-path");
         path.setAttribute("d", `M ${offsetX} ${offsetY}`);
@@ -165,8 +143,6 @@ createApp({
         width: 1,
         height: 1,
         inContact: false,
-        layerId,
-        layerContext,
         path,
       };
       this.indicatorMap.set(activity, indicator);
@@ -178,16 +154,14 @@ createApp({
       this.indicatorMap.delete(activity);
 
       if (this.drawMode === "canvas") {
-        this.layerMap.set(indicator.layerId, false);
-        //const { layerContext } = indicator.layerId;
-        //layerContext.
+        //
       }
       else if (this.drawMode === "svg") {
         //
       }
     },
 
-    onprogress(activity, motion) {
+    onprogress(activity, motion, prevMotion) {
       const offsetX = motion.targetOffset.x;
       const offsetY = motion.targetOffset.y;
       const inContact = motion.inContact;
@@ -200,48 +174,103 @@ createApp({
       indicator.inContact = inContact;
 
       if (this.drawMode === "canvas") {
-        const { layerContext } = indicator;
-        if (inContact === true) {
-          layerContext.lineTo(offsetX, offsetY);
+        if (inContact === true && prevMotion) {
+          const prevOffsetX = prevMotion.targetOffset.x;
+          const prevOffsetY = prevMotion.targetOffset.y;
+          this.layerContext.beginPath();
+          this.layerContext.moveTo(prevOffsetX, prevOffsetY);
+          this.layerContext.lineTo(offsetX, offsetY);
+          this.layerContext.stroke();
+          //XXX 座標動かさずにclickした場合に何も描画されない
         }
-        else {
-          layerContext.moveTo(offsetX, offsetY);
-        }
-        layerContext.stroke();
       }
       else if (this.drawMode === "svg") {
         const c = (inContact === true) ? "L" : "M";
         indicator.path.setAttribute("d", indicator.path.getAttribute("d") + ` ${c} ${offsetX} ${offsetY}`);
+        //XXX 長いと重くなる 適当に切るか？
+        //XXX Mの前がMの場合は、前のMは消す
       }
+    },
+
+    clearLayers() {
+      if (this.drawMode === "svg") {
+        const svg = document.querySelector("svg.v-input-layers");
+        while (svg.firstElementChild) {
+          svg.firstElementChild.remove();
+        }
+      }
+      if (this.drawMode === "canvas") {
+        this.layerContext.clearRect(0, 0, this.inputSize, this.inputSize);
+      }
+    },
+
+    onToggle() {
+      if (this.inWatching === true) {
+        this.disposeObserver();
+      }
+      else {
+        this.resetObserver();
+      }
+    },
+
+    resetObserver() {
+      this.disposeObserver();
+      this.inWatching = true;
+
+      const pointerTypeFilter = [];
+      if (this.watchMouse === true) {
+        pointerTypeFilter.push("mouse");
+      }
+      if (this.watchPen === true) {
+        pointerTypeFilter.push("pen");
+      }
+      if (this.watchTouch === true) {
+        pointerTypeFilter.push("touch");
+      }
+
+      this.observer = new PointerObserver(async (activity) => {
+        this.onstart(activity);
+        let prevMotion = null;
+        for await (const motion of activity) {
+          this.onprogress(activity, motion, prevMotion);
+          prevMotion = motion;
+        }
+        this.onend(activity);
+      }, {
+        includesHover: this.includesHover,
+        pointerTypeFilter,
+        usePointerCapture: this.usePointerCapture,
+      });
+
+      console.log(this.$refs.input1.tagName);
+      this.observer.observe(this.$refs.input1);
+    },
+
+    disposeObserver() {
+      this.inWatching = false;
+      if (this.observer) {
+        this.observer.disconnect();
+      }
+      this.observer = null;
+
+      this.clearLayers();
     },
   },
 
-  created() {
-    if (this.drawMode === "canvas") {
-      const l = 1 + (navigator.maxTouchPoints ? navigator.maxTouchPoints : 10);
-      for (let i = 1; i <= l; i++) {
-        this.layerMap.set(i, false);
-      }
-    }
-  },
-
   mounted() {
-    this.observer = new PointerObserver(async (activity) => {
-      this.onstart(activity);
-      for await (const motion of activity) {
-        this.onprogress(activity, motion);
-      }
-      this.onend(activity);
-    }, {
-      includesHover: true,
-    });
-    console.log(this.$refs.input1.tagName)
-    console.log(this.observer)
-    this.observer.observe(this.$refs.input1);
+    if (this.drawMode === "canvas") {
+      this.layerContext = document.querySelector("canvas.v-input-layer")?.getContext("2d");
+      this.layerContext.lineWidth = 1;
+      this.layerContext.strokeStyle = "#d12";
+    }
+    this.resetObserver();
   },
 
   beforeDestroy() {
-    this.observer.disconnect();
+    this.disposeObserver();
+    if (this.drawMode === "canvas") {
+      this.layerContext = null;
+    }
   },
 
 }).mount("#app");

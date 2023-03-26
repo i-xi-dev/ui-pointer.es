@@ -207,14 +207,6 @@ namespace Pointer {
 
 }
 
-type PointerMotionSource = {
-  //XXX composedPath
-  //XXX sourceCapabilities
-  //XXX relatedTarget
-  readonly isTrusted: boolean,
-  readonly eventType: string,
-};
-
 interface PointerMotion {
   readonly timeStamp: timestamp;
   readonly viewportOffset: Geometry2d.Point, // from viewport top left
@@ -225,7 +217,16 @@ interface PointerMotion {
   readonly buttons: (Array<Pointer.MouseButton> | Array<Pointer.PenButton>),
   readonly modifiers: Array<Pointer.Modifier>;// タッチ間で共有だが現在値なのでここに持たせる
   readonly captured: boolean;// 「targetに」captureされているか否か
-  readonly source: PointerMotionSource;
+  readonly source: PointerMotion.Source;
+}
+namespace PointerMotion {
+  export type Source = {
+    //XXX composedPath
+    //XXX sourceCapabilities
+    //XXX relatedTarget
+    readonly isTrusted: boolean,
+    readonly eventType: string,
+  };
 }
 
 interface PointerActivity {
