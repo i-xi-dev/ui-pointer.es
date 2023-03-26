@@ -3,9 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <title></title>
-    <link href="./asset/visualizer.css" rel="stylesheet" />
+    <!--<link href="./asset/visualizer.css" rel="stylesheet" />-->
+    <link href="../docs/sample/asset/visualizer.css" rel="stylesheet" />
     <script type="module">
 import { createApp, reactive } from "https://unpkg.com/vue@3/dist/vue.esm-browser.js";
+//import { PointerObserver } from "../../dist/index.js";
 import { PointerObserver } from "../dist/index.js";
 
 const template = `
@@ -48,7 +50,7 @@ const template = `
   </div>
 
   <div class="v-input-wrapper">
-    <div class="v-input" ref="input1">
+    <div :aria-disabled="inWatching !== true ? 'true' : 'false'" class="v-input" ref="input1">
       <svg class="v-input-layers" v-if="drawMode === 'svg'" :viewBox="'0 0 ' + inputSize + ' ' + inputSize">
       </svg>
       <div class="v-input-layers" v-if="drawMode === 'canvas'">
@@ -78,7 +80,13 @@ const template = `
     </div>
   </div>
 
-  <div class="v-output">
+  <div class="v-output-wrapper">
+    <div class="v-output">
+      <div></div>
+      <div class="v-output-detail" v-for="item of history">
+        <div class="v-output-detail-name">{{ item.name }}</div>
+      </div>
+    </div>
   </div>
 </div>
 `;

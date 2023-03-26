@@ -44,10 +44,10 @@ body {
   height: var(--input-size);
   width: var(--input-size);
 }
-*.v-input:hover {
+*.v-input:not([aria-disabled="true"]):hover {
   background-color: #616161;
 }
-*.v-input:active {
+*.v-input:not([aria-disabled="true"]):active {
   cursor: none;
 }
 
@@ -249,13 +249,15 @@ input[type="checkbox"]:disabled {
   width: 24px;
 }
 
-
-
-
-*.v-output {
+*.v-output-wrapper {
   background-color: #2a2a2a;
   box-shadow: 0 0 0 2px #2a2a2a;
   grid-column: 1 / -1;
   min-height: 300px;
   overflow: scroll;
+}
+
+*.v-output {
+  height: max-content;
+  width: max-content;
 }
