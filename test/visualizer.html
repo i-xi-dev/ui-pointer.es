@@ -10,44 +10,72 @@ import { PointerObserver } from "../dist/index.js";
 
 const template = `
 <div class="v-app">
-  <div class="v-input" ref="input1">
-    <div
-    :class="{
-      'v-input-indicator': true,
-      'v--primary': indicator.primary === true,
-      'v--contact': indicator.inContact === true,
-      'v--mouse': indicator.type === 'mouse',
-      'v--pen': indicator.type === 'pen',
-      'v--touch': indicator.type === 'touch',
-    }"
-    :style="{
-      'left': indicator.offsetX + 'px',
-      'top': indicator.offsetY + 'px',
-      '--width': indicator.width + 'px',
-      '--height': indicator.height + 'px',
-    }"
-    v-for="indicator of indicators">
-      <div class="v-input-indicator-crosshair"></div>
-      <div class="v-input-indicator-circle"></div>
-      <div class="v-input-indicator-contact"></div>
-    </div>
-  </div>
   <div class="v-control">
-    <div>Recording</div>
-    <button class="v-control-button v--switch-mode" @click="recording = !recording">
+    <button class="v-control-button v--pushbutton" @click="recording = !recording">
       <svg v-if="recording === true" viewBox="0 0 24 24">
-        <path d="M 3 3 L 21 3 L 21 21 L 3 21 z" fill="#000"/>
+        <path d="M 5 5 L 19 5 L 19 19 L 5 19 z" fill="#fff"/>
       </svg>
       <svg v-else viewBox="0 0 24 24">
-        <path d="M 3 3 L 22 12 L 3 21 z" fill="#000"/>
+        <path d="M 3 3 L 22 12 L 3 21 z" fill="#fff"/>
       </svg>
       <span>{{ (recording === true) ? "Stop" : "Start" }}</span>
     </button>
-    <label v-if="recording !== true">
-      <input type="checkbox" v-model="usePointerCapture"/>
-      <span>Set pointer capture when pointer is contacted</span>
+    <label :aria-disabled="recording === true ? 'true' : 'false'" class="v-control-button">
+      <input :disabled="recording === true" type="checkbox" v-model="includesHover"/>
+      <span>Include pointer hover in watch</span>
+    </label>
+    <fieldset class="v-control-group" :disabled="recording === true">
+      <legend>Watch following pointer types</legend>
+      <div class="v-control-flow">
+        <label :aria-disabled="recording === true ? 'true' : 'false'" class="v-control-button">
+          <input type="checkbox" v-model="watchMouse"/>
+          <span>Mouse</span>
+        </label>
+        <label :aria-disabled="recording === true ? 'true' : 'false'" class="v-control-button">
+          <input type="checkbox" v-model="watchPen"/>
+          <span>Pen</span>
+        </label>
+        <label :aria-disabled="recording === true ? 'true' : 'false'" class="v-control-button">
+          <input type="checkbox" v-model="watchTouch"/>
+          <span>Touch</span>
+        </label>
+      </div>
+    </fieldset>
+    <label :aria-disabled="recording === true ? 'true' : 'false'" class="v-control-button">
+      <input :disabled="recording === true" type="checkbox" v-model="usePointerCapture"/>
+      <span>Pointer-capture when pointer is contacted</span>
     </label>
   </div>
+
+  <div class="v-input-wrapper">
+    <div class="v-input" ref="input1">
+      <div class="v-input-layers">
+        <canvas class="v-input-layer" height="400" :id="'canvas-' + layer" v-for="layer of layers" width="400"></canvas>
+      </div>
+
+      <div
+      :class="{
+        'v-input-indicator': true,
+        'v--primary': indicator.primary === true,
+        'v--contact': indicator.inContact === true,
+        'v--mouse': indicator.type === 'mouse',
+        'v--pen': indicator.type === 'pen',
+        'v--touch': indicator.type === 'touch',
+      }"
+      :style="{
+        'left': indicator.offsetX + 'px',
+        'top': indicator.offsetY + 'px',
+        '--width': indicator.width + 'px',
+        '--height': indicator.height + 'px',
+      }"
+      v-for="indicator of indicators">
+        <div class="v-input-indicator-crosshair"></div>
+        <div class="v-input-indicator-circle"></div>
+        <div class="v-input-indicator-contact"></div>
+      </div>
+    </div>
+  </div>
+
   <div class="v-output">
   </div>
 </div>
@@ -56,6 +84,7 @@ const template = `
 createApp({
   data() {
     return {
+      layerMap: new Map(),
       observer: null,
       indicatorMap: new Map(),
       idGen: (function*() {
@@ -67,46 +96,108 @@ createApp({
       history: [],
       recording: false,
       usePointerCapture: false,
+      includesHover: false,
+      watchMouse: true,
+      watchPen: true,
+      watchTouch: true,
     };
   },
+
   template,
+
   computed: {
+    layers() {
+      return [...this.layerMap.keys()];
+    },
+
     indicators() {
       return [...this.indicatorMap.values()];
     },
   },
+
   methods: {
     nextId() {
       return this.idGen.next().value;
     },
+
     onstart(activity) {
+      const offsetX = activity.startTargetOffset.x;
+      const offsetY = activity.startTargetOffset.y;
+
+      let layerId;
+      for (const entry of this.layerMap) {
+        if (entry[1] !== true) {
+          layerId = entry[0];
+          this.layerMap.set(layerId, true);
+          break;
+        }
+      }
+      if (Number.isSafeInteger(layerId) !== true) {
+        return;
+      }
+      const layerContext = document.getElementById(`canvas-${layerId}`).getContext("2d");
+      layerContext.lineWidth = 1;
+      layerContext.strokeStyle = "#d12";
+      layerContext.beginPath();
+      layerContext.moveTo(offsetX, offsetY);
+
       const { pointer } = activity;
       const indicator = {
         id: this.nextId(),
         type: pointer.type,
         primary: pointer.isPrimary,
         name: `${ pointer.type }:${ pointer.id }`,
-        offsetX: activity.startTargetOffset.x,
-        offsetY: activity.startTargetOffset.y,
+        offsetX,
+        offsetY,
         width: 1,
         height: 1,
         inContact: false,
+        layerId,
+        layerContext,
       };
       this.indicatorMap.set(activity, indicator);
       this.history.push(indicator);
     },
+
     onend(activity) {
-      this.indicatorMap.delete(activity);
-    },
-    onprogress(activity, motion) {
       const indicator = this.indicatorMap.get(activity);
-      indicator.offsetX = motion.targetOffset.x;
-      indicator.offsetY = motion.targetOffset.y;
+      this.indicatorMap.delete(activity);
+
+      this.layerMap.set(indicator.layerId, false);
+      //const { layerContext } = indicator.layerId;
+      //layerContext.
+    },
+
+    onprogress(activity, motion) {
+      const offsetX = motion.targetOffset.x;
+      const offsetY = motion.targetOffset.y;
+      const inContact = motion.inContact;
+
+      const indicator = this.indicatorMap.get(activity);
+      indicator.offsetX = offsetX;
+      indicator.offsetY = offsetY;
       indicator.width = motion.properties.radiusX * 2;
       indicator.height = motion.properties.radiusY * 2;
-      indicator.inContact = motion.inContact;
+      indicator.inContact = inContact;
+
+      const { layerContext } = indicator;
+      if (inContact === true) {
+        layerContext.lineTo(offsetX, offsetY);
+      }
+      else {
+        layerContext.moveTo(offsetX, offsetY);
+      }
+      layerContext.stroke();
     },
   },
+
+  created() {
+    const l = 1 + (navigator.maxTouchPoints ? navigator.maxTouchPoints : 10);
+    for (let i = 1; i <= l; i++) {
+      this.layerMap.set(i, false);
+    }
+  },
+
   mounted() {
     this.observer = new PointerObserver(async (activity) => {
       this.onstart(activity);
@@ -121,6 +212,7 @@ createApp({
     console.log(this.observer)
     this.observer.observe(this.$refs.input1);
   },
+
   beforeDestroy() {
     this.observer.disconnect();
   },

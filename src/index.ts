@@ -100,10 +100,11 @@ export { PointerObserver } from "./pointer_observer";
 //         → 厳密に判定するのは高コストなので（角が丸い場合とか子孫が境界外に出ている場合とか）
 //           無視するか？firefoxのpointerenterのtimeStampがあてになるならtemeStampで絞れば良いが・・・
 //           → とりあえず初期バージョンでは対応しないことにした
+// - mouseButton,penButtonも指定されたもの以外は監視しない？
 
 /*
 TODO 下記対処したら脱alpha
 
-4. mouseButton,penButtonも指定されたもの以外は監視しない？
+1. pointerenterの直前の位置も追加する？
 
 */
