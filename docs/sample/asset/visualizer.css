@@ -297,7 +297,7 @@ input[type="checkbox"]:disabled {
 
 *.v-output-detail-name-content {
   background-color: #10cbbc;
-  border-radius: 12px;
+  /*border-radius: 12px; firefoxで何故かチラつく*/
   height: 24px;
   padding: 0 8px;
 }
@@ -321,13 +321,12 @@ input[type="checkbox"]:disabled {
 }
 
 *.v-output-detail-timeline-det {
-  background: #4d4d4d;
-  border-radius: 5px;
+  background: #15423f;
   color: #fff;
   font-size: 12px;
   padding: 2px 6px;
   position: absolute;
-  top: 20px;
+  top: 18px;
   visibility: hidden;
   white-space: nowrap;
 }
