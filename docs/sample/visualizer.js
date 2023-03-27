@@ -1,4 +1,4 @@
-//import { createApp } from "https://unpkg.com/vue@3/dist/vue.esm-browser.prod.js";
+import { createApp } from "https://unpkg.com/vue@3/dist/vue.esm-browser.prod.js";
 //import { PointerObserver } from "https://esm.sh/@i-xi-dev/ui-pointer@0.0.1-alpha-10";
 
 document.getElementById("app").textContent = "aaaaaaaa";
