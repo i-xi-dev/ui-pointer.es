@@ -4,7 +4,7 @@ import { createApp } from "https://unpkg.com/vue@3/dist/vue.esm-browser.prod.js"
 import("https://esm.sh/@i-xi-dev/ui-pointer@0.0.1-alpha-10").then((r => {
   document.getElementById("app").textContent = "aaaaaaaa";
 })).catch((e) => {
-  document.getElementById("app").textContent = e.message;
+  document.getElementById("app").textContent = e.stack;
 });
 
 
