@@ -4,11 +4,9 @@
     <meta charset="UTF-8" />
     <title>Visualizer</title>
     <link href="./asset/visualizer.css" rel="stylesheet" />
-    <!--<link href="../docs/sample/asset/visualizer.css" rel="stylesheet" />-->
-    <script crossorigin="anonymous">
+    <script type="module" crossorigin="anonymous">
 import { createApp, reactive } from "https://unpkg.com/vue@3/dist/vue.esm-browser.js";
 import { PointerObserver } from "https://esm.sh/@i-xi-dev/ui-pointer@0.0.1-alpha-10";
-//import { PointerObserver } from "../dist/index.js";
 
 function formatTimeStamp(timestamp) {
   const dt = new Date(performance.timeOrigin + timestamp);
@@ -113,7 +111,6 @@ const template = `
 </div>
 `;
 
-(() => {
 createApp({
   data() {
     return {
@@ -338,10 +335,9 @@ createApp({
 
 }).mount("#app");
 
-})();
     </script>
   </head>
-  <body style="background:aqua;">
+  <body style="background:lime;">
     <div id="app"></div>
   </body>
 </html>
