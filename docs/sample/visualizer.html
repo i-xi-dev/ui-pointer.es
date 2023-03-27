@@ -5,7 +5,7 @@
     <title>Visualizer</title>
     <link href="./asset/visualizer.css" rel="stylesheet" />
     <!--<link href="../docs/sample/asset/visualizer.css" rel="stylesheet" />-->
-    <script type="module" crossorigin="anonymous">
+    <script>
 import { createApp, reactive } from "https://unpkg.com/vue@3/dist/vue.esm-browser.js";
 import { PointerObserver } from "https://esm.sh/@i-xi-dev/ui-pointer@0.0.1-alpha-10";
 //import { PointerObserver } from "../dist/index.js";
@@ -113,6 +113,7 @@ const template = `
 </div>
 `;
 
+(() => {
 createApp({
   data() {
     return {
@@ -336,9 +337,11 @@ createApp({
   },
 
 }).mount("#app");
+
+})();
     </script>
   </head>
-  <body style="background:orange;">
+  <body style="background:red;">
     <div id="app"></div>
   </body>
 </html>
