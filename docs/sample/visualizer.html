@@ -5,11 +5,16 @@
     <title></title>
     <link href="./asset/visualizer.css" rel="stylesheet" />
     <!--<link href="../docs/sample/asset/visualizer.css" rel="stylesheet" />-->
-    <script type="module">
+<script>
+  window.addEventListener("load", () => {
+document.getElementById("app").textContent = "123";
+  });
+</script>
+    <xscript type="module">
 import { createApp, reactive } from "https://unpkg.com/vue@3/dist/vue.esm-browser.js";
 import { PointerObserver } from "https://esm.sh/@i-xi-dev/ui-pointer@0.0.1-alpha-10";
 //import { PointerObserver } from "../dist/index.js";
-app.append(document.createTextNode("aaa"));
+
 function formatTimeStamp(timestamp) {
   const dt = new Date(performance.timeOrigin + timestamp);
   return dt.toISOString();
@@ -112,7 +117,7 @@ const template = `
   </div>
 </div>
 `;
-app.append(document.createTextNode("bbb"));
+
 createApp({
   data() {
     return {
@@ -336,7 +341,7 @@ createApp({
   },
 
 }).mount("#app");
-    </script>
+    </xscript>
   </head>
   <body style="background:yellow;">
     <div id="app"></div>
