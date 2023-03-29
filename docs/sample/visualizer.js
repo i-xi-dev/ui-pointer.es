@@ -1,5 +1,5 @@
 import { createApp } from "https://unpkg.com/vue@3/dist/vue.esm-browser.prod.js";
-import { PointerObserver } from "https://unpkg.com/@i-xi-dev/ui-pointer@0.0.1-alpha-10/dist/index.js";
+import { PointerObserver } from "https://unpkg.com/@i-xi-dev/ui-pointer@0.0.1-alpha-11/dist/index.js";
 
 function formatTimeStamp(timestamp) {
   const dt = new Date(performance.timeOrigin + timestamp);

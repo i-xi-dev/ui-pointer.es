@@ -114,8 +114,6 @@ export { PointerObserver } from "./pointer_observer";
 /*
 TODO 下記対処したら脱alpha
 
-★. safari: 短時間の連続ペン接触が間引かれる
-   短時間といっても普通に文字を書く程度でもダメなので実用に耐えない
 1. pointerenterの直前の位置を追加する（開始前位置としてactivityに）leaveの位置も終了後位置に移す
 
 

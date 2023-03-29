@@ -314,17 +314,12 @@ class _TargetObservation {
         }) as EventListener, activeListenerOptions);
       }
 
-      // if () {
-      //   // touch-actionを一律禁止すると、タブレット等でスクロールできなくなってしまうので
-      //   // 代わりにpointer capture中のtouchmoveをキャンセルする
-      //   // いくつかの環境で試してみた結果ではtouchmoveのみキャンセルすれば問題なさそうだったが、
-      //   //   Pointer Events仕様でもTouch Events仕様でも preventDefaultすると何が起きるのかがほぼ未定義なのはリスク
-      //   this.target.addEventListener("touchmove", ((event: TouchEvent) => {
-      //     if (this._trackingMap.size > 0) {
-      //       event.preventDefault();
-      //     }
-      //   }) as EventListener, activeListenerOptions);
-      // }
+      //[$109[ Safariでペンの場合、touchstartをキャンセルしないとポインターイベントの発火が間引かれる。
+      //       touch-action:noneだけでは足りないらしい
+      this.#target.addEventListener("touchstart", ((event: TouchEvent) => {
+        event.preventDefault();
+      }) as EventListener, activeListenerOptions);
+      // ]$109]
     }
 
     this.#target.addEventListener("pointerdown", ((event: PointerEvent): void => {
