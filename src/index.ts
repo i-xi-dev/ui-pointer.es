@@ -109,12 +109,14 @@ export { PointerObserver } from "./pointer_observer";
 // - mouseButton,penButtonも指定されたもの以外は監視しない？
 // - 排他設定（pointer 1つのみ監視）
 // - safari: ダブルタップ？でテキスト選択になる （-webkit-user-selectで選択できないテキストでも。最も近く？の選択可能テキストを選択する）
-//     → 全体を選択不可にしてもらうほかない
+//     → documentElement以下全てを選択不可にしてもらう他ない
 
 /*
 TODO 下記対処したら脱alpha
 
+★. safari: 短時間の連続ペン接触が間引かれる
+   短時間といっても普通に文字を書く程度でもダメなので実用に耐えない
 1. pointerenterの直前の位置を追加する（開始前位置としてactivityに）leaveの位置も終了後位置に移す
-3. safari: ダブルタップでズームしないのは非テキストのみ
+
 
 */
