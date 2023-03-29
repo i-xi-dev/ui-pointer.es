@@ -258,7 +258,7 @@ input[type="checkbox"]:disabled {
 }
 
 *.v-output {
-  --rowhead-width: 120px;
+  --rowhead-width: 160px;
   height: max-content;
   width: max-content;
 }
@@ -296,10 +296,13 @@ input[type="checkbox"]:disabled {
 }
 
 *.v-output-detail-name-content {
+  align-items: center;
   background-color: #10cbbc;
-  /*border-radius: 12px; firefoxで何故かチラつく*/
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 50%, calc(100% - 6px) 100%, 0 100%);
+  display: flex;
+  font-size: 12px;
   height: 24px;
-  padding: 0 8px;
+  padding: 0 10px 0 6px;
 }
 
 *.v-output-detail-timeline {
