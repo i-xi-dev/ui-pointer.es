@@ -1,10 +1,5 @@
 import { createApp } from "https://unpkg.com/vue@3/dist/vue.esm-browser.prod.js";
-//import { PointerObserver } from "https://esm.sh/@i-xi-dev/ui-pointer@0.0.1-alpha-10";
 import { PointerObserver } from "https://unpkg.com/@i-xi-dev/ui-pointer@0.0.1-alpha-10/dist/index.js";
-
-
-
-
 
 function formatTimeStamp(timestamp) {
   const dt = new Date(performance.timeOrigin + timestamp);
@@ -93,15 +88,26 @@ const template = `
           <div class="v-output-detail-name-content">{{ item.name }}</div>
         </div>
         <div
-        class="v-output-detail-timeline"
-        :style="{
-          '--start': seg.startTime + 'px',
-          '--len': seg.duration + 'px',
+        :class="{
+          'v-output-detail-timeline': true,
+          'v--live': seg.live === true,
         }"
+        :style="{
+          '--start': (seg.startTime * timeScale) + 'px',
+          '--len': (seg.duration * timeScale) + 'px',
+        }"
+        :title="seg.startTimeStr"
         v-for="seg of item.seqs">
-          <div class="v-output-detail-timeline-det">
-            {{ seg.startTimeStr }}
-          </div>
+          <div
+          :class="{
+            'v-output-detail-timeline-2': true,
+            'v--live': seg2.live === true,
+          }"
+          :style="{
+            '--start2': ((seg2.startTime - seg.startTime) * timeScale) + 'px',
+            '--len2': (seg2.duration * timeScale) + 'px',
+          }"
+          v-for="seg2 of seg.contactHistory"></div>
         </div>
       </div>
     </div>
@@ -112,6 +118,7 @@ const template = `
 createApp({
   data() {
     return {
+      timeScale: 0.01,
       drawMode: "svg", // "svg" | "canvas"
       inputSize: 400,
       layerContext: null,
@@ -168,16 +175,18 @@ createApp({
         type: pointer.type,
         primary: pointer.isPrimary,
         name,
-        startTime: (activity.startTime - this.watchingStartAt) * 0.01,
+        startTime: (activity.startTime - this.watchingStartAt),
         startTimeStr: formatTimeStamp(activity.startTime),
         offsetX,
         offsetY,
         width: 1,
         height: 1,
         inContact: false,
+        contactHistory: [],
         path,
         duration: 0,
         durationStr: "0",
+        live: true,
       };
       this.indicatorMap.set(activity, indicator);
       const hitem = this.history.find((item) => item.name === name);
@@ -195,6 +204,7 @@ createApp({
     onend(activity) {
       const indicator = this.indicatorMap.get(activity);
       this.indicatorMap.delete(activity);
+      indicator.live = false;
 
       if (this.drawMode === "canvas") {
         //
@@ -210,12 +220,36 @@ createApp({
       const inContact = motion.inContact;
 
       const indicator = this.indicatorMap.get(activity);
+
+      let contactSeg;
+      if (motion.inContact === true) {
+        if (indicator.inContact !== true) {
+          contactSeg = {};
+          indicator.contactHistory.push(contactSeg);
+          contactSeg.startTime = (motion.timeStamp - this.watchingStartAt);
+          contactSeg.duration = 0;
+          contactSeg.live = true;
+        }
+        else {
+          contactSeg = indicator.contactHistory.at(-1);
+          contactSeg.duration = contactSeg.duration + (motion.timeStamp - prevMotion.timeStamp);
+        }
+      }
+      else {
+        contactSeg = indicator.contactHistory.at(-1);
+        if (contactSeg?.live === true) {
+          contactSeg.duration = contactSeg.duration + (motion.timeStamp - prevMotion.timeStamp);
+          contactSeg.live = false;
+        }
+      }
+
       indicator.offsetX = offsetX;
       indicator.offsetY = offsetY;
       indicator.width = motion.properties.radiusX * 2;
       indicator.height = motion.properties.radiusY * 2;
       indicator.inContact = inContact;
-      indicator.duration = activity.duration * 0.01;
+      indicator.contactHistory
+      indicator.duration = activity.duration;
       indicator.durationStr = activity.duration.toFixed(3);
 
       if (this.drawMode === "canvas") {
@@ -299,7 +333,7 @@ createApp({
     },
 
     drawOutputHead() {
-      const a = (performance.now() - this.watchingStartAt) * 0.01;
+      const a = (performance.now() - this.watchingStartAt) * this.timeScale;
       this.historyHead = a;
       this.$refs.out1.scrollLeft = this.$refs.out1.scrollLeft + a;
     },

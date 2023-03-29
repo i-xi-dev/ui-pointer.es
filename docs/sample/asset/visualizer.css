@@ -1,5 +1,7 @@
 *:root {
   overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 body {
@@ -270,13 +272,11 @@ input[type="checkbox"]:disabled {
 
 *.v-output-detail {
   background-image: linear-gradient(#15423f 0%, #15423f 100%);
-  background-position: 0% 50%;
+  background-position: 0 16px;
   background-repeat: repeat-x;
   background-size: 400px 2px;
-  display: grid;
-  grid-template-columns: 1fr;
-  grid-template-rows: 1fr;
   height: 30px;
+  position: relative;
   width: 100%;
 }
 
@@ -284,8 +284,6 @@ input[type="checkbox"]:disabled {
   align-items: center;
   background-color: #2a2a2a;
   display: flex;
-  grid-column: 1;
-  grid-row: 1;
   height: 30px;
   justify-content: end;
   left: 0;
@@ -298,7 +296,7 @@ input[type="checkbox"]:disabled {
 *.v-output-detail-name-content {
   align-items: center;
   background-color: #10cbbc;
-  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 50%, calc(100% - 6px) 100%, 0 100%);
+  clip-path: polygon(0 0, calc(100% - 10px) 0, calc(100% - 2px) 50%, calc(100% - 10px) 100%, 0 100%);
   display: flex;
   font-size: 12px;
   height: 24px;
@@ -307,12 +305,10 @@ input[type="checkbox"]:disabled {
 
 *.v-output-detail-timeline {
   align-items: center;
-  display: flex;
   height: 30px;
-  grid-column: 1;
-  grid-row: 1;
-  margin-left: calc(var(--rowhead-width) + var(--start));
-  position: relative;
+  left: calc(var(--rowhead-width) + var(--start));
+  position: absolute;
+  top: 0;
   width: var(--len);
 }
 
@@ -320,7 +316,29 @@ input[type="checkbox"]:disabled {
   background-color: #10cbbc;
   content: "";
   height: 4px;
+  left: 0;
+  position: absolute;
+  top: 13px;
   width: 100%;
+}
+
+*.v-output-detail-timeline.v--live:last-child {
+  right: 0;
+  width: auto;
+}
+
+*.v-output-detail-timeline-2 {
+  background-color: #aceb71;
+  height: 6px;
+  left: var(--start2);
+  position: absolute;
+  top: 8px;
+  width: var(--len2);
+}
+
+*.v-output-detail-timeline-2.v--live:last-child {
+  right: 0;
+  width: auto;
 }
 
 *.v-output-detail-timeline-det {

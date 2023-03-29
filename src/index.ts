@@ -107,13 +107,14 @@ export { PointerObserver } from "./pointer_observer";
 //           無視するか？firefoxのpointerenterのtimeStampがあてになるならtemeStampで絞れば良いが・・・
 //           → とりあえず初期バージョンでは対応しないことにした
 // - mouseButton,penButtonも指定されたもの以外は監視しない？
+// - 排他設定（pointer 1つのみ監視）
+// - safari: ダブルタップ？でテキスト選択になる （-webkit-user-selectで選択できないテキストでも。最も近く？の選択可能テキストを選択する）
+//     → 全体を選択不可にしてもらうほかない
 
 /*
 TODO 下記対処したら脱alpha
 
-0. 排他設定（pointer 1つのみ監視）
 1. pointerenterの直前の位置を追加する（開始前位置としてactivityに）leaveの位置も終了後位置に移す
-2. safari: ダブルタップ？でテキスト選択になる （-webkit-user-selectで選択できないテキストでも。最も近く？の選択可能テキストを選択する）
 3. safari: ダブルタップでズームしないのは非テキストのみ
 
 */
