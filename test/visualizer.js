@@ -18,10 +18,6 @@ const template = `
       </svg>
       <span>{{ (inWatching === true) ? "Stop" : "Start" }}</span>
     </button>
-    <label :aria-disabled="inWatching === true ? 'true' : 'false'" class="v-control-button">
-      <input :disabled="inWatching === true" type="checkbox" v-model="includesHover"/>
-      <span>Include pointer hover in watch</span>
-    </label>
     <fieldset class="v-control-group" :disabled="inWatching === true">
       <legend>Watch following pointer types</legend>
       <div class="v-control-flow">
@@ -39,10 +35,6 @@ const template = `
         </label>
       </div>
     </fieldset>
-    <label :aria-disabled="inWatching === true ? 'true' : 'false'" class="v-control-button">
-      <input :disabled="inWatching === true" type="checkbox" v-model="usePointerCapture"/>
-      <span>Pointer-capture when pointer is contacted</span>
-    </label>
   </div>
 
   <div class="v-input-wrapper">
@@ -135,8 +127,6 @@ createApp({
       history: [],
       historyHead: 0,
       inWatching: false,
-      usePointerCapture: false,
-      includesHover: false,
       watchMouse: true,
       watchPen: true,
       watchTouch: true,
@@ -320,9 +310,7 @@ createApp({
         }
         this.onend(activity);
       }, {
-        includesHover: this.includesHover,
         pointerTypeFilter,
-        usePointerCapture: this.usePointerCapture,
       });
 
       this.watchingStartAt = performance.now();

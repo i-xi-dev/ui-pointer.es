@@ -243,10 +243,8 @@ const _PointerAction = {
 export type _PointerAction = typeof _PointerAction[keyof typeof _PointerAction];
 
 type _ObservationOptions = {
-  includesHover: boolean,
   modifiersToWatch: Set<Pointer.Modifier>,
   pointerTypeFilter: _PointerTypeFilter,
-  usePointerCapture: boolean,
 };
 
 class _TargetObservation {
@@ -273,10 +271,10 @@ class _TargetObservation {
     this.#activities = new Map();
     this.#capturingPointerIds = new Set();
 
-    this.#includesHover = options.includesHover;
+    this.#includesHover = true;
     this.#modifiersToWatch = options.modifiersToWatch;
     this.#pointerTypeFilter = options.pointerTypeFilter;
-    this.#usePointerCapture = options.usePointerCapture;
+    this.#usePointerCapture = true;
     this.#highPrecision = false;//XXX webkit未実装:getCoalescedEvents
     this.#preventActions = [
       _PointerAction.CONTEXTMENU,
@@ -529,26 +527,20 @@ class PointerObserver {
   private readonly _callback: PointerObserver.Callback;//[$85] ES標準（#）でprivateにするとVueから使ったときエラーになるのでTypeScriptのprivate修飾子を使用
   private readonly _targets: Map<Element, Set<_TargetObservation>>;//[$85]
 
-  private readonly _includesHover: boolean;//[$85]
   private readonly _modifiersToWatch: Set<Pointer.Modifier>;//[$85]
   private readonly _pointerTypeFilter: _PointerTypeFilter;//[$85]
-  private readonly _usePointerCapture: boolean;//[$85]
 
   constructor(callback: PointerObserver.Callback, options: PointerObserver.Options = {}) {
     this._callback = callback;
     this._targets = new Map();
-    this._includesHover = (options.includesHover === true);
     this._modifiersToWatch = _normalizeModifiers(options.modifiersToWatch);
     this._pointerTypeFilter = _createPointerTypeFilter(options.pointerTypeFilter);
-    this._usePointerCapture = (options.usePointerCapture === true);
   }
 
   observe(target: Element): void {
     const observation = new _TargetObservation(target, this._callback, {
-      includesHover: this._includesHover,
       modifiersToWatch: this._modifiersToWatch,
       pointerTypeFilter: this._pointerTypeFilter,
-      usePointerCapture: this._usePointerCapture,
     });
     if (this._targets.has(target) !== true) {
       this._targets.set(target, new Set());
@@ -576,16 +568,12 @@ namespace PointerObserver {
 
   export type Callback = (activity: PointerActivity) => void;
 
-  export type OptionsUsePointerCapture = boolean;//XXX 将来対応とする | ((event: PointerEvent) => boolean);
-
   /**
    * 
    */
   export type Options = {
-    includesHover?: boolean, // falseの場合、buttons&1==1でstream生成、buttons&1!=1で破棄 trueの場合、pointerenterでstream生成、pointerleaveで破棄
     modifiersToWatch?: Array<string>,// PointerEvent発生時にgetModifierState()で検査する対象
     pointerTypeFilter?: Array<string>, // マッチしない場合streamを生成しない（pointerTypeは不変なので生成してからフィルタする必要はない）
-    usePointerCapture?: OptionsUsePointerCapture,// 「接触したとき」に、pointer captureを行うか否か
   };
 
 }

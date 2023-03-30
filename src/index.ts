@@ -110,6 +110,8 @@ export { PointerObserver } from "./pointer_observer";
 // - 排他設定（pointer 1つのみ監視）
 // - safari: ダブルタップ？でテキスト選択になる （-webkit-user-selectで選択できないテキストでも。最も近く？の選択可能テキストを選択する）
 //     → documentElement以下全てを選択不可にしてもらう他ない
+// - pointer captureしない設定
+// - stream生成条件、enqueue条件
 
 /*
 TODO 下記対処したら脱alpha
