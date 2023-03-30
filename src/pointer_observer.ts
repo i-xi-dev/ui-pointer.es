@@ -4,9 +4,9 @@ import {
   type pointerid,
   type timestamp,
   type PointerActivity,
-  type PointerMotion,
+  type PointerTrace,
   _pointerIsInContact,
-  _pointerMotionFrom,
+  _pointerTraceFrom,
   Pointer,
 } from "./pointer";
 import { ViewportPointerTracker } from "./viewport_pointer_tracker";
@@ -18,46 +18,48 @@ type _PointerActivityOptions = {
 
 class _PointerActivity implements PointerActivity {
   readonly #modifiersToWatch: Set<Pointer.Modifier>;
-  readonly #motionStreamTerminator: AbortController;
+  readonly #traceStreamTerminator: AbortController;
   readonly #pointer: Pointer;
   readonly #target: WeakRef<Element>;
   readonly #progress: Promise<void>;
-  readonly #motionStream: ReadableStream<PointerMotion>;
+  readonly #traceStream: ReadableStream<PointerTrace>;
 
   #appendCount: number = 0;
   #terminated: boolean = false;
   #progressResolver: () => void = (): void => {};
-  #motionStreamController: ReadableStreamDefaultController<PointerMotion> | null = null;
-  #firstMotion: PointerMotion | null = null;
-  #lastMotion: PointerMotion | null = null;
+  #traceStreamController: ReadableStreamDefaultController<PointerTrace> | null = null;
+  #beforeTrace: PointerTrace | null = null;//TODO
+  #firstTrace: PointerTrace | null = null;
+  #lastTrace: PointerTrace | null = null;
+  #afterTrace: PointerTrace | null = null;//TODO
   #trackLength: number = 0;
 
   constructor(event: PointerEvent, target: Element, options: _PointerActivityOptions) {
     this.#modifiersToWatch = options.modifiersToWatch;
-    this.#motionStreamTerminator = new AbortController();
+    this.#traceStreamTerminator = new AbortController();
     this.#pointer = Pointer.from(event);
     this.#progress = new Promise((resolve: () => void) => {
       this.#progressResolver = resolve;
     });
     this.#target = new WeakRef(target);
-    const start = (controller: ReadableStreamDefaultController<PointerMotion>): void => {
+    const start = (controller: ReadableStreamDefaultController<PointerTrace>): void => {
       options.signal.addEventListener("abort", () => {
         controller.close();
       }, {
         passive: true,
-        signal: this.#motionStreamTerminator.signal,
+        signal: this.#traceStreamTerminator.signal,
       });
-      this.#motionStreamController = controller;
+      this.#traceStreamController = controller;
     };
     if (options.signal.aborted === true) {
-      this.#motionStream = new ReadableStream({
+      this.#traceStream = new ReadableStream({
         start(controller) {
           controller.close();
         }
       });
       return;
     }
-    this.#motionStream = new ReadableStream({
+    this.#traceStream = new ReadableStream({
       start,
     });
   }
@@ -67,29 +69,29 @@ class _PointerActivity implements PointerActivity {
   }
 
   get startTime(): timestamp {
-    return this.#firstMotion ? this.#firstMotion.timeStamp : Number.NaN;
+    return this.#firstTrace ? this.#firstTrace.timeStamp : Number.NaN;
   }
 
   get duration(): milliseconds {
-    return (this.#lastMotion && this.#firstMotion) ? (this.#lastMotion.timeStamp - this.#firstMotion.timeStamp) : Number.NaN;
+    return (this.#lastTrace && this.#firstTrace) ? (this.#lastTrace.timeStamp - this.#firstTrace.timeStamp) : Number.NaN;
   }
 
-  get motionStream(): ReadableStream<PointerMotion> {
-    return this.#motionStream;
+  get traceStream(): ReadableStream<PointerTrace> {
+    return this.#traceStream;
   }
 
   get startViewportOffset(): Geometry2d.Point | null {
-    return this.#firstMotion ? this.#firstMotion.viewportOffset : null;
+    return this.#firstTrace ? this.#firstTrace.viewportOffset : null;
   }
 
   get startTargetOffset(): Geometry2d.Point | null {
-    return this.#firstMotion ? this.#firstMotion.targetOffset : null;
+    return this.#firstTrace ? this.#firstTrace.targetOffset : null;
   }
 
   get currentMovement(): Geometry2d.Point {
-    if (this.#lastMotion && this.#firstMotion) {
-      const lastViewportOffset = this.#lastMotion.viewportOffset;
-      const firstViewportOffset = this.#firstMotion.viewportOffset;
+    if (this.#lastTrace && this.#firstTrace) {
+      const lastViewportOffset = this.#lastTrace.viewportOffset;
+      const firstViewportOffset = this.#firstTrace.viewportOffset;
       return Object.freeze({
         x: (lastViewportOffset.x - firstViewportOffset.x),
         y: (lastViewportOffset.y - firstViewportOffset.y),
@@ -133,12 +135,20 @@ class _PointerActivity implements PointerActivity {
     return (this.#terminated !== true);
   }
 
-  get firstMotion(): PointerMotion | null {
-    return this.#firstMotion ? this.#firstMotion : null;
+  get beforeTrace(): PointerTrace | null {
+    return this.#beforeTrace ? this.#beforeTrace : null;
   }
 
-  get lastMotion(): PointerMotion | null {
-    return this.#lastMotion ? this.#lastMotion : null;
+  get firstTrace(): PointerTrace | null {
+    return this.#firstTrace ? this.#firstTrace : null;
+  }
+
+  get lastTrace(): PointerTrace | null {
+    return this.#lastTrace ? this.#lastTrace : null;
+  }
+
+  get afterTrace(): PointerTrace | null {
+    return this.#afterTrace ? this.#afterTrace : null;
   }
 
   get watchedModifiers(): Array<Pointer.Modifier> {
@@ -149,8 +159,8 @@ class _PointerActivity implements PointerActivity {
     return this.#appendCount;
   }
 
-  async *[Symbol.asyncIterator](): AsyncGenerator<PointerMotion, void, void> {
-    const streamReader = this.#motionStream.getReader();
+  async *[Symbol.asyncIterator](): AsyncGenerator<PointerTrace, void, void> {
+    const streamReader = this.#traceStream.getReader();
     try {
       for (let i = await streamReader.read(); (i.done !== true); i = await streamReader.read()) {
         yield i.value;
@@ -167,7 +177,7 @@ class _PointerActivity implements PointerActivity {
       pointer: this.pointer,
       startTime: this.startTime,
       duration: this.duration,
-      //motionStream
+      //traceStream
       startViewportOffset: this.startViewportOffset ? {
         x: this.startViewportOffset.x,
         y: this.startViewportOffset.y,
@@ -182,8 +192,8 @@ class _PointerActivity implements PointerActivity {
       },
       trackLength: this.currentTrackLength,
       inProgress: this.inProgress,
-      //firstMotion
-      //lastMotion
+      //firstTrace
+      //lastTrace
       watchedModifiers: [...this.watchedModifiers],
     };
   }
@@ -191,10 +201,10 @@ class _PointerActivity implements PointerActivity {
   _terminate(): void {
     console.assert(this.#terminated !== true, "slready terminated");
 
-    if (this.#motionStreamController) {
+    if (this.#traceStreamController) {
       console.log("terminated");
-      this.#motionStreamController.close();
-      this.#motionStreamTerminator.abort();
+      this.#traceStreamController.close();
+      this.#traceStreamTerminator.abort();
     }
 
     this.#terminated = true;
@@ -206,24 +216,24 @@ class _PointerActivity implements PointerActivity {
       throw new Error("InvalidStateError _append#1");
     }
 
-    if (this.#motionStreamController) {
+    if (this.#traceStreamController) {
       const target = this.target as Element;// （終了後に外部から呼び出したのでもなければ）nullはありえない
-      const motion: PointerMotion = _pointerMotionFrom(event, target, {
+      const trace: PointerTrace = _pointerTraceFrom(event, target, {
         modifiersToWatch: this.#modifiersToWatch,
-        prevMotion: this.#lastMotion,
+        prevTrace: this.#lastTrace,
       });
-      if (!this.#firstMotion) {
-        this.#firstMotion = motion;
+      if (!this.#firstTrace) {
+        this.#firstTrace = trace;
       }
 
-      const movement = motion.movement;
+      const movement = trace.movement;
       this.#trackLength = this.#trackLength + Geometry2d.Area.diagonal({
         width: Math.abs(movement.x),
         height: Math.abs(movement.y),
       });
 
-      this.#lastMotion = motion;
-      this.#motionStreamController.enqueue(motion);
+      this.#lastTrace = trace;
+      this.#traceStreamController.enqueue(trace);
       this.#appendCount++;
     }
   }

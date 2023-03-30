@@ -44,12 +44,12 @@ function _penButtonsOf(event: PointerEvent): Array<Pointer.PenButton> {
   return penButtons;
 }
 
-type _PointerMotionOptions = {
+type _PointerTraceOptions = {
   modifiersToWatch: Set<Pointer.Modifier>,
-  prevMotion: PointerMotion | null,
+  prevTrace: PointerTrace | null,
 };
 
-function _pointerMotionFrom(event: PointerEvent, target: Element, options: _PointerMotionOptions): PointerMotion {
+function _pointerTraceFrom(event: PointerEvent, target: Element, options: _PointerTraceOptions): PointerTrace {
   const dispatcher = (event.target instanceof Element) ? event.target : null;
   let targetX = Number.NaN;
   let targetY = Number.NaN;
@@ -70,8 +70,8 @@ function _pointerMotionFrom(event: PointerEvent, target: Element, options: _Poin
 
   let movementX: number;
   let movementY: number;
-  if (options.prevMotion) {
-    const prevViewport = options.prevMotion.viewportOffset;
+  if (options.prevTrace) {
+    const prevViewport = options.prevTrace.viewportOffset;
     movementX = (viewportX - prevViewport.x);
     movementY = (viewportY - prevViewport.y);
   }
@@ -207,19 +207,19 @@ namespace Pointer {
 
 }
 
-interface PointerMotion {
+interface PointerTrace {
   readonly timeStamp: timestamp;
   readonly viewportOffset: Geometry2d.Point, // from viewport top left
   readonly targetOffset: Geometry2d.Point, // from target bounding box top left
-  readonly movement: Geometry2d.Point;// 直前のPointerMotionからの相対位置
+  readonly movement: Geometry2d.Point;// 直前のPointerTraceからの相対位置
   readonly inContact: boolean;// pointerがactiveかつ接触があるか否か
   readonly properties: Pointer.Properties,
   readonly buttons: (Array<Pointer.MouseButton> | Array<Pointer.PenButton>),
   readonly modifiers: Array<Pointer.Modifier>;// タッチ間で共有だが現在値なのでここに持たせる
   readonly captured: boolean;// 「targetに」captureされているか否か
-  readonly source: PointerMotion.Source;
+  readonly source: PointerTrace.Source;
 }
-namespace PointerMotion {
+namespace PointerTrace {
   export type Source = {
     //XXX composedPath
     //XXX sourceCapabilities
@@ -233,7 +233,7 @@ interface PointerActivity {
   readonly pointer: Pointer;
   readonly startTime: timestamp;
   readonly duration: milliseconds;
-  readonly motionStream: ReadableStream<PointerMotion>;
+  readonly traceStream: ReadableStream<PointerTrace>;
   readonly startViewportOffset: Geometry2d.Point | null;
   readonly startTargetOffset: Geometry2d.Point | null;
   readonly currentMovement: Geometry2d.Point;// 始点からの相対位置
@@ -241,10 +241,12 @@ interface PointerActivity {
   readonly currentTrackLength: number;// 軌跡の近似値
   readonly resultTrackLength: Promise<number>;// 軌跡の近似値
   readonly target: Element | null;// 終了後はnullになるかも
-  readonly [Symbol.asyncIterator]: () => AsyncGenerator<PointerMotion, void, void>;
+  readonly [Symbol.asyncIterator]: () => AsyncGenerator<PointerTrace, void, void>;
   readonly inProgress: boolean;
-  readonly firstMotion: PointerMotion | null;
-  readonly lastMotion: PointerMotion | null;
+  readonly beforeTrace: PointerTrace | null;
+  readonly firstTrace: PointerTrace | null;
+  readonly lastTrace: PointerTrace | null;
+  readonly afterTrace: PointerTrace | null;
   readonly watchedModifiers: Array<Pointer.Modifier>;
 }
 
@@ -253,8 +255,8 @@ export {
   type pointerid,
   type timestamp,
   type PointerActivity,
-  type PointerMotion,
+  type PointerTrace,
   _pointerIsInContact,
-  _pointerMotionFrom,
+  _pointerTraceFrom,
   Pointer,
 };
