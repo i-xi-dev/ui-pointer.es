@@ -1,4 +1,5 @@
 import { PubSub } from "@i-xi-dev/pubsub";
+import { pointerid } from "./pointer";
 
 const _TOPIC = Symbol();
 
@@ -13,13 +14,13 @@ class ViewportPointerTracker {
   readonly #aborter: AbortController;
   private readonly _broker: PubSub.Broker<ViewportPointerRecord>;//[$85]
   readonly #view: Window;
-  #prevEvent: PointerEvent | null;
+  #prevEventMap: Map<pointerid, PointerEvent>;
 
   private constructor(view: Window) {
     this.#aborter = new AbortController();
     this._broker = new PubSub.Broker();
     this.#view = view;
-    this.#prevEvent = null;
+    this.#prevEventMap = new Map();
 
     const listenerOptions = {
       passive: true,
@@ -38,6 +39,7 @@ class ViewportPointerTracker {
       if (event.isTrusted !== true) {
         return;
       }
+      //console.log(`move ${event.clientX},${event.clientY}`)
 
       this.#publish(event);
     }, listenerOptions);
@@ -46,6 +48,7 @@ class ViewportPointerTracker {
       if (event.isTrusted !== true) {
         return;
       }
+      console.log(`down ${event.clientX},${event.clientY}`)
 
       this.#publish(event);
     }, listenerOptions);
@@ -54,6 +57,7 @@ class ViewportPointerTracker {
       if (event.isTrusted !== true) {
         return;
       }
+      console.log(`up ${event.clientX},${event.clientY}`)
 
       this.#publish(event);
     }, listenerOptions);
@@ -62,6 +66,7 @@ class ViewportPointerTracker {
       if (event.isTrusted !== true) {
         return;
       }
+      console.log(`cancel ${event.clientX},${event.clientY}`)
 
       this.#publish(event);
     }, listenerOptions);
@@ -99,10 +104,10 @@ class ViewportPointerTracker {
 
   #publish(event: PointerEvent): void {
     const message = {
-      prev: this.#prevEvent,
+      prev: this.#prevEventMap.get(event.pointerId) ?? null,
       curr: event,
     };
-    this.#prevEvent = event;
+    this.#prevEventMap.set(event.pointerId, event);
     this._broker.publish(_TOPIC, message).catch((reason?: any): void => {
       console.error(reason);
     });

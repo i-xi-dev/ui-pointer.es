@@ -1,5 +1,5 @@
 import { createApp } from "https://unpkg.com/vue@3/dist/vue.esm-browser.prod.js";
-import { PointerObserver } from "https://unpkg.com/@i-xi-dev/ui-pointer@0.0.1-alpha-11/dist/index.js";
+import { PointerObserver } from "https://unpkg.com/@i-xi-dev/ui-pointer@0.0.1-alpha-12/dist/index.js";
 
 function formatTimeStamp(timestamp) {
   const dt = new Date(performance.timeOrigin + timestamp);
@@ -147,8 +147,6 @@ createApp({
     },
 
     onstart(activity) {
-      const x0 = activity.beforeTrace.targetOffset.x;
-      const y0 = activity.beforeTrace.targetOffset.y;
       const offsetX = activity.firstTrace.targetOffset.x;
       const offsetY = activity.firstTrace.targetOffset.y;
 
@@ -156,8 +154,15 @@ createApp({
       if (this.drawMode === "svg") {
         path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         path.classList.add("v-input-layer-path");
-        const c = (activity.firstTrace.inContact === true) ? "L" : "M";
-        path.setAttribute("d", `M ${x0} ${y0} ${c} ${offsetX} ${offsetY}`);
+        if (activity.beforeTrace) {
+          const x0 = activity.beforeTrace.targetOffset.x;
+          const y0 = activity.beforeTrace.targetOffset.y;
+          const c = (activity.firstTrace.inContact === true) ? "L" : "M";
+          path.setAttribute("d", `M ${x0} ${y0} ${c} ${offsetX} ${offsetY}`);
+        }
+        else {
+          path.setAttribute("d", `M ${offsetX} ${offsetY}`);
+        }
         document.querySelector("*.v-input-layers").append(path);
       }
 
@@ -347,6 +352,15 @@ createApp({
       this.layerContext.strokeStyle = "#d12";
     }
     this.resetObserver();
+
+    //TODO これどうする？
+    // mouseは境界外でpointerdownしてそのまま境界内にpointermoveするとpointerenterが発火する
+    // pen,touchはそうはならない
+    document.querySelector("*.v-input-wrapper").addEventListener("pointerdown", (e) => {
+      if (e.target.hasPointerCapture(e.pointerId)) {
+        e.target.releasePointerCapture(e.pointerId);
+      }
+    }, { passive: true, });
   },
 
   beforeDestroy() {

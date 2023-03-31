@@ -204,7 +204,10 @@ class _PointerActivity implements PointerActivity {
   }
 
   _terminate(): void {
-    console.assert(this.#beforeTrace !== null, "beforeTrace not detected");
+    if (this.#beforeTrace === null) {
+      console.warn("beforeTrace not detected");
+      // 境界外からhoverまたは接触の状態でpointerenterした場合のみ存在する（タッチのように境界内でpointerenterした場合は無くても妥当）
+    }
     console.assert(this.#terminated !== true, "already terminated");
 
     if (this.#traceStreamController) {
