@@ -2,17 +2,24 @@ import { PubSub } from "@i-xi-dev/pubsub";
 
 const _TOPIC = Symbol();
 
+type ViewportPointerRecord = {
+  prev: PointerEvent | null,
+  curr: PointerEvent,
+};
+
 class ViewportPointerTracker {
   static #instance: ViewportPointerTracker | null = null;
 
   readonly #aborter: AbortController;
-  private readonly _broker: PubSub.Broker<PointerEvent>;//[$85]
+  private readonly _broker: PubSub.Broker<ViewportPointerRecord>;//[$85]
   readonly #view: Window;
+  #prevEvent: PointerEvent | null;
 
   private constructor(view: Window) {
     this.#aborter = new AbortController();
     this._broker = new PubSub.Broker();
     this.#view = view;
+    this.#prevEvent = null;
 
     const listenerOptions = {
       passive: true,
@@ -80,23 +87,29 @@ class ViewportPointerTracker {
     this._broker.clear();
   }
 
-  subscribe(callback: (message: PointerEvent) => Promise<void>): void {
+  subscribe(callback: (message: ViewportPointerRecord) => Promise<void>): void {
     this._broker.subscribe(_TOPIC, callback, {
       signal: this.#aborter.signal,
     });
   }
 
-  unsubscribe(callback: (message: PointerEvent) => Promise<void>): void {
+  unsubscribe(callback: (message: ViewportPointerRecord) => Promise<void>): void {
     this._broker.unsubscribe(_TOPIC, callback);
   }
 
   #publish(event: PointerEvent): void {
-    this._broker.publish(_TOPIC, event).catch((reason?: any): void => {
+    const message = {
+      prev: this.#prevEvent,
+      curr: event,
+    };
+    this.#prevEvent = event;
+    this._broker.publish(_TOPIC, message).catch((reason?: any): void => {
       console.error(reason);
     });
   }
 }
 
 export {
+  type ViewportPointerRecord,
   ViewportPointerTracker,
 };

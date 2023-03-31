@@ -233,9 +233,9 @@ interface PointerActivity {
   readonly pointer: Pointer;
   readonly startTime: timestamp;
   readonly duration: milliseconds;
-  readonly traceStream: ReadableStream<PointerTrace>;
-  readonly startViewportOffset: Geometry2d.Point | null;
-  readonly startTargetOffset: Geometry2d.Point | null;
+  //readonly traceStream: ReadableStream<PointerTrace>;
+  //readonly startViewportOffset: Geometry2d.Point | null;
+  //readonly startTargetOffset: Geometry2d.Point | null;
   readonly currentMovement: Geometry2d.Point;// 始点からの相対位置
   readonly resultMovement: Promise<Geometry2d.Point>;// 始点からの相対位置
   readonly currentTrackLength: number;// 軌跡の近似値

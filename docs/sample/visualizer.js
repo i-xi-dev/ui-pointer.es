@@ -18,10 +18,6 @@ const template = `
       </svg>
       <span>{{ (inWatching === true) ? "Stop" : "Start" }}</span>
     </button>
-    <label :aria-disabled="inWatching === true ? 'true' : 'false'" class="v-control-button">
-      <input :disabled="inWatching === true" type="checkbox" v-model="includesHover"/>
-      <span>Include pointer hover in watch</span>
-    </label>
     <fieldset class="v-control-group" :disabled="inWatching === true">
       <legend>Watch following pointer types</legend>
       <div class="v-control-flow">
@@ -39,10 +35,6 @@ const template = `
         </label>
       </div>
     </fieldset>
-    <label :aria-disabled="inWatching === true ? 'true' : 'false'" class="v-control-button">
-      <input :disabled="inWatching === true" type="checkbox" v-model="usePointerCapture"/>
-      <span>Pointer-capture when pointer is contacted</span>
-    </label>
   </div>
 
   <div class="v-input-wrapper">
@@ -135,8 +127,6 @@ createApp({
       history: [],
       historyHead: 0,
       inWatching: false,
-      usePointerCapture: false,
-      includesHover: false,
       watchMouse: true,
       watchPen: true,
       watchTouch: true,
@@ -157,14 +147,17 @@ createApp({
     },
 
     onstart(activity) {
-      const offsetX = activity.startTargetOffset.x;
-      const offsetY = activity.startTargetOffset.y;
+      const x0 = activity.beforeTrace.targetOffset.x;
+      const y0 = activity.beforeTrace.targetOffset.y;
+      const offsetX = activity.firstTrace.targetOffset.x;
+      const offsetY = activity.firstTrace.targetOffset.y;
 
       let path;
       if (this.drawMode === "svg") {
         path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         path.classList.add("v-input-layer-path");
-        path.setAttribute("d", `M ${offsetX} ${offsetY}`);
+        const c = (activity.firstTrace.inContact === true) ? "L" : "M";
+        path.setAttribute("d", `M ${x0} ${y0} ${c} ${offsetX} ${offsetY}`);
         document.querySelector("*.v-input-layers").append(path);
       }
 
@@ -214,48 +207,48 @@ createApp({
       }
     },
 
-    onprogress(activity, motion, prevMotion) {
-      const offsetX = motion.targetOffset.x;
-      const offsetY = motion.targetOffset.y;
-      const inContact = motion.inContact;
+    onprogress(activity, trace, prevTrace) {
+      const offsetX = trace.targetOffset.x;
+      const offsetY = trace.targetOffset.y;
+      const inContact = trace.inContact;
 
       const indicator = this.indicatorMap.get(activity);
 
       let contactSeg;
-      if (motion.inContact === true) {
+      if (trace.inContact === true) {
         if (indicator.inContact !== true) {
           contactSeg = {};
           indicator.contactHistory.push(contactSeg);
-          contactSeg.startTime = (motion.timeStamp - this.watchingStartAt);
+          contactSeg.startTime = (trace.timeStamp - this.watchingStartAt);
           contactSeg.duration = 0;
           contactSeg.live = true;
         }
         else {
           contactSeg = indicator.contactHistory.at(-1);
-          contactSeg.duration = contactSeg.duration + (motion.timeStamp - prevMotion.timeStamp);
+          contactSeg.duration = contactSeg.duration + (trace.timeStamp - prevTrace.timeStamp);
         }
       }
       else {
         contactSeg = indicator.contactHistory.at(-1);
         if (contactSeg?.live === true) {
-          contactSeg.duration = contactSeg.duration + (motion.timeStamp - prevMotion.timeStamp);
+          contactSeg.duration = contactSeg.duration + (trace.timeStamp - prevTrace.timeStamp);
           contactSeg.live = false;
         }
       }
 
       indicator.offsetX = offsetX;
       indicator.offsetY = offsetY;
-      indicator.width = motion.properties.radiusX * 2;
-      indicator.height = motion.properties.radiusY * 2;
+      indicator.width = trace.properties.radiusX * 2;
+      indicator.height = trace.properties.radiusY * 2;
       indicator.inContact = inContact;
       indicator.contactHistory
       indicator.duration = activity.duration;
       indicator.durationStr = activity.duration.toFixed(3);
 
       if (this.drawMode === "canvas") {
-        if (inContact === true && prevMotion) {
-          const prevOffsetX = prevMotion.targetOffset.x;
-          const prevOffsetY = prevMotion.targetOffset.y;
+        if (inContact === true && prevTrace) {
+          const prevOffsetX = prevTrace.targetOffset.x;
+          const prevOffsetY = prevTrace.targetOffset.y;
           this.layerContext.beginPath();
           this.layerContext.moveTo(prevOffsetX, prevOffsetY);
           this.layerContext.lineTo(offsetX, offsetY);
@@ -313,16 +306,14 @@ createApp({
 
       this.observer = new PointerObserver(async (activity) => {
         this.onstart(activity);
-        let prevMotion = null;
-        for await (const motion of activity) {
-          this.onprogress(activity, motion, prevMotion);
-          prevMotion = motion;
+        let prevTrace = null;
+        for await (const trace of activity) {
+          this.onprogress(activity, trace, prevTrace);
+          prevTrace = trace;
         }
         this.onend(activity);
       }, {
-        includesHover: this.includesHover,
         pointerTypeFilter,
-        usePointerCapture: this.usePointerCapture,
       });
 
       this.watchingStartAt = performance.now();

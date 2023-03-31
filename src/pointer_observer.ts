@@ -9,7 +9,10 @@ import {
   _pointerTraceFrom,
   Pointer,
 } from "./pointer";
-import { ViewportPointerTracker } from "./viewport_pointer_tracker";
+import {
+  type ViewportPointerRecord,
+  ViewportPointerTracker,
+} from "./viewport_pointer_tracker";
 
 type _PointerActivityOptions = {
   signal: AbortSignal,
@@ -28,7 +31,7 @@ class _PointerActivity implements PointerActivity {
   #terminated: boolean = false;
   #progressResolver: () => void = (): void => {};
   #traceStreamController: ReadableStreamDefaultController<PointerTrace> | null = null;
-  #beforeTrace: PointerTrace | null = null;//TODO
+  #beforeTrace: PointerTrace | null = null;
   #firstTrace: PointerTrace | null = null;
   #lastTrace: PointerTrace | null = null;
   #afterTrace: PointerTrace | null = null;//TODO
@@ -76,17 +79,17 @@ class _PointerActivity implements PointerActivity {
     return (this.#lastTrace && this.#firstTrace) ? (this.#lastTrace.timeStamp - this.#firstTrace.timeStamp) : Number.NaN;
   }
 
-  get traceStream(): ReadableStream<PointerTrace> {
-    return this.#traceStream;
-  }
+  //get traceStream(): ReadableStream<PointerTrace> {
+  //  return this.#traceStream;
+  //}
 
-  get startViewportOffset(): Geometry2d.Point | null {
-    return this.#firstTrace ? this.#firstTrace.viewportOffset : null;
-  }
+  //get startViewportOffset(): Geometry2d.Point | null {
+  //  return this.#firstTrace ? this.#firstTrace.viewportOffset : null;
+  //}
 
-  get startTargetOffset(): Geometry2d.Point | null {
-    return this.#firstTrace ? this.#firstTrace.targetOffset : null;
-  }
+  //get startTargetOffset(): Geometry2d.Point | null {
+  //  return this.#firstTrace ? this.#firstTrace.targetOffset : null;
+  //}
 
   get currentMovement(): Geometry2d.Point {
     if (this.#lastTrace && this.#firstTrace) {
@@ -178,28 +181,31 @@ class _PointerActivity implements PointerActivity {
       startTime: this.startTime,
       duration: this.duration,
       //traceStream
-      startViewportOffset: this.startViewportOffset ? {
-        x: this.startViewportOffset.x,
-        y: this.startViewportOffset.y,
-      } : null,
-      startTargetOffset: this.startTargetOffset ? {
-        x: this.startTargetOffset.x,
-        y: this.startTargetOffset.y,
-      } : null,
+      //startViewportOffset: this.startViewportOffset ? {
+      //  x: this.startViewportOffset.x,
+      //  y: this.startViewportOffset.y,
+      //} : null,
+      //startTargetOffset: this.startTargetOffset ? {
+      //  x: this.startTargetOffset.x,
+      //  y: this.startTargetOffset.y,
+      //} : null,
       movement: {
         x: this.currentMovement.x,
         y: this.currentMovement.y,
       },
       trackLength: this.currentTrackLength,
       inProgress: this.inProgress,
+      //beforeTrace
       //firstTrace
       //lastTrace
+      //afterTrace
       watchedModifiers: [...this.watchedModifiers],
     };
   }
 
   _terminate(): void {
-    console.assert(this.#terminated !== true, "slready terminated");
+    console.assert(this.#beforeTrace !== null, "beforeTrace not detected");
+    console.assert(this.#terminated !== true, "already terminated");
 
     if (this.#traceStreamController) {
       console.log("terminated");
@@ -209,6 +215,15 @@ class _PointerActivity implements PointerActivity {
 
     this.#terminated = true;
     this.#progressResolver();
+  }
+
+  _setBefore(event: PointerEvent): void {
+    const target = this.target as Element;// （終了後に外部から呼び出したのでもなければ）nullはありえない
+    const trace: PointerTrace = _pointerTraceFrom(event, target, {
+      modifiersToWatch: this.#modifiersToWatch,
+      prevTrace: this.#lastTrace,
+    });
+    this.#beforeTrace = trace;
   }
 
   _append(event: PointerEvent): void {
@@ -226,7 +241,7 @@ class _PointerActivity implements PointerActivity {
         this.#firstTrace = trace;
       }
 
-      const movement = trace.movement;
+      const movement = trace.movement;//XXX beforeとfirstの間の境界を起点にすべき
       this.#trackLength = this.#trackLength + Geometry2d.Area.diagonal({
         width: Math.abs(movement.x),
         height: Math.abs(movement.y),
@@ -375,7 +390,7 @@ class _TargetObservation {
         return;
       }
 
-      this.#handleAsync(event, true).catch((reason?: any): void => {
+      this.#handleAsync(event).catch((reason?: any): void => {
         console.error(reason);
       });// pointerleaveは一応streamに追加する。どこに移動したかわからなくなるので。//XXX どこに出て行ったかはstreamとは別にするか？
     }) as EventListener, listenerOptions);
@@ -386,7 +401,7 @@ class _TargetObservation {
       }
 
       console.log(`pointerenter: ${event.clientX}, ${event.clientY} / ${event.timeStamp}`);
-      this.#handleAsync(event, false).catch((reason?: any): void => {
+      this.#handleAsync(event).catch((reason?: any): void => {
         console.error(reason);
       });// pointerenterはstreamに追加しない（firefoxで同時に起きたはずの同座標のwindowのpointermoveよりtimeStampが遅い（2回目のpointermoveの後くらいになる））（chromeはpointermoveと必ず？同座標になるため無駄）
     }) as EventListener, listenerOptions);
@@ -399,10 +414,10 @@ class _TargetObservation {
   }
 
   //[$85]
-  private _handleAsync2: (event: PointerEvent) => Promise<void> = (event: PointerEvent) => {
+  private _handleAsync2: (message: ViewportPointerRecord) => Promise<void> = (message: ViewportPointerRecord) => {
     const executor = (resolve: (value: void | PromiseLike<void>) => void, reject: (reason?: any) => void) => {
       try {
-        this.#handle(event, true);
+        this.#handle(message);
         resolve();
       }
       catch (exception) {
@@ -413,10 +428,13 @@ class _TargetObservation {
     return new Promise(executor);
   }
 
-  #handleAsync: (event: PointerEvent, toAppend: boolean) => Promise<void> = (event: PointerEvent, toAppend: boolean) => {
+  #handleAsync: (event: PointerEvent) => Promise<void> = (event: PointerEvent) => {
     const executor = (resolve: (value: void | PromiseLike<void>) => void, reject: (reason?: any) => void) => {
       try {
-        this.#handle(event, toAppend);
+        this.#handle({
+          curr: event,
+          prev: null,
+        });
         resolve();
       }
       catch (exception) {
@@ -427,40 +445,50 @@ class _TargetObservation {
     return new Promise(executor);
   }
 
-  #handle(event: PointerEvent, toAppend: boolean): void {
-    if (this.#pointerTypeFilter(event) !== true) {
+  #handle(message: ViewportPointerRecord): void {
+    const { curr, prev } = message;
+    if (this.#pointerTypeFilter(curr) !== true) {
       return;
     }
+    const appendAsLast = ["pointerdown", "pointermove", "pointerup"].includes(curr.type);
+    //pointercancel,pointerleave //TODO
 
-    const pointerHasContact = (_pointerIsInContact(event) === true);
+    const pointerHasContact = (_pointerIsInContact(curr) === true);
     let activity: _PointerActivity;
 
-    if (event.composedPath().includes(this.#target) === true) {
-      if (this.#activities.has(event.pointerId) !== true) {
-        console.log(666)
+    if (curr.composedPath().includes(this.#target) === true) {
+      if (this.#activities.has(curr.pointerId) !== true) {
         if ((this.#includesHover !== true) && (pointerHasContact !== true)) {
           return;
         }
 
-        activity = new _PointerActivity(event, this.#target, {
+        activity = new _PointerActivity(curr, this.#target, {
           signal: this._observationCanceller.signal,
           modifiersToWatch: this.#modifiersToWatch,
         });
-        this.#activities.set(event.pointerId, activity);
-        if (toAppend === true) {
-          activity._append(event);
+        this.#activities.set(curr.pointerId, activity);
+        if (appendAsLast === true) {
+          if (prev) {
+            activity._setBefore(prev);
+          }
+          activity._append(curr);
         }
       }
       else {
-        console.log(777)
-        activity = this.#activities.get(event.pointerId) as _PointerActivity;
-        if ((this.#highPrecision === true) && (event.type === "pointermove")) {
-          for (const coalesced of event.getCoalescedEvents()) {
+        activity = this.#activities.get(curr.pointerId) as _PointerActivity;
+        if (activity._appendCount <= 0) {
+          // pointerenterで生成されたので一度もappendしていない場合
+          if (prev) {
+            activity._setBefore(prev);
+          }
+        }
+        if ((this.#highPrecision === true) && (curr.type === "pointermove")) {
+          for (const coalesced of curr.getCoalescedEvents()) {
             activity._append(coalesced);
           }
         }
         else {
-          activity._append(event);//XXX pointercancel（だけ？）は除外しないと座標が0,0？の場合がある 先にpointerleaveになるから問題ない？
+          activity._append(curr);//XXX pointercancel（だけ？）は除外しないと座標が0,0？の場合がある 先にpointerleaveになるから問題ない？
         }
       }
 
@@ -470,19 +498,17 @@ class _TargetObservation {
 
       if (
         ((this.#includesHover !== true) && (pointerHasContact !== true))
-        || (["pointercancel", "pointerleave"].includes(event.type) === true)
+        || (["pointercancel", "pointerleave"].includes(curr.type) === true)
       ) {
-        this.#activities.delete(event.pointerId);
-        console.log(event)
+        this.#activities.delete(curr.pointerId);
         activity._terminate();
       }
     }
     else {
       // targetのみの監視だと、ブラウザ毎に特定条件でpointerupが発火しないだの何だの様々な問題があって監視に漏れが発生するので、windowを監視してれば余程漏れは無いであろうということで。
-      if (this.#activities.has(event.pointerId) === true) {
-        console.log(888);
-        activity = this.#activities.get(event.pointerId) as _PointerActivity;
-        this.#activities.delete(event.pointerId);
+      if (this.#activities.has(curr.pointerId) === true) {
+        activity = this.#activities.get(curr.pointerId) as _PointerActivity;
+        this.#activities.delete(curr.pointerId);
         activity._terminate();
       }
     }

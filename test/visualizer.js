@@ -147,14 +147,17 @@ createApp({
     },
 
     onstart(activity) {
-      const offsetX = activity.startTargetOffset.x;
-      const offsetY = activity.startTargetOffset.y;
+      const x0 = activity.beforeTrace.targetOffset.x;
+      const y0 = activity.beforeTrace.targetOffset.y;
+      const offsetX = activity.firstTrace.targetOffset.x;
+      const offsetY = activity.firstTrace.targetOffset.y;
 
       let path;
       if (this.drawMode === "svg") {
         path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         path.classList.add("v-input-layer-path");
-        path.setAttribute("d", `M ${offsetX} ${offsetY}`);
+        const c = (activity.firstTrace.inContact === true) ? "L" : "M";
+        path.setAttribute("d", `M ${x0} ${y0} ${c} ${offsetX} ${offsetY}`);
         document.querySelector("*.v-input-layers").append(path);
       }
 

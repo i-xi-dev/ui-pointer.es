@@ -116,7 +116,7 @@ export { PointerObserver } from "./pointer_observer";
 /*
 TODO 下記対処したら脱alpha
 
-1. pointerenterの直前の位置を追加する（開始前位置としてactivityに）leaveの位置も終了後位置に移す
+1. leaveの位置も終了後位置に移す
 
 
 */
