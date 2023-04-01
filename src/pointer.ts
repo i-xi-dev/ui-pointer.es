@@ -254,7 +254,7 @@ interface PointerActivity {
   readonly inProgress: boolean;
   readonly beforeTrace: PointerTrace | null;
   readonly startTrace: PointerTrace | null;
-  //XXX readonly lastTrace: PointerTrace | null;
+  //XXX readonly lastTrace: PointerTrace | null; その時点の最新trace 終了後はendTraceと同じ
   readonly endTrace: PointerTrace | null;
   readonly watchedModifiers: Array<Pointer.Modifier>;
   //XXX getPredictedTrace()

@@ -22,6 +22,14 @@ namespace _Debug {
     _eventFilter = Array.isArray(config.eventFilter) ? [...config.eventFilter] : [..._DefaultEventFilter];
   }
 
+  export function logText(message: string): void {
+    if (_enabled !== true) {
+      return;
+    }
+
+    console.log(message);
+  }
+
   export function logEvent(pe: PointerEvent): void {
     if (_enabled !== true) {
       return;

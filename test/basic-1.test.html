@@ -2,9 +2,9 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <title>Test: display:block</title>
+    <title>Test: targetX/Y</title>
     <style>
-*.p1 {
+*.pointer-indicator {
   --color: #f80;
   --width: 1px;
   --height: 1px;
@@ -21,19 +21,23 @@
   user-select: none;
   width: var(--width);
 }
-*.p1.primary {
+
+*.pointer-indicator.primary {
   --color: #f00;
 }
-*.p1.contact {
+
+*.pointer-indicator.contact {
   outline-offset: 8px;
   outline-width: 8px;
 }
-*.p1i1 {
+
+*.pointer-indicator-description {
   font-size: 12px;
   transform: translate(10px, -40px);
   white-space: nowrap;
 }
-*#test {
+
+*.test-target {
   background-color: #8f9a96;
   cursor: crosshair;
   height: 500px;
@@ -43,103 +47,87 @@
 
   touch-action: none;/*TODO*/
 }
-*.test1inner {
-  background-color: #8f84;
+
+*.test-target-descendant {
+  background-color: #8f8;
   height: 100px;
+  opacity: .4;
   width: 100px;
-}
-*.test1inner.m {
-  margin: 0 100px;
-}
-*.test1inner.t {
-  transform: translate(50px, 150px);
-}
-*.test1inner.p {
-  bottom: 50px;
-  position: absolute;
-  right: 100px;
-}
-*.test1inner.p.p2 {
-  bottom: 150px;
-  right: -50px;
 }
     </style>
     <template id="template1">
-      <div class="p1">
-        <div class="p1i1"></div>
+      <div class="pointer-indicator">
+        <div class="pointer-indicator-description"></div>
       </div>
     </template>
     <script type="module">
 import { PointerObserver } from "../dist/index.js";
-const test = document.getElementById("test");
 
-const tiMap = new Map();
+const testArea = document.getElementById("TestArea");
+const indicatorMap = new Map();
 
-function idOf(activity) {
-  return `ti-${activity.pointer.id}`;
+function indicatorIdFrom(activity) {
+  return `indicator-${activity.pointer.id}`;
 }
 
 function onstart(activity) {
-  const id = idOf(activity);
-  const ti = document.getElementById("template1").content.cloneNode(true).firstElementChild;
-  ti.id = id;
-  ti.querySelector("*.p1i1").textContent = `${activity.pointer.id}::${activity.pointer.type}${activity.pointer.isPrimary ? "[primary]" : ""}`;
-  tiMap.set(id, ti);
+  const indicatorId = indicatorIdFrom(activity);
+  const indicator = document.getElementById("template1").content.cloneNode(true).firstElementChild;
+  indicator.id = indicatorId;
+  indicator.querySelector("*.pointer-indicator-description").textContent = `${activity.pointer.id}::${activity.pointer.type}${activity.pointer.isPrimary ? "[primary]" : ""}`;
+  indicatorMap.set(indicatorId, indicator);
 }
 
 function onend(activity) {
-  const id = idOf(activity);
-  const ti = tiMap.get(id);
-  tiMap.delete(id);
-  ti.remove();
+  const indicatorId = indicatorIdFrom(activity);
+  const indicator = indicatorMap.get(indicatorId);
+  indicatorMap.delete(indicatorId);
+  indicator.remove();
 }
 
-function onprogress(activity, motion) {
-  const id = idOf(activity);
-  const ti = tiMap.get(id);
+function onprogress(activity, trace) {
+  const indicatorId = indicatorIdFrom(activity);
+  const indicator = indicatorMap.get(indicatorId);
 
   if (activity.pointer.isPrimary === true) {
-    if (ti.classList.contains("primary") !== true) {
-      ti.classList.add("primary");
+    if (indicator.classList.contains("primary") !== true) {
+      indicator.classList.add("primary");
     }
   }
   else {
-    if (ti.classList.contains("primary") === true) {
-      ti.classList.remove("primary");
+    if (indicator.classList.contains("primary") === true) {
+      indicator.classList.remove("primary");
     }
   }
 
-  if (motion.inContact === true) {
-    if (ti.classList.contains("contact") !== true) {
-      ti.classList.add("contact");
+  if (trace.inContact === true) {
+    if (indicator.classList.contains("contact") !== true) {
+      indicator.classList.add("contact");
     }
   }
   else {
-    if (ti.classList.contains("contact") === true) {
-      ti.classList.remove("contact");
+    if (indicator.classList.contains("contact") === true) {
+      indicator.classList.remove("contact");
     }
   }
 
-  ti.style.setProperty("left", `${motion.targetX}px`);
-  ti.style.setProperty("top", `${motion.targetY}px`);
-  ti.style.setProperty("--width", `${motion.properties.radiusX * 2}px`);
-  ti.style.setProperty("--height", `${motion.properties.radiusY * 2}px`);
-  //ti.style.setProperty("", `${motion.properties.pressure}`);
+  indicator.style.setProperty("left", `${trace.targetX}px`);
+  indicator.style.setProperty("top", `${trace.targetY}px`);
+  indicator.style.setProperty("--width", `${trace.properties.radiusX * 2}px`);
+  indicator.style.setProperty("--height", `${trace.properties.radiusY * 2}px`);
 
-  //timestamp,timestamp,pointerState,modifiers,buttons,offset.fromViewport
-  
-  if (ti.isConnected !== true) {
-    activity.target.append(ti);
+  if (indicator.isConnected !== true) {
+    activity.target.append(indicator);
   }
 }
 
-const o = new PointerObserver(async (activity) => {
+const observer = new PointerObserver(async (activity) => {
   console.log(`[START] pointerId:${activity.pointer.id}, startTime:${activity.startTime}`);
   onstart(activity);
 
-  for await (const motion of activity) {
-    console.log(JSON.stringify(motion), JSON.stringify(activity));
-    onprogress(activity, motion);
+  for await (const trace of activity) {
+    console.log(JSON.stringify(trace), JSON.stringify(activity));
+    onprogress(activity, trace);
   }
 
   console.log(`[END] pointerId:${activity.pointer.id}, duration:${activity.duration}`);
@@ -152,15 +140,22 @@ const o = new PointerObserver(async (activity) => {
   //pointerTypeFilter: [],
   usePointerCapture: true,
 });
-o.observe(test);
+observer.observe(testArea);
     </script>
   </head>
   <body>
-    <div id="test">
-      <div class="test1inner m"></div>
-      <div class="test1inner t"></div>
-      <div class="test1inner p"></div>
-      <div class="test1inner p p2"></div>
+    <div class="test-target" id="TestArea">
+      <div class="test-target-descendant" style="margin-left: 100px;"></div>
+      <div class="test-target-descendant" style="transform: translate(50px, 150px); background-color: #e0e039;"></div>
+      <div class="test-target-descendant" style="transform: rotate(45deg); margin-left: auto; background-color: #e0e039;"></div>
+      <div class="test-target-descendant" style="margin-top: 150px;"></div>
+      <div class="test-target-descendant" style="transform: scale(0.5); margin-left: auto; background-color: #e0e039;"></div>
+      <div class="test-target-descendant" style="position: absolute; bottom: 50px; right: 100px; background-color: #3947e0;"></div>
+      <div class="test-target-descendant" style="position: absolute; bottom: 150px; right: -50px; background-color: #3947e0;"></div>
     </div>
+
+    <ul>
+      <li>XXX transformがかかった要素がオブザーバーのtargetのとき、translateは自動で換算してくれるが、scaleやrotateはそうならない（対応予定は今のところ無い）</li>
+    </ul>
   </body>
 </html>

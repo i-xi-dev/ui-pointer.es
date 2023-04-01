@@ -20,6 +20,12 @@ type _PointerActivityOptions = {
   modifiersToWatch: Set<Pointer.Modifier>,
 };
 
+namespace _Internal {
+  export const terminate: unique symbol = Symbol();
+  export const setBeforeTrace: unique symbol = Symbol();
+  export const appendTrace: unique symbol = Symbol();
+}
+
 class _PointerActivity implements PointerActivity {
   readonly #modifiersToWatch: Set<Pointer.Modifier>;
   readonly #traceStreamTerminator: AbortController;
@@ -28,7 +34,7 @@ class _PointerActivity implements PointerActivity {
   readonly #progress: Promise<void>;
   readonly #traceStream: ReadableStream<PointerTrace>;
 
-  #appendCount: number = 0;
+  #traceCount: number = 0;
   #terminated: boolean = false;
   #progressResolver: () => void = (): void => {};
   #traceStreamController: ReadableStreamDefaultController<PointerTrace> | null = null;
@@ -66,6 +72,10 @@ class _PointerActivity implements PointerActivity {
       start,
     });
   }
+
+  // get activity(): PointerActivity {
+  //   return this;//TODO _PointerActivityのメソッドを隠さなくても、PointerActivity型のオブジェクトを一方的に参照してそれをcallbackに渡せばいいのでは
+  // }
 
   get pointer(): Pointer {
     return this.#pointer;
@@ -147,8 +157,8 @@ class _PointerActivity implements PointerActivity {
     return [...this.#modifiersToWatch];
   }
 
-  get _appendCount(): number {
-    return this.#appendCount;
+  get traceCount(): number {
+    return this.#traceCount;
   }
 
   async *[Symbol.asyncIterator](): AsyncGenerator<PointerTrace, void, void> {
@@ -164,12 +174,12 @@ class _PointerActivity implements PointerActivity {
     }
   }
 
-  _terminate(): void {
+  [_Internal.terminate](): void {
     _Debug.assertWarn((this.#beforeTrace !== null), "beforeTrace not detected");  // 境界外からhoverまたは接触の状態でpointerenterした場合のみ存在する（タッチのように境界内でpointerenterした場合は無くても妥当）
     _Debug.assertWarn((this.#terminated !== true), "already terminated");
 
     if (this.#traceStreamController) {
-      console.log("terminated");
+      _Debug.logText("activity terminated");
       this.#traceStreamController.close();
       this.#traceStreamTerminator.abort();
     }
@@ -178,7 +188,7 @@ class _PointerActivity implements PointerActivity {
     this.#progressResolver();
   }
 
-  _setBefore(event: PointerEvent): void {
+  [_Internal.setBeforeTrace](event: PointerEvent): void {
     const target = this.target as Element;// （終了後に外部から呼び出したのでもなければ）nullはありえない
     const trace: PointerTrace = _pointerTraceFrom(event, target, {
       modifiersToWatch: this.#modifiersToWatch,
@@ -187,9 +197,9 @@ class _PointerActivity implements PointerActivity {
     this.#beforeTrace = trace;
   }
 
-  _append(event: PointerEvent): void {
+  [_Internal.appendTrace](event: PointerEvent): void {
     if (this.#terminated === true) {
-      throw new Error("InvalidStateError _append#1");
+      throw new Error("InvalidStateError appendTrace#1");
     }
 
     if (this.#traceStreamController) {
@@ -209,7 +219,7 @@ class _PointerActivity implements PointerActivity {
 
       this.#lastTrace = trace;
       this.#traceStreamController.enqueue(trace);
-      this.#appendCount++;
+      this.#traceCount++;
     }
   }
 }
@@ -256,7 +266,7 @@ class _TargetObservation {
     this.#activities = new Map();
     this.#capturingPointerIds = new Set();
 
-    this.#includesHover = true;
+    this.#includesHover = true;//XXX とりあえず固定 //XXX _pointerIsInContactの代わりを直接設定できるようにする
     this.#modifiersToWatch = options.modifiersToWatch;
     this.#pointerTypeFilter = options.pointerTypeFilter;
     this.#usePointerCapture = true;
@@ -302,7 +312,7 @@ class _TargetObservation {
       this.#target.addEventListener("touchstart", ((event: TouchEvent) => {
         event.preventDefault();
       }) as EventListener, activeListenerOptions);
-      // ]$109]
+      //]$109]
     }
 
     this.#target.addEventListener("pointerdown", ((event: PointerEvent): void => {
@@ -383,7 +393,7 @@ class _TargetObservation {
         resolve();
       }
       catch (exception) {
-        console.log(exception);
+        console.error(exception);
         reject(exception);
       }
     };
@@ -400,7 +410,7 @@ class _TargetObservation {
         resolve();
       }
       catch (exception) {
-        console.log(exception);
+        console.error(exception);
         reject(exception);
       }
     };
@@ -443,19 +453,19 @@ class _TargetObservation {
         this.#activities.set(curr.pointerId, activity);
         if (appendAsLast === true) {
           if (prev) {
-            activity._setBefore(prev);
+            activity[_Internal.setBeforeTrace](prev);
           }
-          activity._append(curr);
+          activity[_Internal.appendTrace](curr);
         }
       }
       else {
         // activitiesに登録済の場合
 
         activity = this.#activities.get(curr.pointerId) as _PointerActivity;
-        if (activity._appendCount <= 0) {
+        if (activity.traceCount <= 0) {
           // pointerenterで生成されたので一度もappendしていない場合
           if (prev) {
-            activity._setBefore(prev);
+            activity[_Internal.setBeforeTrace](prev);
           }
         }
 
@@ -463,15 +473,15 @@ class _TargetObservation {
         // pointercancelは来ないはず
         if ((this.#highPrecision === true) && (curr.type === "pointermove")) {
           for (const coalesced of curr.getCoalescedEvents()) {
-            activity._append(coalesced);
+            activity[_Internal.appendTrace](coalesced);
           }
         }
         else {
-          activity._append(curr);//XXX pointercancel（だけ？）は除外しないと座標が0,0？の場合がある 先にpointerleaveになるから問題ない？
+          activity[_Internal.appendTrace](curr);//XXX pointercancel（だけ？）は除外しないと座標が0,0？の場合がある 先にpointerleaveになるから問題ない？
         }
       }
 
-      if (activity._appendCount === 1) {
+      if (activity.traceCount === 1) {
         this.#callback(activity);
       }
 
@@ -480,7 +490,7 @@ class _TargetObservation {
         || (["pointercancel", "pointerleave"].includes(curr.type) === true)
       ) {
         this.#activities.delete(curr.pointerId);
-        activity._terminate();
+        activity[_Internal.terminate]();
       }
     }
     else {
@@ -490,7 +500,7 @@ class _TargetObservation {
       if (this.#activities.has(curr.pointerId) === true) {
         activity = this.#activities.get(curr.pointerId) as _PointerActivity;
         this.#activities.delete(curr.pointerId);
-        activity._terminate();
+        activity[_Internal.terminate]();
       }
     }
   }
