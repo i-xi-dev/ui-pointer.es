@@ -179,7 +179,7 @@ class _PointerActivity implements PointerActivity {
     _Debug.assertWarn((this.#terminated !== true), "already terminated");
 
     if (this.#traceStreamController) {
-      _Debug.logText("activity terminated");
+      _Debug.logText(`activity terminated (${this.#pointer.type}[${this.#pointer.id}])`);
       this.#traceStreamController.close();
       this.#traceStreamTerminator.abort();
     }

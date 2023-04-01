@@ -3,14 +3,6 @@ export { PointerObserver } from "./pointer_observer";
 
 // 既知の問題 //TODO 仕分けする
 
-// - Firefox
-//   mouseで2つのpointerIdが同時にactiveになる事がある
-//   再現条件不明 適当にマウス動かしながらタッチしまくると発生する
-//   で、2つ目はpointerleave無しにいつのまにか消える（pointermoveが発生しなくなる）ので、Trackingが終了しないまま残ってしまう
-//   発生する状況は限定的なものの、残ったTrackingが終了しているのかどうかは検知しようがないので致命的
-//   → mouseの2つ目以降のpointerIdは無視しても実質問題ないか？
-//   → penだとどうなるか要確認 TODO
-
 // - Chrome, Edge
 //   ターゲット要素のスクロールバー上のpointerdownでsetPointerCaptureしたとき、pointer captureされるがpointermoveが発火しない
 //   おそらくスクロールバーにcaptureを取られている
@@ -18,10 +10,6 @@ export { PointerObserver } from "./pointer_observer";
 
 // - Chrome
 //   mouseでpointer capture中にtouchして、mouseをtargetの外に出しpointerupしてもpointerupが発火しない
-
-// - Firefox
-//   mouse操作中にタッチすると、マウスのカーソルがタッチ地点に移動する
-//   （pointerIdを区別してほしい）
 
 // - Firefox
 //   同時に起きたはずのPointerEventのtimeStampがずれてる
@@ -36,12 +24,6 @@ export { PointerObserver } from "./pointer_observer";
 // - Chrome
 //   いつのまにかpenのpointerenter,pointerleaveで、pointerType:mouseのpointerenter,pointerleaveが発火するようになった
 
-// - 
-//   ストリームにpushされるタイミングはブラウザ依存
-//   - Chrome: touch,penが動いている間、mouseは無視される（touchとpenは同時操作でも問題なさそう、複数同時touchも問題なさそう）
-//   - Firefox: touchが動いている間、pen,mouseはほぼ無視される（pointerIdが0でないmouseが検知されたり、相当怪しい）（penとmouseは同時操作でも問題なさそう、複数同時touchも問題なさそう）
-
-
 // - 仕様未定義に起因
 //   タッチのpointerupのwidth/heightがブラウザによって違う
 //    - chrome: 離した後扱い？（1×1）
@@ -53,7 +35,6 @@ export { PointerObserver } from "./pointer_observer";
 // - 前提条件として
 //   - windowとtargetでlistenしているので、到達前にpointereventをキャンセルされたら検知できなくなる
 //   - touch-actionはブロックに適用
-//   - display:inlineの場合の座標基点がブラウザによって違う
 //   - その他box数が1ではない場合
 //     - 0: displayがnone,contents,...
 //     - 1以上: displayがinline,...

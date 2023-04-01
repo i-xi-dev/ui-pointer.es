@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <title>Test: targetX/Y</title>
+    <title>Test: targetX/Y, radiusX/Y, inContact per pointerId</title>
     <style>
 *.pointer-indicator {
   --color: #f80;
@@ -53,6 +53,10 @@
   height: 100px;
   opacity: .4;
   width: 100px;
+}
+
+details > dl {
+  background-color: #cfcfcf;
 }
     </style>
     <template id="template1">
@@ -152,10 +156,100 @@ observer.observe(testArea);
       <div class="test-target-descendant" style="transform: scale(0.5); margin-left: auto; background-color: #e0e039;"></div>
       <div class="test-target-descendant" style="position: absolute; bottom: 50px; right: 100px; background-color: #3947e0;"></div>
       <div class="test-target-descendant" style="position: absolute; bottom: 150px; right: -50px; background-color: #3947e0;"></div>
+      <span class="test-target-descendant" style="margin-left: -50px; position: relative; top: -300px;">Lorem ipsum dolor sit amet,<br/> consectetur adipiscing elit</span>
     </div>
 
-    <ul>
-      <li>XXX transformがかかった要素がオブザーバーのtargetのとき、translateは自動で換算してくれるが、scaleやrotateはそうならない（対応予定は今のところ無い）</li>
-    </ul>
+    <section>
+      <h2>既知の問題</h2>
+
+      <section>
+        <h3>対応予定なし（対応可能であろうと思われるが）</h3>
+        <ul>
+          <li>CSS transformがかかった要素が<code>PointerObserver</code>のtargetのとき、translateは座標を換算してくれるが、scaleやrotateはそうならない</li>
+        </ul>
+      </section>
+
+      <section>
+        <h3>対応予定なし（対応不能）</h3>
+        <ul>
+          <li>
+            <details>
+              <summary>display算出値がinlineの要素が<code>PointerObserver</code>のtargetのとき、またはtargetの子孫のとき、座標がブラウザによって異なる</summary>
+              <dl>
+                <div>
+                  <dt>回避手段</dt>
+                  <dd>
+                    <ul>
+                      <li>display算出値がinlineの要素を<code>PointerObserver</code>のtargetにしない</li>
+                      <li>targetの子孫がdisplay算出値inlineの場合、pointer-events:noneにする</li>
+                    </ul>
+                  </dd>
+                </div>
+              </dl>
+            </details>
+          </li>
+
+          <li>
+            <details>
+              <summary>[Firefox] マウス操作中にタッチすると、マウスのカーソルがタッチ地点に移動する</summary>
+              <dl>
+                <div>
+                  <dt>回避手段</dt>
+                  <dd>なし</dd>
+                </div>
+              </dl>
+            </details>
+          </li>
+
+          <li>
+            <details>
+              <summary>[Firefox] マウスに複数pointerIdが振られる事がある（Firefoxでは通常pointerId:0のポインターが唯一のマウス）</summary>
+              <dl>
+                <div>
+                  <dt>再現条件</dt>
+                  <dd>不明</dd>
+                </div>
+                <div>
+                  <dt>詳細</dt>
+                  <dd>
+                    <p>pointerId:0ではないポインターは、pointerleaveすることなくいつのまにか消える（pointermoveが発生しなくなる）。そのため、<code>PointerActivity</code>が終了しないまま残ってしまう</p>
+                  </dd>
+                </div>
+                <div>
+                  <dt>回避手段</dt>
+                  <dd>
+                    <ul>
+                      <li>pointerIdが0ではなくpointerTypeが"mouse"ではないポインターは無視する？</li>
+                    </ul>
+                  </dd>
+                </div>
+              </dl>
+            </details>
+          </li>
+
+          <li>
+            <details>
+              <summary>PointerEvent発火タイミングはブラウザ依存</summary>
+              <dl>
+                <div>
+                  <dt>詳細</dt>
+                  <dd>
+                    <ul>
+                      <li>[Chrome] touchまたはpenが動いている間、mouseは無視される（touchとpenは同時操作でも問題なさそう、複数同時touchも問題なさそう）</li>
+                      <li>[Firefox] penが動いている間、mouseはほぼ無視される、touchはキャンセルされる（penとmouseは同時操作でも問題なさそう、複数同時touchも問題なさそう）</li>
+                    </ul>
+                  </dd>
+                </div>
+                <div>
+                  <dt>回避手段</dt>
+                  <dd>なし</dd>
+                </div>
+              </dl>
+            </details>
+          </li>
+
+        </ul>
+      </section>
+    </section>
   </body>
 </html>
