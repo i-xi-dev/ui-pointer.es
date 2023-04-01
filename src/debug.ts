@@ -17,7 +17,7 @@ namespace _Debug {
       return;
     }
 
-    console.log(`%c${_formatTimeStamp(pe.timeStamp)} - ${pe.type} : { x:${pe.clientX}, y:${pe.clientY} }`, "font-weight:400;", "font-weight:700;margin-inline:.5ch;", "font-weight:400;");
+    console.log(`%c${_formatTimeStamp(pe.timeStamp)} - ${pe.pointerType}[${pe.pointerId}] ${pe.type} : { x:${pe.clientX}, y:${pe.clientY} }`, "font-weight:400;", "font-weight:700;margin-inline:.5ch;", "font-weight:400;");
   }
 }
 
