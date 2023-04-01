@@ -364,7 +364,7 @@ class _TargetObservation {
 
       this.#handleAsync(event).catch((reason?: any): void => {
         console.error(reason);
-      });// pointerleaveは一応streamに追加する。どこに移動したかわからなくなるので。//XXX どこに出て行ったかはstreamとは別にするか？
+      });
     }) as EventListener, listenerOptions);
 
     this.#target.addEventListener("pointerenter", ((event: PointerEvent): void => {
@@ -375,7 +375,7 @@ class _TargetObservation {
 
       this.#handleAsync(event).catch((reason?: any): void => {
         console.error(reason);
-      });// pointerenterはstreamに追加しない（firefoxで同時に起きたはずの同座標のwindowのpointermoveよりtimeStampが遅い（2回目のpointermoveの後くらいになる））（chromeはpointermoveと必ず？同座標になるため無駄）
+      });
     }) as EventListener, listenerOptions);
 
     this._service.subscribe(this._handleAsync2);

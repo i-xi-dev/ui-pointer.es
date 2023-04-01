@@ -8,27 +8,12 @@ export { PointerObserver } from "./pointer_observer";
 //   おそらくスクロールバーにcaptureを取られている
 //   firefoxは問題ない
 
-// - Chrome
-//   mouseでpointer capture中にtouchして、mouseをtargetの外に出しpointerupしてもpointerupが発火しない
-
-// - Firefox
-//   同時に起きたはずのPointerEventのtimeStampがずれてる
-//     - 同座標での windowのpointermove と elementのpointerenter
-//     - 同座標での elementのpointermove と 同elementのpointerenter
-//     いずれも発火順はpointereneterが先なのにtimeStampは15ms前後遅れる
-
 // - Chrome, Edge
 //   mouseのpointer capture中にtouchすると、おそらくタッチで発生した暗黙のpointer ceptureが優先になる
 //   mouseの方のpointermove等がその間発火しない（すぐに暗黙のreleaseが起きるので重大な問題は無い？？）
 
 // - Chrome
 //   いつのまにかpenのpointerenter,pointerleaveで、pointerType:mouseのpointerenter,pointerleaveが発火するようになった
-
-// - 仕様未定義に起因
-//   タッチのpointerupのwidth/heightがブラウザによって違う
-//    - chrome: 離した後扱い？（1×1）
-//    - firefox:離す前扱い
-//   仕様としてどうあるべきかの記載はPointer Events仕様書には特になし（私の見落としでなければ）
 
 //備忘
 
@@ -76,7 +61,6 @@ export { PointerObserver } from "./pointer_observer";
 // 将来検討
 // - optionsでフィルタ対応 streamの読み取り側でフィルタ出来るので初期バージョンでは対応しない
 // - pointerrawupdate設定可にする
-// - trackに直前のtrackとの差分なんかも持たせる？
 // - visualViewportのscroll,resizeに追随させる？
 // - touchmoveキャンセル（touch-action:none強制設定を解除できるようにした場合）
 // - 中クリックの自動スクロールがpointerdown(chrome) おそらく対処不能

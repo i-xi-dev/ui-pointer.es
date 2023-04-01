@@ -248,8 +248,40 @@ observer.observe(testArea);
             </details>
           </li>
 
+          <li>
+            <details>
+              <summary>タッチのpointerup時のPointerEvent.width/heightはブラウザ依存</summary>
+              <dl>
+                <div>
+                  <dt>詳細</dt>
+                  <dd>
+                    <ul>
+                      <li>[Chrome] 離れた後のサイズ？（1×1）</li>
+                      <li>[Firefox] 離れる前のサイズ？</li>
+                      <li>Pointer Events Level 2仕様上は未定義</li>
+                    </ul>
+                  </dd>
+                </div>
+                <div>
+                  <dt>回避手段</dt>
+                  <dd>なし</dd>
+                </div>
+              </dl>
+            </details>
+          </li>
+
         </ul>
       </section>
     </section>
+
+    <!--
+回避済
+
+- [Chrome] https://bugs.chromium.org/p/chromium/issues/detail?id=1417648
+    → pointermove等をtargetでなく、windowで監視するようにした
+- [Firefox] https://bugzilla.mozilla.org/show_bug.cgi?id=1825949
+    → pointerenterのtimeStampは参照しないようにした
+
+    -->
   </body>
 </html>
