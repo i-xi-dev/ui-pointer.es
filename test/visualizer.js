@@ -147,9 +147,9 @@ createApp({
     },
 
     onstart(activity) {
-      const { firstTrace, beforeTrace } = activity;
-      const offsetX = firstTrace.targetX;
-      const offsetY = firstTrace.targetY;
+      const { startTrace, beforeTrace } = activity;
+      const offsetX = startTrace.targetX;
+      const offsetY = startTrace.targetY;
 
       let path;
       if (this.drawMode === "svg") {
@@ -158,7 +158,7 @@ createApp({
         if (beforeTrace) {
           const x0 = beforeTrace.targetX;
           const y0 = beforeTrace.targetY;
-          const c = (firstTrace.inContact === true) ? "L" : "M";
+          const c = (startTrace.inContact === true) ? "L" : "M";
           path.setAttribute("d", `M ${x0} ${y0} ${c} ${offsetX} ${offsetY}`);
         }
         else {

@@ -115,10 +115,3 @@ export { PointerObserver } from "./pointer_observer";
 // - タッチの総体を扱う版
 // - 監視中にポインターを停止している間、stream追加する/しない の設定
 
-/*
-TODO 下記対処したら脱alpha
-
-1. leaveの位置も終了後位置に移す
-
-
-*/

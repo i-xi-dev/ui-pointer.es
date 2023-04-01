@@ -106,10 +106,25 @@ function _pointerTraceFrom(event: PointerEvent, target: Element, options: _Point
   });
 }
 
+/**
+ * The pointer.
+ */
 interface Pointer {
+  /**
+   * The identifier for the pointer.
+   * @see {@link https://www.w3.org/TR/pointerevents2/#dom-pointerevent-pointerid | [Pointer Events Level 2] pointerId}
+   */
   readonly id: pointerid;
+
+  /**
+   * The pointer device type.
+   * @see {@link https://www.w3.org/TR/pointerevents2/#dom-pointerevent-pointertype | [Pointer Events Level 2] pointerType}
+   */
   readonly type: string;
+
   readonly isPrimary: boolean;// 途中で変わることはない（複数タッチしてプライマリを離した場合、タッチを全部離すまでプライマリは存在しなくなる。その状態でタッチを増やしてもプライマリは無い）
+
+  //XXX sourceCapabilities
 }
 
 namespace Pointer {
@@ -120,7 +135,11 @@ namespace Pointer {
       isPrimary: event.isPrimary,
     });
   }
-  
+
+  /**
+   * The type of the pointer device.
+   * @see {@link https://www.w3.org/TR/pointerevents2/#dom-pointerevent-pointertype | [Pointer Events Level 2] pointerType}
+   */
   export const Type = {
     MOUSE: "mouse",
     PEN: "pen",
@@ -136,12 +155,8 @@ namespace Pointer {
     readonly tiltX: number,
     readonly tiltY: number,
     readonly twist: number,
-    // altitudeAngle 未実装のブラウザが多い
-    // azimuthAngle 未実装のブラウザが多い
-    // relatedTarget →PointerActivity
-    // sourceCapabilities →PointerActivity
-    // composedPath() →PointerActivity
-    // getPredictedEvents() 
+    //XXX altitudeAngle 未実装のブラウザが多い
+    //XXX azimuthAngle 未実装のブラウザが多い
   };
 
   export const Modifier = {
@@ -209,17 +224,15 @@ interface PointerTrace {
   readonly buttons: (Array<Pointer.MouseButton> | Array<Pointer.PenButton>),
   readonly modifiers: Array<Pointer.Modifier>;// タッチ間で共有だが現在値なのでここに持たせる //TODO buttonなどもふくめる
   readonly captured: boolean;// 「targetに」captureされているか否か
-  // readonly context: {
+  //XXX readonly context: {
   //   dispatcher: Element,
-
+  //   composedPath
   // };
   readonly source: PointerTrace.Source;
 }
+
 namespace PointerTrace {
   export type Source = {
-    //XXX composedPath
-    //XXX sourceCapabilities
-    //XXX relatedTarget
     readonly isTrusted: boolean,
     readonly eventType: string,
   };
@@ -230,21 +243,23 @@ interface PointerActivity {
   readonly target: Element | null;// 終了後はnullになるかも
   readonly startTime: timestamp;
   readonly duration: milliseconds;
-  //readonly traceStream: ReadableStream<PointerTrace>;
-  //readonly startViewportOffset: Geometry2d.Point | null;
-  //readonly startTargetOffset: Geometry2d.Point | null;
+  //XXX readonly traceStream: ReadableStream<PointerTrace>;
+  //XXX readonly startViewportOffset: Geometry2d.Point | null;
+  //XXX readonly startTargetOffset: Geometry2d.Point | null;
   readonly result: Promise<PointerActivity.Result>;
 
-
+  //XXX readonly current
 
   readonly [Symbol.asyncIterator]: () => AsyncGenerator<PointerTrace, void, void>;
   readonly inProgress: boolean;
   readonly beforeTrace: PointerTrace | null;
-  readonly firstTrace: PointerTrace | null;
-  readonly lastTrace: PointerTrace | null;
-  readonly afterTrace: PointerTrace | null;
+  readonly startTrace: PointerTrace | null;
+  //XXX readonly lastTrace: PointerTrace | null;
+  readonly endTrace: PointerTrace | null;
   readonly watchedModifiers: Array<Pointer.Modifier>;
+  //XXX getPredictedTrace()
 }
+
 namespace PointerActivity {
   export type Result = {
     movementX: number,// PointerActivity始点からの相対位置

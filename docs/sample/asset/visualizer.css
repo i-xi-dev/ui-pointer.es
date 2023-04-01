@@ -304,7 +304,7 @@ input[type="checkbox"]:disabled {
 
 *.v-output-detail-name-content {
   align-items: center;
-  background-color: #10cbbc;
+  background-color: #168c82;
   clip-path: polygon(0 0, calc(100% - 10px) 0, calc(100% - 2px) 50%, calc(100% - 10px) 100%, 0 100%);
   display: flex;
   font-size: 12px;

@@ -1,4 +1,5 @@
 import { PubSub } from "@i-xi-dev/pubsub";
+import _Debug from "./debug";
 import { pointerid } from "./pointer";
 
 const _TOPIC = Symbol();
@@ -39,7 +40,7 @@ class ViewportPointerTracker {
       if (event.isTrusted !== true) {
         return;
       }
-      //console.log(`move ${event.clientX},${event.clientY}`)
+      _Debug.log(event);
 
       this.#publish(event);
     }, listenerOptions);
@@ -48,7 +49,7 @@ class ViewportPointerTracker {
       if (event.isTrusted !== true) {
         return;
       }
-      console.log(`down ${event.clientX},${event.clientY}`)
+      _Debug.log(event);
 
       this.#publish(event);
     }, listenerOptions);
@@ -57,7 +58,7 @@ class ViewportPointerTracker {
       if (event.isTrusted !== true) {
         return;
       }
-      console.log(`up ${event.clientX},${event.clientY}`)
+      _Debug.log(event);
 
       this.#publish(event);
     }, listenerOptions);
@@ -66,7 +67,7 @@ class ViewportPointerTracker {
       if (event.isTrusted !== true) {
         return;
       }
-      console.log(`cancel ${event.clientX},${event.clientY}`)
+      _Debug.log(event);
 
       this.#publish(event);
     }, listenerOptions);

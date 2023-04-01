@@ -1,4 +1,5 @@
 import { Geometry2d } from "@i-xi-dev/ui-utils";
+import _Debug from "./debug";
 import {
   type milliseconds,
   type pointerid,
@@ -32,9 +33,8 @@ class _PointerActivity implements PointerActivity {
   #progressResolver: () => void = (): void => {};
   #traceStreamController: ReadableStreamDefaultController<PointerTrace> | null = null;
   #beforeTrace: PointerTrace | null = null;
-  #firstTrace: PointerTrace | null = null;
+  #startTrace: PointerTrace | null = null;
   #lastTrace: PointerTrace | null = null;
-  #afterTrace: PointerTrace | null = null;//TODO
   #trackLength: number = 0;
 
   constructor(event: PointerEvent, target: Element, options: _PointerActivityOptions) {
@@ -76,11 +76,11 @@ class _PointerActivity implements PointerActivity {
   }
 
   get startTime(): timestamp {
-    return this.#firstTrace ? this.#firstTrace.timeStamp : Number.NaN;
+    return this.#startTrace ? this.#startTrace.timeStamp : Number.NaN;
   }
 
   get duration(): milliseconds {
-    return (this.#lastTrace && this.#firstTrace) ? (this.#lastTrace.timeStamp - this.#firstTrace.timeStamp) : Number.NaN;
+    return (this.#lastTrace && this.#startTrace) ? (this.#lastTrace.timeStamp - this.#startTrace.timeStamp) : Number.NaN;
   }
 
   //get traceStream(): ReadableStream<PointerTrace> {
@@ -88,18 +88,18 @@ class _PointerActivity implements PointerActivity {
   //}
 
   //get startViewportOffset(): Geometry2d.Point | null {
-  //  return this.#firstTrace ? {x:this.#firstTrace.viewportX : null;
+  //  return this.#startTrace ? {x:this.#startTrace.viewportX : null;
   //}
 
   //get startTargetOffset(): Geometry2d.Point | null {
-  //  return this.#firstTrace ? {x:this.#firstTrace.targetX,y:} : null;
+  //  return this.#startTrace ? {x:this.#startTrace.targetX,y:} : null;
   //}
 
   get #currentMovement(): Geometry2d.Point {
-    if (this.#lastTrace && this.#firstTrace) {
+    if (this.#lastTrace && this.#startTrace) {
       return Object.freeze({
-        x: (this.#lastTrace.viewportX - this.#firstTrace.viewportX),
-        y: (this.#lastTrace.viewportY - this.#firstTrace.viewportY),
+        x: (this.#lastTrace.viewportX - this.#startTrace.viewportX),
+        y: (this.#lastTrace.viewportY - this.#startTrace.viewportY),
       });
     }
     return Object.freeze({
@@ -131,16 +131,16 @@ class _PointerActivity implements PointerActivity {
     return this.#beforeTrace ? this.#beforeTrace : null;
   }
 
-  get firstTrace(): PointerTrace | null {
-    return this.#firstTrace ? this.#firstTrace : null;
+  get startTrace(): PointerTrace | null {
+    return this.#startTrace ? this.#startTrace : null;
   }
 
-  get lastTrace(): PointerTrace | null {
-    return this.#lastTrace ? this.#lastTrace : null;
-  }
+  // get lastTrace(): PointerTrace | null {
+  //   return this.#lastTrace ? this.#lastTrace : null;
+  // }
 
-  get afterTrace(): PointerTrace | null {
-    return this.#afterTrace ? this.#afterTrace : null;
+  get endTrace(): PointerTrace | null {
+    return (this.#terminated && this.#lastTrace) ? this.#lastTrace : null;
   }
 
   get watchedModifiers(): Array<Pointer.Modifier> {
@@ -201,8 +201,8 @@ class _PointerActivity implements PointerActivity {
         modifiersToWatch: this.#modifiersToWatch,
         prevTrace: this.#lastTrace,
       });
-      if (!this.#firstTrace) {
-        this.#firstTrace = trace;
+      if (!this.#startTrace) {
+        this.#startTrace = trace;
       }
 
       this.#trackLength = this.#trackLength + Geometry2d.Area.diagonal({
@@ -344,6 +344,7 @@ class _TargetObservation {
     }) as EventListener, listenerOptions);
 
     this.#target.addEventListener("pointercancel", ((event: PointerEvent): void => {
+      _Debug.log(event);
       (event.target as Element).releasePointerCapture(event.pointerId);
       this.#capturingPointerIds.delete(event.pointerId);
     }) as EventListener, listenerOptions);
@@ -352,6 +353,7 @@ class _TargetObservation {
       if (event.isTrusted !== true) {
         return;
       }
+      _Debug.log(event);
 
       this.#handleAsync(event).catch((reason?: any): void => {
         console.error(reason);
@@ -362,8 +364,8 @@ class _TargetObservation {
       if (event.isTrusted !== true) {
         return;
       }
+      _Debug.log(event);
 
-      console.log(`pointerenter: ${event.clientX}, ${event.clientY} / ${event.timeStamp}`);
       this.#handleAsync(event).catch((reason?: any): void => {
         console.error(reason);
       });// pointerenterはstreamに追加しない（firefoxで同時に起きたはずの同座標のwindowのpointermoveよりtimeStampが遅い（2回目のpointermoveの後くらいになる））（chromeはpointermoveと必ず？同座標になるため無駄）
@@ -413,16 +415,28 @@ class _TargetObservation {
     if (this.#pointerTypeFilter(curr) !== true) {
       return;
     }
-    const appendAsLast = ["pointerdown", "pointermove", "pointerup"].includes(curr.type);
-    //pointercancel,pointerleave //TODO
 
     const pointerHasContact = (_pointerIsInContact(curr) === true);
     let activity: _PointerActivity;
 
     if (curr.composedPath().includes(this.#target) === true) {
+      // targetまたはその子孫で発火の場合
+
       if (this.#activities.has(curr.pointerId) !== true) {
+        // activitiesに未登録の場合
+
         if ((this.#includesHover !== true) && (pointerHasContact !== true)) {
           return;
+        }
+
+        let appendAsLast = false;
+        if (this.#includesHover === true) {
+          // pointerenterでactivity生成、pointerleaveで終了
+          appendAsLast = ["pointerdown", "pointermove", "pointerup"].includes(curr.type);
+        }
+        else {
+          // pointerdown|pointermoveかつpointerHasContactでactivity生成、pointerHasContact!=trueで終了
+          appendAsLast = ["pointerdown", "pointermove"].includes(curr.type) && (pointerHasContact === true);
         }
 
         activity = new _PointerActivity(curr, this.#target, {
@@ -438,6 +452,8 @@ class _TargetObservation {
         }
       }
       else {
+        // activitiesに登録済の場合
+
         activity = this.#activities.get(curr.pointerId) as _PointerActivity;
         if (activity._appendCount <= 0) {
           // pointerenterで生成されたので一度もappendしていない場合
@@ -445,6 +461,9 @@ class _TargetObservation {
             activity._setBefore(prev);
           }
         }
+
+        // includesHoverに関係なく、pointerdown|pointermove|pointerup|pointerleaveを_append
+        // pointercancelは来ないはず
         if ((this.#highPrecision === true) && (curr.type === "pointermove")) {
           for (const coalesced of curr.getCoalescedEvents()) {
             activity._append(coalesced);
@@ -468,7 +487,9 @@ class _TargetObservation {
       }
     }
     else {
+      // target外の発火の場合
       // targetのみの監視だと、ブラウザ毎に特定条件でpointerupが発火しないだの何だの様々な問題があって監視に漏れが発生するので、windowを監視してれば余程漏れは無いであろうということで。
+
       if (this.#activities.has(curr.pointerId) === true) {
         activity = this.#activities.get(curr.pointerId) as _PointerActivity;
         this.#activities.delete(curr.pointerId);
