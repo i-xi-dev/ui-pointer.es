@@ -26,16 +26,12 @@ export { PointerObserver } from "./pointer_observer";
 //     - 通常は1だが2以上になることがある: page-break以外のbreak (regionは廃止されたのでcolumnだけか？)
 //   - 非trustedなPointerEventは無条件で無視している
 //     受け付けるようにする場合は、pointerdownがtrustedでpointermoveが非trustedの場合の挙動などをどうするか
-//   - 同一要素に対する多重監視を許すか
-//     基本的には許しても許さなくてもどうでもいいが、captureするなら問題になる（mouseのcaptureと、pen/touchのcaptureは両立しない）
-//     →ブラウザの仕様の問題なので、注意喚起のみにとどめる
+//   - 異なるpointerTypeのポインターを同時操作できるかはブラウザに依存
 
 // - gotpointercaptureは使用しないことにした
-//     - setPointerCapture後、Firefoxは即座にgotpointercaptureが発火するのに対して、Chromeは次にpointermoveなどが発火する直前まで遅延される為
 //     - Chromeで発火しない場合があるため（mouseでtargetのスクロールバー上でpointerdownした場合とか）
 // - lostpointercaptureは使用しないことにした
 //     - Chromeで発火しない場合があるため（gotopointercaptureとおそらく同じ問題）
-//     - Chromeでgotpointercapture同様に遅延発火されるため
 
 // - stream終了時点でpointerはtarget上にあるか検査するか
 //   → streamの各trackもしくは、trackSequence.lastTrackで判定すればよい
