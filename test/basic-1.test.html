@@ -98,7 +98,6 @@ function onprogress(activity, motion) {
   const id = idOf(activity);
   const ti = tiMap.get(id);
 
-  const { targetOffset } = motion;
   if (activity.pointer.isPrimary === true) {
     if (ti.classList.contains("primary") !== true) {
       ti.classList.add("primary");
@@ -121,8 +120,8 @@ function onprogress(activity, motion) {
     }
   }
 
-  ti.style.setProperty("left", `${targetOffset.x}px`);
-  ti.style.setProperty("top", `${targetOffset.y}px`);
+  ti.style.setProperty("left", `${motion.targetX}px`);
+  ti.style.setProperty("top", `${motion.targetY}px`);
   ti.style.setProperty("--width", `${motion.properties.radiusX * 2}px`);
   ti.style.setProperty("--height", `${motion.properties.radiusY * 2}px`);
   //ti.style.setProperty("", `${motion.properties.pressure}`);

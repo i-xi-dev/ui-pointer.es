@@ -112,6 +112,8 @@ export { PointerObserver } from "./pointer_observer";
 //     → documentElement以下全てを選択不可にしてもらう他ない
 // - pointer captureしない設定
 // - stream生成条件、enqueue条件
+// - タッチの総体を扱う版
+// - 監視中にポインターを停止している間、stream追加する/しない の設定
 
 /*
 TODO 下記対処したら脱alpha

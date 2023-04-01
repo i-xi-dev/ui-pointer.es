@@ -68,35 +68,24 @@ function _pointerTraceFrom(event: PointerEvent, target: Element, options: _Point
   const viewportX = event.clientX;
   const viewportY = event.clientY;
 
-  let movementX: number;
-  let movementY: number;
+  let movementX: number = 0;
+  let movementY: number = 0;
   if (options.prevTrace) {
-    const prevViewport = options.prevTrace.viewportOffset;
-    movementX = (viewportX - prevViewport.x);
-    movementY = (viewportY - prevViewport.y);
+    const prevTrace = options.prevTrace;
+    movementX = (viewportX - prevTrace.viewportX);
+    movementY = (viewportY - prevTrace.viewportY);
   }
-  else {
-    movementX = 0;
-    movementY = 0;
-  }
-  const movement = Object.freeze({
-    x: movementX,
-    y: movementY,
-  });
 
   const modifiers: Array<Pointer.Modifier> = [...options.modifiersToWatch].filter((modifier) => event.getModifierState(modifier) === true);
 
   return Object.freeze({
     timeStamp: event.timeStamp,
-    viewportOffset: Object.freeze({
-      x: viewportX,
-      y: viewportY,
-    }),
-    targetOffset: Object.freeze({
-      x: targetX,
-      y: targetY,
-    }),
-    movement,
+    viewportX,
+    viewportY,
+    targetX,
+    targetY,
+    movementX,
+    movementY,
     inContact: _pointerIsInContact(event),
     properties: Object.freeze({
       pressure: event.pressure,
@@ -209,14 +198,21 @@ namespace Pointer {
 
 interface PointerTrace {
   readonly timeStamp: timestamp;
-  readonly viewportOffset: Geometry2d.Point, // from viewport top left
-  readonly targetOffset: Geometry2d.Point, // from target bounding box top left
-  readonly movement: Geometry2d.Point;// 直前のPointerTraceからの相対位置
+  readonly viewportX: number, // from viewport left
+  readonly viewportY: number, // from viewport top
+  readonly targetX: number,// offset from target bounding box left
+  readonly targetY: number,// offset from target bounding box top
+  readonly movementX: number;// 直前のPointerTraceからの相対位置
+  readonly movementY: number;// 直前のPointerTraceからの相対位置
   readonly inContact: boolean;// pointerがactiveかつ接触があるか否か
   readonly properties: Pointer.Properties,
   readonly buttons: (Array<Pointer.MouseButton> | Array<Pointer.PenButton>),
-  readonly modifiers: Array<Pointer.Modifier>;// タッチ間で共有だが現在値なのでここに持たせる
+  readonly modifiers: Array<Pointer.Modifier>;// タッチ間で共有だが現在値なのでここに持たせる //TODO buttonなどもふくめる
   readonly captured: boolean;// 「targetに」captureされているか否か
+  // readonly context: {
+  //   dispatcher: Element,
+
+  // };
   readonly source: PointerTrace.Source;
 }
 namespace PointerTrace {
@@ -231,16 +227,16 @@ namespace PointerTrace {
 
 interface PointerActivity {
   readonly pointer: Pointer;
+  readonly target: Element | null;// 終了後はnullになるかも
   readonly startTime: timestamp;
   readonly duration: milliseconds;
   //readonly traceStream: ReadableStream<PointerTrace>;
   //readonly startViewportOffset: Geometry2d.Point | null;
   //readonly startTargetOffset: Geometry2d.Point | null;
-  readonly currentMovement: Geometry2d.Point;// 始点からの相対位置
-  readonly resultMovement: Promise<Geometry2d.Point>;// 始点からの相対位置
-  readonly currentTrackLength: number;// 軌跡の近似値
-  readonly resultTrackLength: Promise<number>;// 軌跡の近似値
-  readonly target: Element | null;// 終了後はnullになるかも
+  readonly result: Promise<PointerActivity.Result>;
+
+
+
   readonly [Symbol.asyncIterator]: () => AsyncGenerator<PointerTrace, void, void>;
   readonly inProgress: boolean;
   readonly beforeTrace: PointerTrace | null;
@@ -248,6 +244,13 @@ interface PointerActivity {
   readonly lastTrace: PointerTrace | null;
   readonly afterTrace: PointerTrace | null;
   readonly watchedModifiers: Array<Pointer.Modifier>;
+}
+namespace PointerActivity {
+  export type Result = {
+    movementX: number,// PointerActivity始点からの相対位置
+    movementY: number,// PointerActivity始点からの相対位置
+    track: number,// 軌跡の近似値
+  };
 }
 
 export {

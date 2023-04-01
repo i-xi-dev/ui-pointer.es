@@ -71,6 +71,10 @@ class _PointerActivity implements PointerActivity {
     return this.#pointer;
   }
 
+  get target(): Element | null {
+    return this.#target.deref() ?? null;
+  }
+
   get startTime(): timestamp {
     return this.#firstTrace ? this.#firstTrace.timeStamp : Number.NaN;
   }
@@ -84,20 +88,18 @@ class _PointerActivity implements PointerActivity {
   //}
 
   //get startViewportOffset(): Geometry2d.Point | null {
-  //  return this.#firstTrace ? this.#firstTrace.viewportOffset : null;
+  //  return this.#firstTrace ? {x:this.#firstTrace.viewportX : null;
   //}
 
   //get startTargetOffset(): Geometry2d.Point | null {
-  //  return this.#firstTrace ? this.#firstTrace.targetOffset : null;
+  //  return this.#firstTrace ? {x:this.#firstTrace.targetX,y:} : null;
   //}
 
-  get currentMovement(): Geometry2d.Point {
+  get #currentMovement(): Geometry2d.Point {
     if (this.#lastTrace && this.#firstTrace) {
-      const lastViewportOffset = this.#lastTrace.viewportOffset;
-      const firstViewportOffset = this.#firstTrace.viewportOffset;
       return Object.freeze({
-        x: (lastViewportOffset.x - firstViewportOffset.x),
-        y: (lastViewportOffset.y - firstViewportOffset.y),
+        x: (this.#lastTrace.viewportX - this.#firstTrace.viewportX),
+        y: (this.#lastTrace.viewportY - this.#firstTrace.viewportY),
       });
     }
     return Object.freeze({
@@ -106,32 +108,19 @@ class _PointerActivity implements PointerActivity {
     });
   }
 
-  get resultMovement(): Promise<Geometry2d.Point> {
+  get result(): Promise<PointerActivity.Result> {
     return new Promise((resolve, reject) => {
       this.#progress.then(() => {
-        resolve(this.currentMovement);
+        const resultMovement = this.#currentMovement;
+        resolve({
+          movementX: resultMovement.x,
+          movementY: resultMovement.y,
+          track: this.#trackLength,
+        });
       }).catch((r) => {
         reject(r);
       });
     });
-  }
-
-  get currentTrackLength(): number {
-    return this.#trackLength;
-  }
-
-  get resultTrackLength(): Promise<number> {
-    return new Promise((resolve, reject) => {
-      this.#progress.then(() => {
-        resolve(this.currentTrackLength);
-      }).catch((r) => {
-        reject(r);
-      });
-    });
-  }
-
-  get target(): Element | null {
-    return this.#target.deref() ?? null;
   }
 
   get inProgress(): boolean {
@@ -175,34 +164,6 @@ class _PointerActivity implements PointerActivity {
     }
   }
 
-  toJSON() {
-    return {
-      pointer: this.pointer,
-      startTime: this.startTime,
-      duration: this.duration,
-      //traceStream
-      //startViewportOffset: this.startViewportOffset ? {
-      //  x: this.startViewportOffset.x,
-      //  y: this.startViewportOffset.y,
-      //} : null,
-      //startTargetOffset: this.startTargetOffset ? {
-      //  x: this.startTargetOffset.x,
-      //  y: this.startTargetOffset.y,
-      //} : null,
-      movement: {
-        x: this.currentMovement.x,
-        y: this.currentMovement.y,
-      },
-      trackLength: this.currentTrackLength,
-      inProgress: this.inProgress,
-      //beforeTrace
-      //firstTrace
-      //lastTrace
-      //afterTrace
-      watchedModifiers: [...this.watchedModifiers],
-    };
-  }
-
   _terminate(): void {
     if (this.#beforeTrace === null) {
       console.warn("beforeTrace not detected");
@@ -244,11 +205,10 @@ class _PointerActivity implements PointerActivity {
         this.#firstTrace = trace;
       }
 
-      const movement = trace.movement;//XXX beforeとfirstの間の境界を起点にすべき
       this.#trackLength = this.#trackLength + Geometry2d.Area.diagonal({
-        width: Math.abs(movement.x),
-        height: Math.abs(movement.y),
-      });
+        width: Math.abs(trace.movementX),
+        height: Math.abs(trace.movementY),
+      });//XXX beforeとfirstの間の境界を起点にすべき
 
       this.#lastTrace = trace;
       this.#traceStreamController.enqueue(trace);

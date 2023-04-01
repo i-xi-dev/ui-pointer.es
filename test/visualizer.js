@@ -147,17 +147,18 @@ createApp({
     },
 
     onstart(activity) {
-      const offsetX = activity.firstTrace.targetOffset.x;
-      const offsetY = activity.firstTrace.targetOffset.y;
+      const { firstTrace, beforeTrace } = activity;
+      const offsetX = firstTrace.targetX;
+      const offsetY = firstTrace.targetY;
 
       let path;
       if (this.drawMode === "svg") {
         path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         path.classList.add("v-input-layer-path");
-        if (activity.beforeTrace) {
-          const x0 = activity.beforeTrace.targetOffset.x;
-          const y0 = activity.beforeTrace.targetOffset.y;
-          const c = (activity.firstTrace.inContact === true) ? "L" : "M";
+        if (beforeTrace) {
+          const x0 = beforeTrace.targetX;
+          const y0 = beforeTrace.targetY;
+          const c = (firstTrace.inContact === true) ? "L" : "M";
           path.setAttribute("d", `M ${x0} ${y0} ${c} ${offsetX} ${offsetY}`);
         }
         else {
@@ -213,8 +214,8 @@ createApp({
     },
 
     onprogress(activity, trace, prevTrace) {
-      const offsetX = trace.targetOffset.x;
-      const offsetY = trace.targetOffset.y;
+      const offsetX = trace.targetX;
+      const offsetY = trace.targetY;
       const inContact = trace.inContact;
 
       const indicator = this.indicatorMap.get(activity);
@@ -252,8 +253,8 @@ createApp({
 
       if (this.drawMode === "canvas") {
         if (inContact === true && prevTrace) {
-          const prevOffsetX = prevTrace.targetOffset.x;
-          const prevOffsetY = prevTrace.targetOffset.y;
+          const prevOffsetX = prevTrace.targetX;
+          const prevOffsetY = prevTrace.targetY;
           this.layerContext.beginPath();
           this.layerContext.moveTo(prevOffsetX, prevOffsetY);
           this.layerContext.lineTo(offsetX, offsetY);
