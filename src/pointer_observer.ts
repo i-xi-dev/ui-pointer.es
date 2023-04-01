@@ -165,11 +165,8 @@ class _PointerActivity implements PointerActivity {
   }
 
   _terminate(): void {
-    if (this.#beforeTrace === null) {
-      console.warn("beforeTrace not detected");
-      // 境界外からhoverまたは接触の状態でpointerenterした場合のみ存在する（タッチのように境界内でpointerenterした場合は無くても妥当）
-    }
-    console.assert(this.#terminated !== true, "already terminated");
+    _Debug.assertWarn((this.#beforeTrace !== null), "beforeTrace not detected");  // 境界外からhoverまたは接触の状態でpointerenterした場合のみ存在する（タッチのように境界内でpointerenterした場合は無くても妥当）
+    _Debug.assertWarn((this.#terminated !== true), "already terminated");
 
     if (this.#traceStreamController) {
       console.log("terminated");
@@ -344,7 +341,7 @@ class _TargetObservation {
     }) as EventListener, listenerOptions);
 
     this.#target.addEventListener("pointercancel", ((event: PointerEvent): void => {
-      _Debug.log(event);
+      _Debug.logEvent(event);
       (event.target as Element).releasePointerCapture(event.pointerId);
       this.#capturingPointerIds.delete(event.pointerId);
     }) as EventListener, listenerOptions);
@@ -353,7 +350,7 @@ class _TargetObservation {
       if (event.isTrusted !== true) {
         return;
       }
-      _Debug.log(event);
+      _Debug.logEvent(event);
 
       this.#handleAsync(event).catch((reason?: any): void => {
         console.error(reason);
@@ -364,7 +361,7 @@ class _TargetObservation {
       if (event.isTrusted !== true) {
         return;
       }
-      _Debug.log(event);
+      _Debug.logEvent(event);
 
       this.#handleAsync(event).catch((reason?: any): void => {
         console.error(reason);
@@ -581,6 +578,11 @@ class PointerObserver {
     for (const target of this._targets.keys()) {
       this.unobserve(target);
     }
+  }
+
+  /** @experimental */
+  static _enableDevMode(): void {
+    _Debug.setConfig({ enabled: true });
   }
 }
 

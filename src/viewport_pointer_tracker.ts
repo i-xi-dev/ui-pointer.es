@@ -40,7 +40,7 @@ class ViewportPointerTracker {
       if (event.isTrusted !== true) {
         return;
       }
-      _Debug.log(event);
+      _Debug.logEvent(event);
 
       this.#publish(event);
     }, listenerOptions);
@@ -49,7 +49,7 @@ class ViewportPointerTracker {
       if (event.isTrusted !== true) {
         return;
       }
-      _Debug.log(event);
+      _Debug.logEvent(event);
 
       this.#publish(event);
     }, listenerOptions);
@@ -58,7 +58,7 @@ class ViewportPointerTracker {
       if (event.isTrusted !== true) {
         return;
       }
-      _Debug.log(event);
+      _Debug.logEvent(event);
 
       this.#publish(event);
     }, listenerOptions);
@@ -67,7 +67,7 @@ class ViewportPointerTracker {
       if (event.isTrusted !== true) {
         return;
       }
-      _Debug.log(event);
+      _Debug.logEvent(event);
 
       this.#publish(event);
     }, listenerOptions);

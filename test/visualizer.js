@@ -346,6 +346,10 @@ createApp({
     },
   },
 
+  created() {
+    PointerObserver._enableDevMode();
+  },
+
   mounted() {
     if (this.drawMode === "canvas") {
       this.layerContext = document.querySelector("canvas.v-input-layer")?.getContext("2d");
