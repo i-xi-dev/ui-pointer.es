@@ -8,10 +8,6 @@ export { PointerObserver } from "./pointer_observer";
 //   おそらくスクロールバーにcaptureを取られている
 //   firefoxは問題ない
 
-// - Chrome, Edge
-//   mouseのpointer capture中にtouchすると、おそらくタッチで発生した暗黙のpointer ceptureが優先になる
-//   mouseの方のpointermove等がその間発火しない（すぐに暗黙のreleaseが起きるので重大な問題は無い？？）
-
 // - Chrome
 //   いつのまにかpenのpointerenter,pointerleaveで、pointerType:mouseのpointerenter,pointerleaveが発火するようになった
 
@@ -23,9 +19,8 @@ export { PointerObserver } from "./pointer_observer";
 //   - その他box数が1ではない場合
 //     - 0: displayがnone,contents,...
 //     - 1以上: displayがinline,...
-//     - 通常は1だが2以上になることがある: page-break以外のbreak (regionは廃止されたのでcolumnだけか？)
+//     - 通常は1だが2以上になることがある: page-break以外のbreak (regionは廃止されたのでcolumnだけか？) //TODO これは重大な問題な気がしてきた targetX/Yは一旦消すか？
 //   - 非trustedなPointerEventは無条件で無視している
-//     受け付けるようにする場合は、pointerdownがtrustedでpointermoveが非trustedの場合の挙動などをどうするか
 //   - 異なるpointerTypeのポインターを同時操作できるかはブラウザに依存
 
 // - gotpointercaptureは使用しないことにした
@@ -41,7 +36,6 @@ export { PointerObserver } from "./pointer_observer";
 //     のいずれかだが、いずれもpointerleaveの発火条件とは一致しない
 //     厳密にやるなら後者をtargetの全子孫に対して行う必要がある（ただしelementsFromPointはgetBoundingClientRectより有意に遅い）
 
-// - wheel →wheelでスクロールしたときブラウザによってpointerenter,pointerleaveが発火しない
 
 
 // ターゲットのboundingBox外に位置する子孫の扱い
@@ -73,6 +67,7 @@ export { PointerObserver } from "./pointer_observer";
 //     → documentElement以下全てを選択不可にしてもらう他ない
 // - pointer captureしない設定
 // - stream生成条件、enqueue条件
-// - タッチの総体を扱う版
+// - タッチの総体やwheelを扱う版
+//     wheelでスクロールしたときブラウザによってpointerenter,pointerleaveが発火しない
 // - 監視中にポインターを停止している間、stream追加する/しない の設定
 

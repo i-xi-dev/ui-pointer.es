@@ -137,13 +137,7 @@ const observer = new PointerObserver(async (activity) => {
   console.log(`[END] pointerId:${activity.pointer.id}, duration:${activity.duration}`);
   console.log(activity);
   onend(activity);
-}, {
-  includesHover: true,
-  
-  //modifiersToWatch: [],
-  //pointerTypeFilter: [],
-  usePointerCapture: true,
-});
+}, {});
 observer.observe(testArea);
     </script>
   </head>
@@ -235,8 +229,8 @@ observer.observe(testArea);
                   <dt>詳細</dt>
                   <dd>
                     <ul>
-                      <li>[Chrome] touchまたはpenが動いている間、mouseは無視される（touchとpenは同時操作でも問題なさそう、複数同時touchも問題なさそう）</li>
-                      <li>[Firefox] penが動いている間、mouseはほぼ無視される、touchはキャンセルされる（penとmouseは同時操作でも問題なさそう、複数同時touchも問題なさそう）</li>
+                      <li>[Chrome] touchまたはpenが動いている間、mouseは無視される（touchとpenは同時操作でも問題なさそう、複数同時touchも問題なさそう）※pointer captureの状態にもよる？</li>
+                      <li>[Firefox] penが動いている間、mouseはほぼ無視される、touchはキャンセルされる（penとmouseは同時操作でも問題なさそう、複数同時touchも問題なさそう）※pointer captureの状態にもよる？</li>
                     </ul>
                   </dd>
                 </div>

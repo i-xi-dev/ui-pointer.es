@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Test: Panning</title>
+    <style>
+*.test-scroller {
+  background-color: #8f9a96;
+  box-shadow: 0 0 0 2px gray;
+  cursor: default;
+  height: 500px;
+  margin: 100px;
+  overflow: hidden;
+  position: relative;
+  width: 500px;
+}
+*.test-scroller.xx-active {
+  box-shadow: 0 0 0 4px gray;
+  cursor: move;
+}
+*.test-content {
+  background-image: linear-gradient(to bottom, #fff 0%, #fff0 50%, #0000 50%, #000 100%),
+  linear-gradient(to right, red 0%, yellow 16.66%, lime 33.33%, aqua 50%, blue 66.66%, fuchsia 83.33%, red 100%);
+  height: 1000px;
+  width: 1000px;
+}
+    </style>
+    <script type="module">
+import { PointerObserver } from "../dist/index.js";
+const testScroller = document.getElementById("TestScroller");
+
+function onstart(activity) {
+}
+
+function onend(activity) {
+}
+
+function onprogress(activity, trace) {
+  if (trace.inContact === true) {
+    testScroller.classList.add("xx-active");
+
+    testScroller.scrollBy(-trace.movementX, -trace.movementY);
+  }
+  else {
+    testScroller.classList.remove("xx-active");
+  }
+}
+
+const observer = new PointerObserver(async (activity) => {
+  console.log(`[START] pointerId:${activity.pointer.id}, startTime:${activity.startTime}`);
+  //onstart(activity);
+
+  for await (const trace of activity) {
+    //console.log(JSON.stringify(trace), JSON.stringify(activity));
+    onprogress(activity, trace);
+  }
+
+  console.log(`[END] pointerId:${activity.pointer.id}, duration:${activity.duration}`);
+  console.log(activity);
+  //onend(activity);
+}, {});
+observer.observe(testScroller);
+    </script>
+  </head>
+  <body>
+    <div class="test-scroller" id="TestScroller">
+      <div class="test-content"></div>
+    </div>
+  </body>
+</html>
