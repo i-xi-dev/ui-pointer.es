@@ -240,7 +240,7 @@ namespace PointerTrace {
 
 interface PointerActivity {
   readonly pointer: Pointer;
-  readonly target: Element | null;// 終了後はnullになるかも
+  readonly target: Element | null;
   readonly startTime: timestamp;
   readonly duration: milliseconds;
   //XXX readonly traceStream: ReadableStream<PointerTrace>;

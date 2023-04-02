@@ -26,7 +26,8 @@ namespace _Internal {
   export const appendTrace: unique symbol = Symbol();
 }
 
-class _PointerActivity implements PointerActivity {
+class _PointerActivityController {
+  readonly #activity: PointerActivity;
   readonly #modifiersToWatch: Set<Pointer.Modifier>;
   readonly #traceStreamTerminator: AbortController;
   readonly #pointer: Pointer;
@@ -44,6 +45,7 @@ class _PointerActivity implements PointerActivity {
   #trackLength: number = 0;
 
   constructor(event: PointerEvent, target: Element, options: _PointerActivityOptions) {
+    this.#activity = this.#createActivity();
     this.#modifiersToWatch = options.modifiersToWatch;
     this.#traceStreamTerminator = new AbortController();
     this.#pointer = Pointer.from(event);
@@ -73,9 +75,48 @@ class _PointerActivity implements PointerActivity {
     });
   }
 
-  // get activity(): PointerActivity {
-  //   return this;//TODO _PointerActivityのメソッドを隠さなくても、PointerActivity型のオブジェクトを一方的に参照してそれをcallbackに渡せばいいのでは
-  // }
+  #createActivity(): PointerActivity {
+    const ref = this;
+    return Object.freeze({
+      get pointer() {
+        return ref.pointer;
+      },
+      get target() {
+        return ref.target;
+      },
+      get startTime() {
+        return ref.startTime;
+      },
+      get duration() {
+        return ref.duration;
+      },
+      get result() {
+        return ref.result;
+      },
+      [Symbol.asyncIterator]() {
+        return ref.traceIterator();
+      },
+      get inProgress() {
+        return ref.inProgress;
+      },
+      get beforeTrace() {
+        return ref.beforeTrace;
+      },
+      get startTrace() {
+        return ref.startTrace;
+      },
+      get endTrace() {
+        return ref.endTrace;
+      },
+      get watchedModifiers() {
+        return ref.watchedModifiers;
+      },
+    });
+  }
+
+  get activity(): PointerActivity {
+    return this.#activity;
+  }
 
   get pointer(): Pointer {
     return this.#pointer;
@@ -161,7 +202,7 @@ class _PointerActivity implements PointerActivity {
     return this.#traceCount;
   }
 
-  async *[Symbol.asyncIterator](): AsyncGenerator<PointerTrace, void, void> {
+  async *traceIterator(): AsyncGenerator<PointerTrace, void, void> {
     const streamReader = this.#traceStream.getReader();
     try {
       for (let i = await streamReader.read(); (i.done !== true); i = await streamReader.read()) {
@@ -174,7 +215,7 @@ class _PointerActivity implements PointerActivity {
     }
   }
 
-  [_Internal.terminate](): void {
+  terminate(): void {
     _Debug.assertWarn((this.#beforeTrace !== null), "beforeTrace not detected");  // 境界外からhoverまたは接触の状態でpointerenterした場合のみ存在する（タッチのように境界内でpointerenterした場合は無くても妥当）
     _Debug.assertWarn((this.#terminated !== true), "already terminated");
 
@@ -188,7 +229,7 @@ class _PointerActivity implements PointerActivity {
     this.#progressResolver();
   }
 
-  [_Internal.setBeforeTrace](event: PointerEvent): void {
+  setBeforeTrace(event: PointerEvent): void {
     const target = this.target as Element;// （終了後に外部から呼び出したのでもなければ）nullはありえない
     const trace: PointerTrace = _pointerTraceFrom(event, target, {
       modifiersToWatch: this.#modifiersToWatch,
@@ -197,7 +238,7 @@ class _PointerActivity implements PointerActivity {
     this.#beforeTrace = trace;
   }
 
-  [_Internal.appendTrace](event: PointerEvent): void {
+  appendTrace(event: PointerEvent): void {
     if (this.#terminated === true) {
       throw new Error("InvalidStateError appendTrace#1");
     }
@@ -247,7 +288,7 @@ class _TargetObservation {
   private readonly _observationCanceller: AbortController;//[$85]
   readonly #target: Element;
   readonly #callback: PointerObserver.Callback;
-  readonly #activities: Map<pointerid, PointerActivity>;
+  readonly #activityControllers: Map<pointerid, _PointerActivityController>;
   readonly #capturingPointerIds: Set<pointerid>;
 
   readonly #includesHover: boolean;
@@ -263,7 +304,7 @@ class _TargetObservation {
     this._observationCanceller = new AbortController();
     this.#target = target;
     this.#callback = callback;
-    this.#activities = new Map();
+    this.#activityControllers = new Map();
     this.#capturingPointerIds = new Set();
 
     this.#includesHover = true;//XXX とりあえず固定 //XXX _pointerIsInContactの代わりを直接設定できるようにする
@@ -424,12 +465,12 @@ class _TargetObservation {
     }
 
     const pointerHasContact = (_pointerIsInContact(curr) === true);
-    let activity: _PointerActivity;
+    let activityController: _PointerActivityController;
 
     if (curr.composedPath().includes(this.#target) === true) {
       // targetまたはその子孫で発火の場合
 
-      if (this.#activities.has(curr.pointerId) !== true) {
+      if (this.#activityControllers.has(curr.pointerId) !== true) {
         // activitiesに未登録の場合
 
         if ((this.#includesHover !== true) && (pointerHasContact !== true)) {
@@ -446,26 +487,26 @@ class _TargetObservation {
           appendAsLast = ["pointerdown", "pointermove"].includes(curr.type) && (pointerHasContact === true);
         }
 
-        activity = new _PointerActivity(curr, this.#target, {
+        activityController = new _PointerActivityController(curr, this.#target, {
           signal: this._observationCanceller.signal,
           modifiersToWatch: this.#modifiersToWatch,
         });
-        this.#activities.set(curr.pointerId, activity);
+        this.#activityControllers.set(curr.pointerId, activityController);
         if (appendAsLast === true) {
           if (prev) {
-            activity[_Internal.setBeforeTrace](prev);
+            activityController.setBeforeTrace(prev);
           }
-          activity[_Internal.appendTrace](curr);
+          activityController.appendTrace(curr);
         }
       }
       else {
         // activitiesに登録済の場合
 
-        activity = this.#activities.get(curr.pointerId) as _PointerActivity;
-        if (activity.traceCount <= 0) {
+        activityController = this.#activityControllers.get(curr.pointerId) as _PointerActivityController;
+        if (activityController.traceCount <= 0) {
           // pointerenterで生成されたので一度もappendしていない場合
           if (prev) {
-            activity[_Internal.setBeforeTrace](prev);
+            activityController.setBeforeTrace(prev);
           }
         }
 
@@ -473,34 +514,34 @@ class _TargetObservation {
         // pointercancelは来ないはず
         if ((this.#highPrecision === true) && (curr.type === "pointermove")) {
           for (const coalesced of curr.getCoalescedEvents()) {
-            activity[_Internal.appendTrace](coalesced);
+            activityController.appendTrace(coalesced);
           }
         }
         else {
-          activity[_Internal.appendTrace](curr);//XXX pointercancel（だけ？）は除外しないと座標が0,0？の場合がある 先にpointerleaveになるから問題ない？
+          activityController.appendTrace(curr);//XXX pointercancel（だけ？）は除外しないと座標が0,0？の場合がある 先にpointerleaveになるから問題ない？
         }
       }
 
-      if (activity.traceCount === 1) {
-        this.#callback(activity);
+      if (activityController.traceCount === 1) {
+        this.#callback(activityController.activity);
       }
 
       if (
         ((this.#includesHover !== true) && (pointerHasContact !== true))
         || (["pointercancel", "pointerleave"].includes(curr.type) === true)
       ) {
-        this.#activities.delete(curr.pointerId);
-        activity[_Internal.terminate]();
+        this.#activityControllers.delete(curr.pointerId);
+        activityController.terminate();
       }
     }
     else {
       // target外の発火の場合
       // targetのみの監視だと、ブラウザ毎に特定条件でpointerupが発火しないだの何だの様々な問題があって監視に漏れが発生するので、windowを監視してれば余程漏れは無いであろうということで。
 
-      if (this.#activities.has(curr.pointerId) === true) {
-        activity = this.#activities.get(curr.pointerId) as _PointerActivity;
-        this.#activities.delete(curr.pointerId);
-        activity[_Internal.terminate]();
+      if (this.#activityControllers.has(curr.pointerId) === true) {
+        activityController = this.#activityControllers.get(curr.pointerId) as _PointerActivityController;
+        this.#activityControllers.delete(curr.pointerId);
+        activityController.terminate();
       }
     }
   }

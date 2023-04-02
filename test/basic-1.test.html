@@ -66,6 +66,7 @@ details > dl {
     </template>
     <script type="module">
 import { PointerObserver } from "../dist/index.js";
+PointerObserver._enableDevMode();
 
 const testArea = document.getElementById("TestArea");
 const indicatorMap = new Map();

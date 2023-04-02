@@ -1,0 +1,85 @@
+*.test-container {
+  direction: ltr !important;
+  --scroller-w: 300px;
+  --scroller-h: 300px;
+  --content-w: 1000px;
+  --content-h: 1000px;
+  column-gap: 8px;
+  display: grid;
+  grid-template-columns: var(--scroller-w) auto;
+  grid-template-rows: var(--scroller-h) auto;
+  margin: 100px auto;
+  row-gap: 8px;
+  width: max-content;
+  writing-mode: horizontal-tb !important;
+}
+
+*.test-scrollbar {
+  background-color: #474747;
+  visibility: hidden;
+}
+
+*.test-scroller.xx-active ~ *.test-scrollbar {
+  visibility: visible;
+}
+
+*.test-scrollbar#ScrollbarX {
+  grid-column: 1;
+  grid-row: 2;
+  height: 2px;
+  width: 0;
+}
+
+*.test-scrollbar#ScrollbarY {
+  grid-column: 2;
+  grid-row: 1;
+  height: 0;
+  width: 2px;
+}
+
+*.test-scroller {
+  background-color: #8f9a96;
+  box-shadow: 0 0 0 2px gray;
+  cursor: default;
+  height: var(--scroller-h);
+  grid-column: 1;
+  grid-row: 1;
+  overflow: hidden;
+  position: relative;
+  width: var(--scroller-w);
+}
+
+*.test-scroller.xx-active {
+  box-shadow: 0 0 0 4px gray;
+  cursor: move;
+}
+
+*.test-content {
+  background-image: linear-gradient(to bottom, #fff 0%, #fff0 50%, #0000 50%, #000 100%),
+  linear-gradient(to right, red 0%, yellow 16.66%, lime 33.33%, aqua 50%, blue 66.66%, fuchsia 83.33%, red 100%);
+  height: var(--content-h);
+  width: var(--content-w);
+}
+
+dl {
+  column-gap: 8px;
+  display: grid;
+  grid-template-columns: auto 80px;
+  grid-template-rows: auto auto;
+  justify-items: end;
+  margin: auto;
+  row-gap: 8px;
+  width: max-content;
+}
+
+dl > div {
+  display: contents;
+}
+
+dt::after {
+  content: ":";
+}
+
+dd {
+  margin: 0;
+}
