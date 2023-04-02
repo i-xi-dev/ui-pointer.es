@@ -224,6 +224,34 @@ observer.observe(testArea);
 
           <li>
             <details>
+              <summary>[Safai] ダブルタップ？でテキスト選択になりポインターはキャンセルされる</summary>
+              <dl>
+                <div>
+                  <dt>再現条件</dt>
+                  <dd>
+                    <p>ページ内に選択可能テキストが存在する</p>
+                  </dd>
+                </div>
+                <div>
+                  <dt>詳細</dt>
+                  <dd>
+                    <p>タップした要素がテキスト選択不可（-webkit-user-select:none）だとしても周辺のテキストを選択しようとする為、targetをテキスト選択不可に設定しても回避できない</p>
+                  </dd>
+                </div>
+                <div>
+                  <dt>回避手段</dt>
+                  <dd>
+                    <ul>
+                      <li>ページ全体をテキスト選択不可にする</li>
+                    </ul>
+                  </dd>
+                </div>
+              </dl>
+            </details>
+          </li>
+
+          <li>
+            <details>
               <summary>PointerEvent発火タイミングはブラウザ依存</summary>
               <dl>
                 <div>

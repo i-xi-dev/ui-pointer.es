@@ -47,7 +47,6 @@ export { PointerObserver } from "./pointer_observer";
 
 // 将来検討
 // - optionsでフィルタ対応 streamの読み取り側でフィルタ出来るので初期バージョンでは対応しない
-// - pointerrawupdate設定可にする
 // - visualViewportのscroll,resizeに追随させる？
 // - touchmoveキャンセル（touch-action:none強制設定を解除できるようにした場合）
 // - 中クリックの自動スクロールがpointerdown(chrome) おそらく対処不能
@@ -58,13 +57,5 @@ export { PointerObserver } from "./pointer_observer";
 //         → 厳密に判定するのは高コストなので（角が丸い場合とか子孫が境界外に出ている場合とか）
 //           無視するか？firefoxのpointerenterのtimeStampがあてになるならtemeStampで絞れば良いが・・・
 //           → とりあえず初期バージョンでは対応しないことにした
-// - mouseButton,penButtonも指定されたもの以外は監視しない？
-// - 排他設定（pointer 1つのみ監視）
-// - safari: ダブルタップ？でテキスト選択になる （-webkit-user-selectで選択できないテキストでも。最も近く？の選択可能テキストを選択する）
-//     → documentElement以下全てを選択不可にしてもらう他ない
-// - pointer captureしない設定
-// - stream生成条件、enqueue条件
 // - タッチの総体やwheelを扱う版
 //     wheelでスクロールしたときブラウザによってpointerenter,pointerleaveが発火しない
-// - 監視中にポインターを停止している間、stream追加する/しない の設定
-

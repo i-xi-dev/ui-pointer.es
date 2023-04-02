@@ -647,6 +647,13 @@ namespace PointerObserver {
   export type Options = {
     modifiersToWatch?: Array<string>,// PointerEvent発生時にgetModifierState()で検査する対象
     pointerTypeFilter?: Array<string>, // マッチしない場合streamを生成しない（pointerTypeは不変なので生成してからフィルタする必要はない）
+
+    //XXX activityの生存条件（trueのとき生成し、falseになったら終了する）
+    //XXX mouseButton,penButtonも指定されたもの以外は監視しない？
+    //XXX pointer captureしない設定
+    //XXX 排他設定（pointer 1つのみ監視）
+    //XXX 監視中にポインターを停止している間、stream追加する/しない の設定
+    //XXX pointerrawupdateを使用するか否か
   };
 
 }
