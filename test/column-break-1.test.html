@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Test: targetX/Y, radiusX/Y, inContact per pointerId</title>
+    <style>
+*.pointer-indicator {
+  --color: #f80;
+  --width: 1px;
+  --height: 1px;
+  background-color: var(--color);
+  height: var(--height);
+  margin-left: calc(var(--width) * -0.5);
+  margin-top: calc(var(--height) * -0.5);
+  min-height: 1px;
+  min-width: 1px;
+  outline: 4px solid var(--color);
+  outline-offset: 4px;
+  pointer-events: none;
+  position: absolute;
+  user-select: none;
+  width: var(--width);
+  z-index: 1;
+}
+
+*.pointer-indicator.primary {
+  --color: #f00;
+}
+
+*.pointer-indicator.contact {
+  outline-offset: 8px;
+  outline-width: 8px;
+}
+
+*.pointer-indicator-description {
+  font-size: 12px;
+  transform: translate(10px, -40px);
+  white-space: nowrap;
+}
+
+*.test-target {
+  background-color: #8f9a96;
+  cursor: crosshair;
+  height: 200px;
+  margin: 50px;
+  position: relative;
+  width: 200px;
+  z-index: 1;
+}
+
+*.test-target-descendant {
+  background-color: #8f8;
+  height: 100px;
+  opacity: .4;
+  width: 100px;
+}
+
+details > dl {
+  background-color: #cfcfcf;
+}
+    </style>
+    <template id="template1">
+      <div class="pointer-indicator">
+        <div class="pointer-indicator-description"></div>
+      </div>
+    </template>
+    <script type="module">
+import { PointerObserver } from "../dist/index.js";
+PointerObserver._enableDevMode();
+
+const testArea = document.getElementById("TestArea");
+const indicatorMap = new Map();
+
+function indicatorIdFrom(activity) {
+  return `indicator-${activity.pointer.id}`;
+}
+
+function onstart(activity) {
+  const indicatorId = indicatorIdFrom(activity);
+  const indicator = document.getElementById("template1").content.cloneNode(true).firstElementChild;
+  indicator.id = indicatorId;
+  indicator.querySelector("*.pointer-indicator-description").textContent = `${activity.pointer.id}::${activity.pointer.type}${activity.pointer.isPrimary ? "[primary]" : ""}`;
+  indicatorMap.set(indicatorId, indicator);
+}
+
+function onend(activity) {
+  const indicatorId = indicatorIdFrom(activity);
+  const indicator = indicatorMap.get(indicatorId);
+  indicatorMap.delete(indicatorId);
+  indicator.remove();
+}
+
+function onprogress(activity, trace) {
+  const indicatorId = indicatorIdFrom(activity);
+  const indicator = indicatorMap.get(indicatorId);
+
+  if (activity.pointer.isPrimary === true) {
+    if (indicator.classList.contains("primary") !== true) {
+      indicator.classList.add("primary");
+    }
+  }
+  else {
+    if (indicator.classList.contains("primary") === true) {
+      indicator.classList.remove("primary");
+    }
+  }
+
+  if (trace.inContact === true) {
+    if (indicator.classList.contains("contact") !== true) {
+      indicator.classList.add("contact");
+    }
+  }
+  else {
+    if (indicator.classList.contains("contact") === true) {
+      indicator.classList.remove("contact");
+    }
+  }
+
+  indicator.style.setProperty("left", `${trace.targetX}px`);
+  indicator.style.setProperty("top", `${trace.targetY}px`);
+  indicator.style.setProperty("--width", `${trace.properties.radiusX * 2}px`);
+  indicator.style.setProperty("--height", `${trace.properties.radiusY * 2}px`);
+
+  if (indicator.isConnected !== true) {
+    activity.target.append(indicator);
+  }
+}
+
+const observer = new PointerObserver(async (activity) => {
+  console.log(`[START] pointerId:${activity.pointer.id}, startTime:${activity.startTime}`);
+  onstart(activity);
+
+  for await (const trace of activity) {
+    console.log(JSON.stringify(trace), JSON.stringify(activity));
+    onprogress(activity, trace);
+  }
+
+  console.log(`[END] pointerId:${activity.pointer.id}, duration:${activity.duration}`);
+  console.log(activity);
+  onend(activity);
+}, {});
+observer.observe(testArea);
+    </script>
+  </head>
+  <body>
+    <div style="column-count: 2; width: 600px; height: 150px; margin: 100px auto;">
+      <div class="test-target" id="TestArea">
+        <!--
+        <div class="test-target-descendant" style="margin-left: 100px;"></div>
+        <div class="test-target-descendant" style="transform: translate(50px, 150px); background-color: #e0e039;"></div>
+        <div class="test-target-descendant" style="transform: rotate(45deg); margin-left: auto; background-color: #e0e039;"></div>
+        <div class="test-target-descendant" style="margin-top: 150px;"></div>
+        <div class="test-target-descendant" style="transform: scale(0.5); margin-left: auto; background-color: #e0e039;"></div>
+        <div class="test-target-descendant" style="position: absolute; bottom: 50px; right: 100px; background-color: #3947e0;"></div>
+        <div class="test-target-descendant" style="position: absolute; bottom: 150px; right: -50px; background-color: #3947e0;"></div>
+        <span class="test-target-descendant" style="margin-left: -50px; position: relative; top: -300px;">Lorem ipsum dolor sit amet,<br/> consectetur adipiscing elit</span>
+        -->
+      </div>
+    </div>
+  </body>
+</html>
