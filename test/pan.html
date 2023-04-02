@@ -21,6 +21,8 @@ const maxScrollTop = testContentH - testScrollportH;
 const indicatorWidth = testScrollportW * (testScrollportW / testContentW);
 const indicatorHeight = testScrollportH * (testScrollportH / testContentH);
 
+let lock = false;
+
 function updateIndicator() {
   scrollbarX.style.setProperty("width", `${indicatorWidth}px`);
   scrollbarY.style.setProperty("height", `${indicatorHeight}px`);
@@ -33,28 +35,29 @@ function updateIndicator() {
   outputY.value = (rateY * 100).toFixed(2) + "%";
 }
 
-function onprogress(activity, trace) {
-  if (trace.inContact === true) {
-    testScroller.classList.add("xx-active");
-
-    testScroller.scrollBy(-trace.movementX, -trace.movementY);
-    updateIndicator();
-  }
-  else {
-    testScroller.classList.remove("xx-active");
-  }
-}
-
 const observer = new PointerObserver(async (activity) => {
+  if (lock === true) {
+    return;
+  }
+  lock = true;
   console.log(`[START] pointerId:${activity.pointer.id}, startTime:${activity.startTime}`);
 
   for await (const trace of activity) {
     //console.log(JSON.stringify(trace), JSON.stringify(activity));
-    onprogress(activity, trace);
+    if (trace.inContact === true) {
+      testScroller.classList.add("xx-active");
+
+      testScroller.scrollBy(-trace.movementX, -trace.movementY);
+      updateIndicator();
+    }
+    else {
+      testScroller.classList.remove("xx-active");
+    }
   }
 
   console.log(`[END] pointerId:${activity.pointer.id}, duration:${activity.duration}`);
   console.log(activity);
+  lock = false;
 }, {});
 observer.observe(testScroller);
     </script>

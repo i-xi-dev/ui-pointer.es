@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Proximity detection</title>
+    <link href="../docs/example/asset/proximity.css" rel="stylesheet" />
+    <script type="module">
+import { PointerObserver } from "../dist/index.js";
+
+const SHADOW_SIZE = 120;
+const testGrid = document.getElementById("TestGrid");
+const testCells = [...testGrid.querySelectorAll("*.test-cell")];
+const testShadows = document.getElementById("TestShadows");
+
+function onTrace(activity, trace, shadow) {
+  shadow.style.setProperty("left", `${trace.viewportX}px`);
+  shadow.style.setProperty("top", `${trace.viewportY}px`);
+
+  setTimeout(updateDraw, 0);
+}
+
+// サンプルなので、処理速度は全く考慮していない
+function updateDraw() {
+  const shadowRects = [...testShadows.children].map((shadow) => shadow.getBoundingClientRect());
+  for (const cell of testCells) {
+    const rate = rateOfContact(cell, shadowRects);
+    cell.classList.remove("contact", "full");
+    if (rate >= 1) {
+      cell.classList.add("contact", "full");
+    }
+    else if (rate > 0) {
+      cell.classList.add("contact");
+    }
+  }
+}
+
+function rateOfContact(cell, shadowRects) {
+  const cellRect = cell.getBoundingClientRect();
+  let rate = 0;
+  for (const shadowRect of shadowRects) {
+    const x2 = (shadowRect.left <= cellRect.left) && (shadowRect.right >= cellRect.right);
+    const x1 = ((shadowRect.left >= cellRect.left) && (shadowRect.left <= cellRect.right))
+            || ((shadowRect.right >= cellRect.left) && (shadowRect.right <= cellRect.right));
+    const y2 = (shadowRect.top <= cellRect.top) && (shadowRect.bottom >= cellRect.bottom);
+    const y1 = ((shadowRect.top >= cellRect.top) && (shadowRect.top <= cellRect.bottom))
+            || ((shadowRect.bottom >= cellRect.top) && (shadowRect.bottom <= cellRect.bottom));
+
+    if (x2 && y2) {
+      rate = rate + 1;
+    }
+    else if ((x2 && y1) || (x1 && y2)) {
+      rate = rate + 0.5;
+    }
+
+  }
+  return rate;
+}
+
+const observer = new PointerObserver(async (activity) => {
+  console.log(`[START] pointerId:${activity.pointer.id}, startTime:${activity.startTime}`);
+
+  const shadow = document.createElement("div");
+  shadow.classList.add("test-shadow");
+  shadow.style.setProperty("--shadowsize", `${SHADOW_SIZE}px`);
+  testShadows.append(shadow);
+
+  for await (const trace of activity) {
+    //console.log(JSON.stringify(trace), JSON.stringify(activity));
+    onTrace(activity, trace, shadow);
+  }
+
+  console.log(`[END] pointerId:${activity.pointer.id}, duration:${activity.duration}`);
+  console.log(activity);
+
+  shadow.remove();
+  updateDraw();
+}, {});
+observer.observe(testGrid);
+    </script>
+  </head>
+  <body>
+    <div class="test-shadows" id="TestShadows"></div>
+
+    <div class="test-grid" id="TestGrid">
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+      <div class="test-cell"></div>
+
+    </div>
+  </body>
+</html>

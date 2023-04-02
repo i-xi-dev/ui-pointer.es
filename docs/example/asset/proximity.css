@@ -1,0 +1,40 @@
+*.test-grid {
+  column-gap: 8px;
+  display: grid;
+  grid-template-columns: repeat(10, 40px);
+  grid-template-rows: repeat(10, 40px);
+  margin: 100px auto;
+  row-gap: 8px;
+  width: max-content;
+}
+
+*.test-cell {
+  background-color: #787878;
+  border: 2px solid #0008;
+}
+*.test-cell.contact {
+  background-color: #ae8888;
+}
+*.test-cell.contact.full {
+  background-color: #e38c8c;
+}
+
+*.test-shadows {
+  height: 0;
+  left: 0;
+  pointer-events: none;
+  position: fixed;
+  top: 0;
+  width: 0;
+}
+
+*.test-shadow {
+  --shadowsize: 200px;
+  box-sizing: border-box;
+  height: var(--shadowsize);
+  margin-left: calc(var(--shadowsize) / -2);
+  margin-top: calc(var(--shadowsize) / -2);
+  pointer-events: none;
+  position: absolute;
+  width: var(--shadowsize);
+}
