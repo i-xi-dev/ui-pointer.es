@@ -6,7 +6,14 @@ function _formatTimeStamp(timeStamp: number): string {
   return utcStr.substring(10, 17) + "%c" + utcStr.substring(17, 19) + "." + e.toFixed(6).padStart(10, "0").slice(-10).replace(".", "") + "%cZ";
 }
 
-const _DefaultEventFilter: Array<string> = ["pointerenter", "pointerleave", "pointerdown", "pointerup", "pointercancel"];
+const _DefaultEventFilter: Array<string> = [
+  "pointercancel",
+  "pointerdown",
+  "pointerenter",
+  "pointerleave",
+  //"pointermove",
+  "pointerup",
+];
 
 let _enabled: boolean = false;
 let _eventFilter: Array<string> = [..._DefaultEventFilter];
@@ -38,7 +45,7 @@ namespace _Debug {
       return;
     }
 
-    console.log(`%c${_formatTimeStamp(pe.timeStamp)} - ${pe.pointerType}[${pe.pointerId}] ${pe.type} : { x:${pe.clientX}, y:${pe.clientY} }`, "font-weight:400;", "font-weight:700;margin-inline:.5ch;", "font-weight:400;");
+    console.log(`%c${_formatTimeStamp(pe.timeStamp)} - ${pe.pointerType}[${pe.pointerId}] ${pe.type} : { x:${pe.clientX}, y:${pe.clientY} }, { x:${pe.offsetX}, y:${pe.offsetY} }`, "font-weight:400;", "font-weight:700;margin-inline:.5ch;", "font-weight:400;");
   }
 
   export function assertWarn(assertion: boolean, message: string): void {

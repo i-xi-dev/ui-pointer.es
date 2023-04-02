@@ -1,4 +1,5 @@
 import { Geometry2d, Keyboard } from "@i-xi-dev/ui-utils";
+import _Utils from "./utils";
 
 /**
  * The identifier for the pointer.
@@ -9,11 +10,11 @@ type timestamp = number;
 
 type milliseconds = number;
 
-function _pointerIsInContact(event: PointerEvent): boolean {
+function _pointerIsInContact(event: PointerEvent | _Utils.PointerEventClone): boolean {
   return ((event.buttons & 0b1) === 0b1);
 }
 
-function _mouseButtonsOf(event: PointerEvent): Array<Pointer.MouseButton> {
+function _mouseButtonsOf(event: _Utils.PointerEventClone): Array<Pointer.MouseButton> {
   const mouseButtons: Array<Pointer.MouseButton> = [];
   if ((event.buttons & 0b1) === 0b1) {
     mouseButtons.push(Pointer.MouseButton.LEFT);
@@ -33,7 +34,7 @@ function _mouseButtonsOf(event: PointerEvent): Array<Pointer.MouseButton> {
   return mouseButtons;
 }
 
-function _penButtonsOf(event: PointerEvent): Array<Pointer.PenButton> {
+function _penButtonsOf(event: _Utils.PointerEventClone): Array<Pointer.PenButton> {
   const penButtons: Array<Pointer.PenButton> = [];
   if ((event.buttons & 0b10) === 0b10) {
     penButtons.push(Pointer.PenButton.BARREL);
@@ -45,11 +46,11 @@ function _penButtonsOf(event: PointerEvent): Array<Pointer.PenButton> {
 }
 
 type _PointerTraceOptions = {
-  modifiersToWatch: Set<Pointer.Modifier>,
+  // modifiersToWatch: Set<Pointer.Modifier>,
   prevTrace: PointerTrace | null,
 };
 
-function _pointerTraceFrom(event: PointerEvent, target: Element, options: _PointerTraceOptions): PointerTrace {
+function _pointerTraceFrom(event: _Utils.PointerEventClone, target: Element, options: _PointerTraceOptions): PointerTrace {
   const dispatcher = (event.target instanceof Element) ? event.target : null;
   let targetX = Number.NaN;
   let targetY = Number.NaN;
@@ -76,7 +77,7 @@ function _pointerTraceFrom(event: PointerEvent, target: Element, options: _Point
     movementY = (viewportY - prevTrace.viewportY);
   }
 
-  const modifiers: Array<Pointer.Modifier> = [...options.modifiersToWatch].filter((modifier) => event.getModifierState(modifier) === true);
+  // const modifiers: Array<Pointer.Modifier> = [...options.modifiersToWatch].filter((modifier) => event.getModifierState(modifier) === true);
 
   return Object.freeze({
     timeStamp: event.timeStamp,
@@ -97,7 +98,7 @@ function _pointerTraceFrom(event: PointerEvent, target: Element, options: _Point
       twist: event.twist,
     }),
     buttons: (event.pointerType === Pointer.Type.PEN) ? _penButtonsOf(event) : _mouseButtonsOf(event),
-    modifiers,
+    // modifiers,
     captured: target.hasPointerCapture(event.pointerId),
     source: Object.freeze({
       isTrusted: event.isTrusted,
@@ -128,7 +129,13 @@ interface Pointer {
 }
 
 namespace Pointer {
-  export function from(event: PointerEvent): Pointer {
+  export type Source = {
+    isPrimary: boolean,
+    pointerId: number,
+    pointerType: string,
+  };
+
+  export function from(event: Pointer.Source): Pointer {
     return Object.freeze({
       id: event.pointerId,
       type: event.pointerType,
@@ -222,7 +229,7 @@ interface PointerTrace {
   readonly inContact: boolean;// pointerがactiveかつ接触があるか否か
   readonly properties: Pointer.Properties,
   readonly buttons: (Array<Pointer.MouseButton> | Array<Pointer.PenButton>),
-  readonly modifiers: Array<Pointer.Modifier>;// タッチ間で共有だが現在値なのでここに持たせる //TODO buttonなどもふくめる
+  //TODO readonly modifiers: Array<Pointer.Modifier>;// タッチ間で共有だが現在値なのでここに持たせる //TODO buttonなどもふくめる
   readonly captured: boolean;// 「targetに」captureされているか否か
   //XXX readonly context: {
   //   dispatcher: Element,
@@ -256,7 +263,7 @@ interface PointerActivity {
   readonly startTrace: PointerTrace | null;
   //XXX readonly lastTrace: PointerTrace | null; その時点の最新trace 終了後はendTraceと同じ
   readonly endTrace: PointerTrace | null;
-  readonly watchedModifiers: Array<Pointer.Modifier>;
+  //XXX readonly watchedModifiers: Array<Pointer.Modifier>;
   //XXX getPredictedTrace()
 }
 

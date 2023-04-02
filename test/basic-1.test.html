@@ -302,10 +302,12 @@ observer.observe(testArea);
 
 - [Chrome] https://bugs.chromium.org/p/chromium/issues/detail?id=1417648
     → pointermove等をtargetでなく、windowで監視するようにした
-- [Chrome] gotpointercaptureは即座に発火しない。setPointerCapture後、次にpointermoveなどが発火する直前まで遅延される
+- [Chrome] gotpointercaptureは即座に発火しない。setPointerCapture後、次にpointermoveなどが発火する直前まで遅延される。おそらく仕様
     → gotpointercaptureを使用しないようにした
-- [Chrome] lostpointercaptureは即座に発火しない。遅延される
+- [Chrome] lostpointercaptureは即座に発火しない。遅延される。おそらく仕様
     → lostpointercaptureを使用しないようにした
+- [Chrome] https://bugs.chromium.org/p/chromium/issues/detail?id=1414026
+    → gotpointercapture,lostpointercaptureを使用しないようにした
 - [Firefox] https://bugzilla.mozilla.org/show_bug.cgi?id=1825949
     → pointerenterのtimeStampは参照しないようにした
 
