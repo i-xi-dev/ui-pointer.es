@@ -358,7 +358,7 @@ createApp({
     }
     this.resetObserver();
 
-    //TODO これどうする？
+    //TODO readmeに記載する
     // mouseは境界外でpointerdownしてそのまま境界内にpointermoveするとpointerenterが発火する
     // pen,touchはそうはならない
     document.querySelector("*.v-input-wrapper").addEventListener("pointerdown", (e) => {

@@ -229,7 +229,7 @@ interface PointerTrace {
   readonly inContact: boolean;// pointerがactiveかつ接触があるか否か
   readonly properties: Pointer.Properties,
   readonly buttons: (Array<Pointer.MouseButton> | Array<Pointer.PenButton>),
-  //TODO readonly modifiers: Array<Pointer.Modifier>;// タッチ間で共有だが現在値なのでここに持たせる //TODO buttonなどもふくめる
+  //TODO readonly modifiers: Array<Pointer.Modifier>;// タッチ間で共有だが現在値なのでここに持たせる //XXX buttonなどもふくめる
   readonly captured: boolean;// 「targetに」captureされているか否か
   //XXX readonly context: {
   //   dispatcher: Element,

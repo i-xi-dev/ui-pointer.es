@@ -44,8 +44,6 @@
   margin: 100px;
   position: relative;
   width: 500px;
-
-  touch-action: none;/*TODO*/
 }
 
 *.test-target-descendant {
@@ -310,7 +308,8 @@ observer.observe(testArea);
     → gotpointercapture,lostpointercaptureを使用しないようにした
 - [Firefox] https://bugzilla.mozilla.org/show_bug.cgi?id=1825949
     → pointerenterのtimeStampは参照しないようにした
-
+- [Firefox] https://bugzilla.mozilla.org/show_bug.cgi?id=1359440
+    → PointerEventのコピーを保持するようにした
     -->
   </body>
 </html>

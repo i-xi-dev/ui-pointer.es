@@ -8,8 +8,6 @@ export { PointerObserver } from "./pointer_observer";
 //   - ターゲットの子孫が何らかのCSS(position:absoluteなど)で、ターゲットのboundingBoxの外にある時
 //     - その子孫でPointerEventが起きれば、当然ターゲットに伝播する
 //     - このとき、PointerEventの座標でelementsFromPoint()したとき、ターゲットはヒットしない
-//     - IntersectionObserverだとどうなるか要確認 TODO
-
 // - 前提条件として
 //   - windowとtargetでlistenしているので、到達前にpointereventをキャンセルされたら検知できなくなる
 //   - touch-actionはブロックに適用
