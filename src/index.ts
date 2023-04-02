@@ -8,9 +8,6 @@ export { PointerObserver } from "./pointer_observer";
 //   おそらくスクロールバーにcaptureを取られている
 //   firefoxは問題ない
 
-// - Chrome
-//   いつのまにかpenのpointerenter,pointerleaveで、pointerType:mouseのpointerenter,pointerleaveが発火するようになった
-
 //備忘
 
 // - 前提条件として

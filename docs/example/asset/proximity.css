@@ -1,10 +1,12 @@
 *.test-grid {
-  column-gap: 8px;
+  background-color: #cfcfcf;
+  column-gap: 30px;
   display: grid;
-  grid-template-columns: repeat(10, 40px);
-  grid-template-rows: repeat(10, 40px);
+  grid-template-columns: repeat(10, 30px);
+  grid-template-rows: repeat(10, 30px);
   margin: 100px auto;
-  row-gap: 8px;
+  padding: 30px;
+  row-gap: 30px;
   width: max-content;
 }
 
@@ -17,6 +19,11 @@
 }
 *.test-cell.contact.full {
   background-color: #e38c8c;
+}
+
+*.test-cell:hover,
+*.test-cell:active {
+  box-shadow: 0 0 0 4px #f44;
 }
 
 *.test-shadows {
