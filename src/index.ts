@@ -1,4 +1,4 @@
-export { type PointerTrace2 } from "./pointer_trace";
+export { type PointerActivity2 } from "./pointer_activity";
 export { type PointerActivity, Pointer } from "./pointer";
 export { PointerObserver } from "./pointer_observer";
 

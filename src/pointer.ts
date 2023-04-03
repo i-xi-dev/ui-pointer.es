@@ -1,5 +1,6 @@
 import { Geometry2d, Keyboard } from "@i-xi-dev/ui-utils";
-import { PointerTrace2 } from "./pointer_trace";
+import { PointerProperties } from "./pointer_properties";
+import { PointerActivity2 } from "./pointer_activity";
 
 /**
  * The identifier for the pointer.
@@ -10,11 +11,11 @@ type timestamp = number;
 
 type milliseconds = number;
 
-function _pointerIsInContact(event: PointerEvent | PointerTrace2.Source): boolean {
+function _pointerIsInContact(event: PointerEvent | PointerActivity2.Trace.Source): boolean {
   return ((event.buttons & 0b1) === 0b1);
 }
 
-function _mouseButtonsOf(event: PointerTrace2.Source): Array<Pointer.MouseButton> {
+function _mouseButtonsOf(event: PointerActivity2.Trace.Source): Array<Pointer.MouseButton> {
   const mouseButtons: Array<Pointer.MouseButton> = [];
   if ((event.buttons & 0b1) === 0b1) {
     mouseButtons.push(Pointer.MouseButton.LEFT);
@@ -34,7 +35,7 @@ function _mouseButtonsOf(event: PointerTrace2.Source): Array<Pointer.MouseButton
   return mouseButtons;
 }
 
-function _penButtonsOf(event: PointerTrace2.Source): Array<Pointer.PenButton> {
+function _penButtonsOf(event: PointerActivity2.Trace.Source): Array<Pointer.PenButton> {
   const penButtons: Array<Pointer.PenButton> = [];
   if ((event.buttons & 0b10) === 0b10) {
     penButtons.push(Pointer.PenButton.BARREL);
@@ -47,10 +48,10 @@ function _penButtonsOf(event: PointerTrace2.Source): Array<Pointer.PenButton> {
 
 type _PointerTraceOptions = {
   // modifiersToWatch: Set<Pointer.Modifier>,
-  prevTrace: PointerTrace2 | null,
+  prevTrace: PointerActivity2.Trace | null,
 };
 
-function _pointerTraceFrom(event: PointerTrace2.Source, target: Element, options: _PointerTraceOptions): PointerTrace2 {
+function _pointerTraceFrom(event: PointerActivity2.Trace.Source, target: Element, options: _PointerTraceOptions): PointerActivity2.Trace {
   const dispatcher = (event.target instanceof Element) ? event.target : null;
   let targetX = Number.NaN;
   let targetY = Number.NaN;
@@ -88,15 +89,7 @@ function _pointerTraceFrom(event: PointerTrace2.Source, target: Element, options
     movementX,
     movementY,
     inContact: _pointerIsInContact(event),
-    properties: Object.freeze({
-      pressure: event.pressure,
-      radiusX: event.width / 2,
-      radiusY: event.height / 2,
-      tangentialPressure: event.tangentialPressure,
-      tiltX: event.tiltX,
-      tiltY: event.tiltY,
-      twist: event.twist,
-    }),
+    properties: PointerProperties.of(event),
     buttons: (event.pointerType === Pointer.Type.PEN) ? _penButtonsOf(event) : _mouseButtonsOf(event),
     // modifiers,
     captured: target.hasPointerCapture(event.pointerId),
@@ -220,19 +213,19 @@ interface PointerActivity {
   readonly target: Element | null;
   readonly startTime: timestamp;
   readonly duration: milliseconds;
-  //XXX readonly traceStream: ReadableStream<PointerTrace2>;
+  //XXX readonly traceStream: ReadableStream<PointerActivity2.Trace>;
   //XXX readonly startViewportOffset: Geometry2d.Point | null;
   //XXX readonly startTargetOffset: Geometry2d.Point | null;
   readonly result: Promise<PointerActivity.Result>;
 
   //XXX readonly current
 
-  readonly [Symbol.asyncIterator]: () => AsyncGenerator<PointerTrace2, void, void>;
+  readonly [Symbol.asyncIterator]: () => AsyncGenerator<PointerActivity2.Trace, void, void>;
   readonly inProgress: boolean;
-  readonly beforeTrace: PointerTrace2 | null;
-  readonly startTrace: PointerTrace2 | null;
-  //XXX readonly lastTrace: PointerTrace2 | null; その時点の最新trace 終了後はendTraceと同じ
-  readonly endTrace: PointerTrace2 | null;
+  readonly beforeTrace: PointerActivity2.Trace | null;
+  readonly startTrace: PointerActivity2.Trace | null;
+  //XXX readonly lastTrace: PointerActivity2.Trace | null; その時点の最新trace 終了後はendTraceと同じ
+  readonly endTrace: PointerActivity2.Trace | null;
   //XXX readonly watchedModifiers: Array<Pointer.Modifier>;
   //XXX getPredictedTrace()
 }

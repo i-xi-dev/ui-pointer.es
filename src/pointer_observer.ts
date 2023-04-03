@@ -1,6 +1,6 @@
 import { Geometry2d } from "@i-xi-dev/ui-utils";
 import _Debug from "./debug";
-import { PointerTrace2 } from "./pointer_trace";
+import { PointerActivity2 } from "./pointer_activity";
 import {
   type milliseconds,
   type pointerid,
@@ -33,18 +33,18 @@ class _PointerActivityController {
   readonly #pointer: Pointer;
   readonly #target: WeakRef<Element>;
   readonly #progress: Promise<void>;
-  readonly #traceStream: ReadableStream<PointerTrace2>;
+  readonly #traceStream: ReadableStream<PointerActivity2.Trace>;
 
   #traceCount: number = 0;
   #terminated: boolean = false;
   #progressResolver: () => void = (): void => {};
-  #traceStreamController: ReadableStreamDefaultController<PointerTrace2> | null = null;
-  #beforeTrace: PointerTrace2 | null = null;
-  #startTrace: PointerTrace2 | null = null;
-  #lastTrace: PointerTrace2 | null = null;
+  #traceStreamController: ReadableStreamDefaultController<PointerActivity2.Trace> | null = null;
+  #beforeTrace: PointerActivity2.Trace | null = null;
+  #startTrace: PointerActivity2.Trace | null = null;
+  #lastTrace: PointerActivity2.Trace | null = null;
   #trackLength: number = 0;
 
-  constructor(event: PointerTrace2.Source, target: Element, options: _PointerActivityOptions) {
+  constructor(event: PointerActivity2.Trace.Source, target: Element, options: _PointerActivityOptions) {
     this.#activity = this.#createActivity();
     // this.#modifiersToWatch = options.modifiersToWatch;
     this.#traceStreamTerminator = new AbortController();
@@ -53,7 +53,7 @@ class _PointerActivityController {
       this.#progressResolver = resolve;
     });
     this.#target = new WeakRef(target);
-    const start = (controller: ReadableStreamDefaultController<PointerTrace2>): void => {
+    const start = (controller: ReadableStreamDefaultController<PointerActivity2.Trace>): void => {
       options.signal.addEventListener("abort", () => {
         controller.close();
       }, {
@@ -134,7 +134,7 @@ class _PointerActivityController {
     return (this.#lastTrace && this.#startTrace) ? (this.#lastTrace.timeStamp - this.#startTrace.timeStamp) : Number.NaN;
   }
 
-  //get traceStream(): ReadableStream<PointerTrace2> {
+  //get traceStream(): ReadableStream<PointerActivity2.Trace> {
   //  return this.#traceStream;
   //}
 
@@ -178,19 +178,19 @@ class _PointerActivityController {
     return (this.#terminated !== true);
   }
 
-  get beforeTrace(): PointerTrace2 | null {
+  get beforeTrace(): PointerActivity2.Trace | null {
     return this.#beforeTrace ? this.#beforeTrace : null;
   }
 
-  get startTrace(): PointerTrace2 | null {
+  get startTrace(): PointerActivity2.Trace | null {
     return this.#startTrace ? this.#startTrace : null;
   }
 
-  // get lastTrace(): PointerTrace2 | null {
+  // get lastTrace(): PointerActivity2.Trace | null {
   //   return this.#lastTrace ? this.#lastTrace : null;
   // }
 
-  get endTrace(): PointerTrace2 | null {
+  get endTrace(): PointerActivity2.Trace | null {
     return (this.#terminated && this.#lastTrace) ? this.#lastTrace : null;
   }
 
@@ -202,7 +202,7 @@ class _PointerActivityController {
     return this.#traceCount;
   }
 
-  async *traceIterator(): AsyncGenerator<PointerTrace2, void, void> {
+  async *traceIterator(): AsyncGenerator<PointerActivity2.Trace, void, void> {
     const streamReader = this.#traceStream.getReader();
     try {
       for (let i = await streamReader.read(); (i.done !== true); i = await streamReader.read()) {
@@ -229,23 +229,23 @@ class _PointerActivityController {
     this.#progressResolver();
   }
 
-  setBeforeTrace(event: PointerTrace2.Source): void {
+  setBeforeTrace(event: PointerActivity2.Trace.Source): void {
     const target = this.target as Element;// （終了後に外部から呼び出したのでもなければ）nullはありえない
-    const trace: PointerTrace2 = _pointerTraceFrom(event, target, {
+    const trace: PointerActivity2.Trace = _pointerTraceFrom(event, target, {
       // modifiersToWatch: this.#modifiersToWatch,
       prevTrace: this.#lastTrace,
     });
     this.#beforeTrace = trace;
   }
 
-  appendTrace(event: PointerTrace2.Source): void {
+  appendTrace(event: PointerActivity2.Trace.Source): void {
     if (this.#terminated === true) {
       throw new Error("InvalidStateError appendTrace#1");
     }
 
     if (this.#traceStreamController) {
       const target = this.target as Element;// （終了後に外部から呼び出したのでもなければ）nullはありえない
-      const trace: PointerTrace2 = _pointerTraceFrom(event, target, {
+      const trace: PointerActivity2.Trace = _pointerTraceFrom(event, target, {
         // modifiersToWatch: this.#modifiersToWatch,
         prevTrace: this.#lastTrace,
       });
@@ -265,7 +265,7 @@ class _PointerActivityController {
   }
 }
 
-type _PointerTypeFilter = (event: PointerEvent | PointerTrace2.Source) => boolean;
+type _PointerTypeFilter = (event: PointerEvent | PointerActivity2.Trace.Source) => boolean;
 
 // ダブルタップのズームはiOSでテキストをダブルタップしたときだけ？ →他の手段でズームしたのをダブルタップで戻すことはできる
 // パン無効にする場合タブレット等でスクロール手段がなくなるので注意。スクロールが必要な場合は自前でスクロールを実装すること
@@ -451,7 +451,7 @@ class _TargetObservation {
     const executor = (resolve: (value: void | PromiseLike<void>) => void, reject: (reason?: any) => void) => {
       try {
         this.#handle({
-          curr: PointerTrace2.Source.from(event),
+          curr: PointerActivity2.Trace.Source.from(event),
           prev: null,
         });
         resolve();
@@ -577,7 +577,7 @@ function _createPointerTypeFilter(pointerTypeFilterSource?: Array<string>): _Poi
   }
 
   const pointerTypes = pointerTypeFilterSource ? [...pointerTypeFilterSource] : [..._DEFAULT_POINTER_TYPE_FILTER];
-  return (event: PointerEvent | PointerTrace2.Source): boolean => {
+  return (event: PointerEvent | PointerActivity2.Trace.Source): boolean => {
     return (pointerTypes.includes(event.pointerType) === true);
   };
 }
