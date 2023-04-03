@@ -1,4 +1,5 @@
-export { type PointerActivity, type PointerTrace, Pointer } from "./pointer";
+export { type PointerTrace2 } from "./pointer_trace";
+export { type PointerActivity, Pointer } from "./pointer";
 export { PointerObserver } from "./pointer_observer";
 
 //TODO readmeに記載↓

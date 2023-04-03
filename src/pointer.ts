@@ -1,5 +1,5 @@
 import { Geometry2d, Keyboard } from "@i-xi-dev/ui-utils";
-import _Utils from "./utils";
+import { PointerTrace2 } from "./pointer_trace";
 
 /**
  * The identifier for the pointer.
@@ -10,11 +10,11 @@ type timestamp = number;
 
 type milliseconds = number;
 
-function _pointerIsInContact(event: PointerEvent | _Utils.PointerEventClone): boolean {
+function _pointerIsInContact(event: PointerEvent | PointerTrace2.Source): boolean {
   return ((event.buttons & 0b1) === 0b1);
 }
 
-function _mouseButtonsOf(event: _Utils.PointerEventClone): Array<Pointer.MouseButton> {
+function _mouseButtonsOf(event: PointerTrace2.Source): Array<Pointer.MouseButton> {
   const mouseButtons: Array<Pointer.MouseButton> = [];
   if ((event.buttons & 0b1) === 0b1) {
     mouseButtons.push(Pointer.MouseButton.LEFT);
@@ -34,7 +34,7 @@ function _mouseButtonsOf(event: _Utils.PointerEventClone): Array<Pointer.MouseBu
   return mouseButtons;
 }
 
-function _penButtonsOf(event: _Utils.PointerEventClone): Array<Pointer.PenButton> {
+function _penButtonsOf(event: PointerTrace2.Source): Array<Pointer.PenButton> {
   const penButtons: Array<Pointer.PenButton> = [];
   if ((event.buttons & 0b10) === 0b10) {
     penButtons.push(Pointer.PenButton.BARREL);
@@ -47,10 +47,10 @@ function _penButtonsOf(event: _Utils.PointerEventClone): Array<Pointer.PenButton
 
 type _PointerTraceOptions = {
   // modifiersToWatch: Set<Pointer.Modifier>,
-  prevTrace: PointerTrace | null,
+  prevTrace: PointerTrace2 | null,
 };
 
-function _pointerTraceFrom(event: _Utils.PointerEventClone, target: Element, options: _PointerTraceOptions): PointerTrace {
+function _pointerTraceFrom(event: PointerTrace2.Source, target: Element, options: _PointerTraceOptions): PointerTrace2 {
   const dispatcher = (event.target instanceof Element) ? event.target : null;
   let targetX = Number.NaN;
   let targetY = Number.NaN;
@@ -100,10 +100,7 @@ function _pointerTraceFrom(event: _Utils.PointerEventClone, target: Element, opt
     buttons: (event.pointerType === Pointer.Type.PEN) ? _penButtonsOf(event) : _mouseButtonsOf(event),
     // modifiers,
     captured: target.hasPointerCapture(event.pointerId),
-    source: Object.freeze({
-      isTrusted: event.isTrusted,
-      eventType: event.type,
-    }),
+    source: event,
   });
 }
 
@@ -218,51 +215,24 @@ namespace Pointer {
 
 }
 
-interface PointerTrace {
-  readonly timeStamp: timestamp;
-  readonly viewportX: number, // from viewport left
-  readonly viewportY: number, // from viewport top
-  readonly targetX: number,// offset from target bounding box left
-  readonly targetY: number,// offset from target bounding box top
-  readonly movementX: number;// 直前のPointerTraceからの相対位置
-  readonly movementY: number;// 直前のPointerTraceからの相対位置
-  readonly inContact: boolean;// pointerがactiveかつ接触があるか否か
-  readonly properties: Pointer.Properties,
-  readonly buttons: (Array<Pointer.MouseButton> | Array<Pointer.PenButton>),
-  //TODO readonly modifiers: Array<Pointer.Modifier>;// タッチ間で共有だが現在値なのでここに持たせる //XXX buttonなどもふくめる
-  readonly captured: boolean;// 「targetに」captureされているか否か
-  //XXX readonly context: {
-  //   dispatcher: Element,
-  //   composedPath
-  // };
-  readonly source: PointerTrace.Source;
-}
-
-namespace PointerTrace {
-  export type Source = {
-    readonly isTrusted: boolean,
-    readonly eventType: string,
-  };
-}
-
 interface PointerActivity {
   readonly pointer: Pointer;
   readonly target: Element | null;
   readonly startTime: timestamp;
   readonly duration: milliseconds;
-  //XXX readonly traceStream: ReadableStream<PointerTrace>;
+  //XXX readonly traceStream: ReadableStream<PointerTrace2>;
   //XXX readonly startViewportOffset: Geometry2d.Point | null;
   //XXX readonly startTargetOffset: Geometry2d.Point | null;
   readonly result: Promise<PointerActivity.Result>;
 
   //XXX readonly current
 
-  readonly [Symbol.asyncIterator]: () => AsyncGenerator<PointerTrace, void, void>;
+  readonly [Symbol.asyncIterator]: () => AsyncGenerator<PointerTrace2, void, void>;
   readonly inProgress: boolean;
-  readonly beforeTrace: PointerTrace | null;
-  readonly startTrace: PointerTrace | null;
-  //XXX readonly lastTrace: PointerTrace | null; その時点の最新trace 終了後はendTraceと同じ
-  readonly endTrace: PointerTrace | null;
+  readonly beforeTrace: PointerTrace2 | null;
+  readonly startTrace: PointerTrace2 | null;
+  //XXX readonly lastTrace: PointerTrace2 | null; その時点の最新trace 終了後はendTraceと同じ
+  readonly endTrace: PointerTrace2 | null;
   //XXX readonly watchedModifiers: Array<Pointer.Modifier>;
   //XXX getPredictedTrace()
 }
@@ -280,7 +250,6 @@ export {
   type pointerid,
   type timestamp,
   type PointerActivity,
-  type PointerTrace,
   _pointerIsInContact,
   _pointerTraceFrom,
   Pointer,

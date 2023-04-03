@@ -131,7 +131,7 @@ const observer = new PointerObserver(async (activity) => {
   onstart(activity);
 
   for await (const trace of activity) {
-    console.log(JSON.stringify(trace), JSON.stringify(activity));
+    //console.log(JSON.stringify(trace), JSON.stringify(activity));
     onprogress(activity, trace);
   }
 
