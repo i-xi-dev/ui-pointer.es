@@ -1,13 +1,13 @@
 import { PubSub } from "@i-xi-dev/pubsub";
 import _Debug from "./debug";
-import { PointerActivity2 } from "./pointer_activity";
+import { PointerActivity } from "./pointer_activity";
 import { pointerid } from "./pointer";
 
 const _TOPIC = Symbol();
 
 type ViewportPointerRecord = {
-  prev: PointerActivity2.Trace.Source | null,
-  curr: PointerActivity2.Trace.Source,
+  prev: PointerActivity.Trace.Source | null,
+  curr: PointerActivity.Trace.Source,
 };
 
 class ViewportPointerTracker {
@@ -16,7 +16,7 @@ class ViewportPointerTracker {
   readonly #aborter: AbortController;
   private readonly _broker: PubSub.Broker<ViewportPointerRecord>;//[$85]
   readonly #view: Window;
-  #prevEventMap: Map<pointerid, PointerActivity2.Trace.Source>;
+  #prevEventMap: Map<pointerid, PointerActivity.Trace.Source>;
 
   private constructor(view: Window) {
     this.#aborter = new AbortController();
@@ -105,7 +105,7 @@ class ViewportPointerTracker {
   }
 
   #publish(event: PointerEvent): void {
-    const curr = PointerActivity2.Trace.Source.from(event);
+    const curr = PointerActivity.Trace.Source.from(event);
     const message = {
       prev: this.#prevEventMap.get(event.pointerId) ?? null,
       curr,

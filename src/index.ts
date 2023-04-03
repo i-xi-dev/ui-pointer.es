@@ -1,4 +1,4 @@
-export { PointerActivity2 } from "./pointer_activity";
+export { PointerActivity } from "./pointer_activity";
 export { Pointer } from "./pointer";
 export { PointerObserver } from "./pointer_observer";
 

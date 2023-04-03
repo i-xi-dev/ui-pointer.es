@@ -1,6 +1,6 @@
 import { Geometry2d, Keyboard } from "@i-xi-dev/ui-utils";
 import { PointerProperties } from "./pointer_properties";
-import { PointerActivity2 } from "./pointer_activity";
+import { PointerActivity } from "./pointer_activity";
 
 /**
  * The identifier for the pointer.
@@ -11,11 +11,11 @@ type timestamp = number;
 
 type milliseconds = number;
 
-function _pointerIsInContact(event: PointerEvent | PointerActivity2.Trace.Source): boolean {
+function _pointerIsInContact(event: PointerEvent | PointerActivity.Trace.Source): boolean {
   return ((event.buttons & 0b1) === 0b1);
 }
 
-function _mouseButtonsOf(event: PointerActivity2.Trace.Source): Array<Pointer.MouseButton> {
+function _mouseButtonsOf(event: PointerActivity.Trace.Source): Array<Pointer.MouseButton> {
   const mouseButtons: Array<Pointer.MouseButton> = [];
   if ((event.buttons & 0b1) === 0b1) {
     mouseButtons.push(Pointer.MouseButton.LEFT);
@@ -35,7 +35,7 @@ function _mouseButtonsOf(event: PointerActivity2.Trace.Source): Array<Pointer.Mo
   return mouseButtons;
 }
 
-function _penButtonsOf(event: PointerActivity2.Trace.Source): Array<Pointer.PenButton> {
+function _penButtonsOf(event: PointerActivity.Trace.Source): Array<Pointer.PenButton> {
   const penButtons: Array<Pointer.PenButton> = [];
   if ((event.buttons & 0b10) === 0b10) {
     penButtons.push(Pointer.PenButton.BARREL);
@@ -48,10 +48,10 @@ function _penButtonsOf(event: PointerActivity2.Trace.Source): Array<Pointer.PenB
 
 type _PointerTraceOptions = {
   // modifiersToWatch: Set<Pointer.Modifier>,
-  prevTrace: PointerActivity2.Trace | null,
+  prevTrace: PointerActivity.Trace | null,
 };
 
-function _pointerTraceFrom(event: PointerActivity2.Trace.Source, target: Element, options: _PointerTraceOptions): PointerActivity2.Trace {
+function _pointerTraceFrom(event: PointerActivity.Trace.Source, target: Element, options: _PointerTraceOptions): PointerActivity.Trace {
   const dispatcher = (event.target instanceof Element) ? event.target : null;
   let targetX = Number.NaN;
   let targetY = Number.NaN;

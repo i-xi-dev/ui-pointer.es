@@ -4,8 +4,7 @@ import { PointerProperties } from "./pointer_properties";
 type timestamp = number;
 type milliseconds = number;
 
-//TODO 改名
-namespace PointerActivity2 {
+namespace PointerActivity {
   export interface Trace {
     readonly timeStamp: timestamp;
     readonly viewportX: number, // from viewport left
@@ -109,28 +108,28 @@ namespace PointerActivity2 {
   }
 }
 
-interface PointerActivity2 {
+interface PointerActivity {
   readonly pointer: PointerIdentification;
   readonly target: Element | null;
   readonly startTime: timestamp;
   readonly duration: milliseconds;
-  //XXX readonly traceStream: ReadableStream<PointerActivity2.Trace>;
+  //XXX readonly traceStream: ReadableStream<PointerActivity.Trace>;
   //XXX readonly startViewportOffset: Geometry2d.Point | null;
   //XXX readonly startTargetOffset: Geometry2d.Point | null;
-  readonly result: Promise<PointerActivity2.Result>;
+  readonly result: Promise<PointerActivity.Result>;
 
   //XXX readonly current
 
-  readonly [Symbol.asyncIterator]: () => AsyncGenerator<PointerActivity2.Trace, void, void>;
+  readonly [Symbol.asyncIterator]: () => AsyncGenerator<PointerActivity.Trace, void, void>;
   readonly inProgress: boolean;
-  readonly beforeTrace: PointerActivity2.Trace | null;
-  readonly startTrace: PointerActivity2.Trace | null;
-  //XXX readonly lastTrace: PointerActivity2.Trace | null; その時点の最新trace 終了後はendTraceと同じ
-  readonly endTrace: PointerActivity2.Trace | null;
+  readonly beforeTrace: PointerActivity.Trace | null;
+  readonly startTrace: PointerActivity.Trace | null;
+  //XXX readonly lastTrace: PointerActivity.Trace | null; その時点の最新trace 終了後はendTraceと同じ
+  readonly endTrace: PointerActivity.Trace | null;
   //XXX readonly watchedModifiers: Array<Pointer.Modifier>;
   //XXX getPredictedTrace()
 }
 
 export {
-  PointerActivity2,
+  PointerActivity,
 };
