@@ -97,42 +97,7 @@ function _pointerTraceFrom(event: PointerActivity2.Trace.Source, target: Element
   });
 }
 
-/**
- * The pointer.
- */
-interface Pointer {
-  /**
-   * The identifier for the pointer.
-   * @see {@link https://www.w3.org/TR/pointerevents2/#dom-pointerevent-pointerid | [Pointer Events Level 2] pointerId}
-   */
-  readonly id: pointerid;
-
-  /**
-   * The pointer device type.
-   * @see {@link https://www.w3.org/TR/pointerevents2/#dom-pointerevent-pointertype | [Pointer Events Level 2] pointerType}
-   */
-  readonly type: string;
-
-  readonly isPrimary: boolean;// 途中で変わることはない（複数タッチしてプライマリを離した場合、タッチを全部離すまでプライマリは存在しなくなる。その状態でタッチを増やしてもプライマリは無い）
-
-  //XXX sourceCapabilities
-}
-
 namespace Pointer {
-  export type Source = {
-    isPrimary: boolean,
-    pointerId: number,
-    pointerType: string,
-  };
-
-  export function from(event: Pointer.Source): Pointer {
-    return Object.freeze({
-      id: event.pointerId,
-      type: event.pointerType,
-      isPrimary: event.isPrimary,
-    });
-  }
-
   /**
    * The type of the pointer device.
    * @see {@link https://www.w3.org/TR/pointerevents2/#dom-pointerevent-pointertype | [Pointer Events Level 2] pointerType}
@@ -143,18 +108,6 @@ namespace Pointer {
     TOUCH: "touch",
     UNKNOWN: "",
   } as const;
-
-  export type Properties = {
-    readonly pressure: number,
-    readonly radiusX: number,
-    readonly radiusY: number,
-    readonly tangentialPressure: number,
-    readonly tiltX: number,
-    readonly tiltY: number,
-    readonly twist: number,
-    //XXX altitudeAngle 未実装のブラウザが多い
-    //XXX azimuthAngle 未実装のブラウザが多い
-  };
 
   export const Modifier = {
     ALT: Keyboard.Key.ALT,
@@ -205,44 +158,12 @@ namespace Pointer {
   } as const;
   export type PenButton = typeof PenButton[keyof typeof PenButton];
 
-
-}
-
-interface PointerActivity {
-  readonly pointer: Pointer;
-  readonly target: Element | null;
-  readonly startTime: timestamp;
-  readonly duration: milliseconds;
-  //XXX readonly traceStream: ReadableStream<PointerActivity2.Trace>;
-  //XXX readonly startViewportOffset: Geometry2d.Point | null;
-  //XXX readonly startTargetOffset: Geometry2d.Point | null;
-  readonly result: Promise<PointerActivity.Result>;
-
-  //XXX readonly current
-
-  readonly [Symbol.asyncIterator]: () => AsyncGenerator<PointerActivity2.Trace, void, void>;
-  readonly inProgress: boolean;
-  readonly beforeTrace: PointerActivity2.Trace | null;
-  readonly startTrace: PointerActivity2.Trace | null;
-  //XXX readonly lastTrace: PointerActivity2.Trace | null; その時点の最新trace 終了後はendTraceと同じ
-  readonly endTrace: PointerActivity2.Trace | null;
-  //XXX readonly watchedModifiers: Array<Pointer.Modifier>;
-  //XXX getPredictedTrace()
-}
-
-namespace PointerActivity {
-  export type Result = {
-    movementX: number,// PointerActivity始点からの相対位置
-    movementY: number,// PointerActivity始点からの相対位置
-    track: number,// 軌跡の近似値
-  };
 }
 
 export {
   type milliseconds,
   type pointerid,
   type timestamp,
-  type PointerActivity,
   _pointerIsInContact,
   _pointerTraceFrom,
   Pointer,

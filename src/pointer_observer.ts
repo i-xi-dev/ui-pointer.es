@@ -1,11 +1,11 @@
 import { Geometry2d } from "@i-xi-dev/ui-utils";
 import _Debug from "./debug";
+import { PointerIdentification } from "./pointer_identification";
 import { PointerActivity2 } from "./pointer_activity";
 import {
   type milliseconds,
   type pointerid,
   type timestamp,
-  type PointerActivity,
   _pointerIsInContact,
   _pointerTraceFrom,
   Pointer,
@@ -27,10 +27,10 @@ type _PointerActivityOptions = {
 // }
 
 class _PointerActivityController {
-  readonly #activity: PointerActivity;
+  readonly #activity: PointerActivity2;
   // readonly #modifiersToWatch: Set<Pointer.Modifier>;
   readonly #traceStreamTerminator: AbortController;
-  readonly #pointer: Pointer;
+  readonly #pointer: PointerIdentification;
   readonly #target: WeakRef<Element>;
   readonly #progress: Promise<void>;
   readonly #traceStream: ReadableStream<PointerActivity2.Trace>;
@@ -48,7 +48,7 @@ class _PointerActivityController {
     this.#activity = this.#createActivity();
     // this.#modifiersToWatch = options.modifiersToWatch;
     this.#traceStreamTerminator = new AbortController();
-    this.#pointer = Pointer.from(event);
+    this.#pointer = PointerIdentification.from(event);
     this.#progress = new Promise((resolve: () => void) => {
       this.#progressResolver = resolve;
     });
@@ -75,7 +75,7 @@ class _PointerActivityController {
     });
   }
 
-  #createActivity(): PointerActivity {
+  #createActivity(): PointerActivity2 {
     const ref = this;
     return Object.freeze({
       get pointer() {
@@ -114,11 +114,11 @@ class _PointerActivityController {
     });
   }
 
-  get activity(): PointerActivity {
+  get activity(): PointerActivity2 {
     return this.#activity;
   }
 
-  get pointer(): Pointer {
+  get pointer(): PointerIdentification {
     return this.#pointer;
   }
 
@@ -159,7 +159,7 @@ class _PointerActivityController {
     });
   }
 
-  get result(): Promise<PointerActivity.Result> {
+  get result(): Promise<PointerActivity2.Result> {
     return new Promise((resolve, reject) => {
       this.#progress.then(() => {
         const resultMovement = this.#currentMovement;
@@ -645,7 +645,7 @@ class PointerObserver {
 
 namespace PointerObserver {
 
-  export type Callback = (activity: PointerActivity) => void;
+  export type Callback = (activity: PointerActivity2) => void;
 
   /**
    * 
