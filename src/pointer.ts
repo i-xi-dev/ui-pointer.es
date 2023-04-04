@@ -90,7 +90,7 @@ function _pointerTraceFrom(event: PointerActivity.Trace.Source, target: Element,
     movementY,
     inContact: _pointerIsInContact(event),
     properties: PointerProperties.of(event),
-    buttons: (event.pointerType === Pointer.Type.PEN) ? _penButtonsOf(event) : _mouseButtonsOf(event),
+    buttons: (event.pointerType === "pen") ? _penButtonsOf(event) : _mouseButtonsOf(event),
     // modifiers,
     captured: target.hasPointerCapture(event.pointerId),
     source: event,
@@ -98,17 +98,6 @@ function _pointerTraceFrom(event: PointerActivity.Trace.Source, target: Element,
 }
 
 namespace Pointer {
-  /**
-   * The type of the pointer device.
-   * @see {@link https://www.w3.org/TR/pointerevents2/#dom-pointerevent-pointertype | [Pointer Events Level 2] pointerType}
-   */
-  export const Type = {
-    MOUSE: "mouse",
-    PEN: "pen",
-    TOUCH: "touch",
-    UNKNOWN: "",
-  } as const;
-
   export const Modifier = {
     ALT: Keyboard.Key.ALT,
     ALT_GRAPH: Keyboard.Key.ALT_GRAPH,

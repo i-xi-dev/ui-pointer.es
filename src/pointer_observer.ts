@@ -1,6 +1,6 @@
 import { Geometry2d } from "@i-xi-dev/ui-utils";
 import _Debug from "./debug";
-import { PointerIdentification } from "./pointer_identification";
+import { PointerDevice } from "./pointer_device";
 import { PointerActivity } from "./pointer_activity";
 import {
   type milliseconds,
@@ -11,7 +11,6 @@ import {
   Pointer,
 } from "./pointer";
 import {
-  type ViewportPointerRecord,
   ViewportPointerTracker,
 } from "./viewport_pointer_tracker";
 
@@ -30,7 +29,9 @@ class _PointerActivityController {
   readonly #activity: PointerActivity;
   // readonly #modifiersToWatch: Set<Pointer.Modifier>;
   readonly #traceStreamTerminator: AbortController;
-  readonly #pointer: PointerIdentification;
+  readonly #pointerId: pointerid;
+  readonly #device: PointerDevice;
+  readonly #isPrimary: boolean;
   readonly #target: WeakRef<Element>;
   readonly #progress: Promise<void>;
   readonly #traceStream: ReadableStream<PointerActivity.Trace>;
@@ -48,7 +49,9 @@ class _PointerActivityController {
     this.#activity = this.#createActivity();
     // this.#modifiersToWatch = options.modifiersToWatch;
     this.#traceStreamTerminator = new AbortController();
-    this.#pointer = PointerIdentification.from(event);
+    this.#pointerId = event.pointerId;
+    this.#device = PointerDevice.of(event);
+    this.#isPrimary = event.isPrimary;
     this.#progress = new Promise((resolve: () => void) => {
       this.#progressResolver = resolve;
     });
@@ -78,8 +81,14 @@ class _PointerActivityController {
   #createActivity(): PointerActivity {
     const ref = this;
     return Object.freeze({
-      get pointer() {
-        return ref.pointer;
+      get pointerId() {
+        return ref.pointerId;
+      },
+      get device() {
+        return ref.device;
+      },
+      get isPrimary() {
+        return ref.isPrimary;
       },
       get target() {
         return ref.target;
@@ -118,8 +127,16 @@ class _PointerActivityController {
     return this.#activity;
   }
 
-  get pointer(): PointerIdentification {
-    return this.#pointer;
+  get pointerId(): pointerid {
+    return this.#pointerId;
+  }
+
+  get device(): PointerDevice {
+    return this.#device;
+  }
+
+  get isPrimary(): boolean {
+    return this.#isPrimary;
   }
 
   get target(): Element | null {
@@ -220,7 +237,7 @@ class _PointerActivityController {
     _Debug.assertWarn((this.#terminated !== true), "already terminated");
 
     if (this.#traceStreamController) {
-      _Debug.logText(`activity terminated (${this.#pointer.type}[${this.#pointer.id}])`);
+      _Debug.logText(`activity terminated (${this.#device.type}[${this.#pointerId}])`);
       this.#traceStreamController.close();
       this.#traceStreamTerminator.abort();
     }
@@ -433,10 +450,10 @@ class _TargetObservation {
   }
 
   //[$85]
-  private _handleWindowEvent: (message: ViewportPointerRecord) => Promise<void> = (message: ViewportPointerRecord) => {
+  private _handleWindowEvent: (traceSource: PointerActivity.Trace.Source) => Promise<void> = (traceSource: PointerActivity.Trace.Source) => {
     const executor = (resolve: (value: void | PromiseLike<void>) => void, reject: (reason?: any) => void) => {
       try {
-        this.#handle(message);
+        this.#handle(traceSource);
         resolve();
       }
       catch (exception) {
@@ -450,10 +467,7 @@ class _TargetObservation {
   #handleTargetEvent: (event: PointerEvent) => Promise<void> = (event: PointerEvent) => {
     const executor = (resolve: (value: void | PromiseLike<void>) => void, reject: (reason?: any) => void) => {
       try {
-        this.#handle({
-          curr: PointerActivity.Trace.Source.from(event),
-          prev: null,
-        });
+        this.#handle(PointerActivity.Trace.Source.from(event));
         resolve();
       }
       catch (exception) {
@@ -464,19 +478,18 @@ class _TargetObservation {
     return new Promise(executor);
   }
 
-  #handle(message: ViewportPointerRecord): void {
-    const { curr, prev } = message;
-    if (this.#pointerTypeFilter(curr) !== true) {
+  #handle(traceSource: PointerActivity.Trace.Source): void {
+    if (this.#pointerTypeFilter(traceSource) !== true) {
       return;
     }
 
-    const pointerHasContact = (_pointerIsInContact(curr) === true);
+    const pointerHasContact = (_pointerIsInContact(traceSource) === true);
     let activityController: _PointerActivityController;
 
-    if (curr.composedPath.includes(this.#target) === true) {
+    if (traceSource.composedPath.includes(this.#target) === true) {
       // targetまたはその子孫で発火の場合
 
-      if (this.#activityControllers.has(curr.pointerId) !== true) {
+      if (this.#activityControllers.has(traceSource.pointerId) !== true) {
         // activitiesに未登録の場合
 
         if ((this.#includesHover !== true) && (pointerHasContact !== true)) {
@@ -486,33 +499,33 @@ class _TargetObservation {
         let appendAsLast = false;
         if (this.#includesHover === true) {
           // pointerenterでactivity生成、pointerleaveで終了
-          appendAsLast = ["pointerdown", "pointermove", "pointerup"].includes(curr.type);
+          appendAsLast = ["pointerdown", "pointermove", "pointerup"].includes(traceSource.type);
         }
         else {
           // pointerdown|pointermoveかつpointerHasContactでactivity生成、pointerHasContact!=trueで終了
-          appendAsLast = ["pointerdown", "pointermove"].includes(curr.type) && (pointerHasContact === true);
+          appendAsLast = ["pointerdown", "pointermove"].includes(traceSource.type) && (pointerHasContact === true);
         }
 
-        activityController = new _PointerActivityController(curr, this.#target, {
+        activityController = new _PointerActivityController(traceSource, this.#target, {
           signal: this._observationCanceller.signal,
           // modifiersToWatch: this.#modifiersToWatch,
         });
-        this.#activityControllers.set(curr.pointerId, activityController);
+        this.#activityControllers.set(traceSource.pointerId, activityController);
         if (appendAsLast === true) {
-          if (prev) {
-            activityController.setBeforeTrace(prev);
+          if (traceSource.prev) {
+            activityController.setBeforeTrace(traceSource.prev);
           }
-          activityController.appendTrace(curr);
+          activityController.appendTrace(traceSource);
         }
       }
       else {
         // activitiesに登録済の場合
 
-        activityController = this.#activityControllers.get(curr.pointerId) as _PointerActivityController;
+        activityController = this.#activityControllers.get(traceSource.pointerId) as _PointerActivityController;
         if (activityController.traceCount <= 0) {
           // pointerenterで生成されたので一度もappendしていない場合
-          if (prev) {
-            activityController.setBeforeTrace(prev);
+          if (traceSource.prev) {
+            activityController.setBeforeTrace(traceSource.prev);
           }
         }
 
@@ -524,7 +537,7 @@ class _TargetObservation {
         //   }
         // }
         // else {
-        activityController.appendTrace(curr);//XXX pointercancel（だけ？）は除外しないと座標が0,0？の場合がある 先にpointerleaveになるから問題ない？
+        activityController.appendTrace(traceSource);//XXX pointercancel（だけ？）は除外しないと座標が0,0？の場合がある 先にpointerleaveになるから問題ない？
         // }
       }
 
@@ -534,9 +547,9 @@ class _TargetObservation {
 
       if (
         ((this.#includesHover !== true) && (pointerHasContact !== true))
-        || (["pointercancel", "pointerleave"].includes(curr.type) === true)
+        || (["pointercancel", "pointerleave"].includes(traceSource.type) === true)
       ) {
-        this.#activityControllers.delete(curr.pointerId);
+        this.#activityControllers.delete(traceSource.pointerId);
         activityController.terminate();
       }
     }
@@ -544,9 +557,9 @@ class _TargetObservation {
       // target外の発火の場合
       // targetのみの監視だと、ブラウザ毎に特定条件でpointerupが発火しないだの何だの様々な問題があって監視に漏れが発生するので、windowを監視してれば余程漏れは無いであろうということで。
 
-      if (this.#activityControllers.has(curr.pointerId) === true) {
-        activityController = this.#activityControllers.get(curr.pointerId) as _PointerActivityController;
-        this.#activityControllers.delete(curr.pointerId);
+      if (this.#activityControllers.has(traceSource.pointerId) === true) {
+        activityController = this.#activityControllers.get(traceSource.pointerId) as _PointerActivityController;
+        this.#activityControllers.delete(traceSource.pointerId);
         activityController.terminate();
       }
     }
@@ -559,9 +572,9 @@ class _TargetObservation {
 }
 
 const _DEFAULT_POINTER_TYPE_FILTER = Object.freeze([
-  Pointer.Type.MOUSE,
-  Pointer.Type.PEN,
-  Pointer.Type.TOUCH,
+  PointerDevice.Type.MOUSE,
+  PointerDevice.Type.PEN,
+  PointerDevice.Type.TOUCH,
 ]);
 
 // filterSourceは参照渡し

@@ -167,12 +167,12 @@ createApp({
         document.querySelector("*.v-input-layers").append(path);
       }
 
-      const { pointer } = activity;
-      const name = `${ pointer.type }:${ pointer.id }`;
+      const { device } = activity;
+      const name = `${ device.type }:${ activity.pointerId }`;
       const indicator = {
         id: this.nextId(),
-        type: pointer.type,
-        primary: pointer.isPrimary,
+        type: device.type,
+        primary: activity.isPrimary,
         name,
         startTime: (activity.startTime - this.watchingStartAt),
         startTimeStr: formatTimeStamp(activity.startTime),

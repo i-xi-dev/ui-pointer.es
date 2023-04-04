@@ -3,26 +3,21 @@ import _Debug from "./debug";
 import { PointerActivity } from "./pointer_activity";
 import { pointerid } from "./pointer";
 
-const _TOPIC = Symbol();
-
-type ViewportPointerRecord = {
-  prev: PointerActivity.Trace.Source | null,
-  curr: PointerActivity.Trace.Source,
-};
+const _TRACE = Symbol();
 
 class ViewportPointerTracker {
   static #instance: ViewportPointerTracker | null = null;
 
   readonly #aborter: AbortController;
-  private readonly _broker: PubSub.Broker<ViewportPointerRecord>;//[$85]
+  private readonly _broker: PubSub.Broker<PointerActivity.Trace.Source>;//[$85]
   readonly #view: Window;
-  #prevEventMap: Map<pointerid, PointerActivity.Trace.Source>;
+  #prevMap: Map<pointerid, PointerActivity.Trace.Source>;
 
   private constructor(view: Window) {
     this.#aborter = new AbortController();
     this._broker = new PubSub.Broker();
     this.#view = view;
-    this.#prevEventMap = new Map();
+    this.#prevMap = new Map();
 
     const listenerOptions = {
       passive: true,
@@ -94,30 +89,26 @@ class ViewportPointerTracker {
     this._broker.clear();
   }
 
-  subscribe(callback: (message: ViewportPointerRecord) => Promise<void>): void {
-    this._broker.subscribe(_TOPIC, callback, {
+  subscribe(callback: (traceSource: PointerActivity.Trace.Source) => Promise<void>): void {
+    this._broker.subscribe(_TRACE, callback, {
       signal: this.#aborter.signal,
     });
   }
 
-  unsubscribe(callback: (message: ViewportPointerRecord) => Promise<void>): void {
-    this._broker.unsubscribe(_TOPIC, callback);
+  unsubscribe(callback: (traceSource: PointerActivity.Trace.Source) => Promise<void>): void {
+    this._broker.unsubscribe(_TRACE, callback);
   }
 
   #publish(event: PointerEvent): void {
-    const curr = PointerActivity.Trace.Source.from(event);
-    const message = {
-      prev: this.#prevEventMap.get(event.pointerId) ?? null,
-      curr,
-    };
-    this.#prevEventMap.set(event.pointerId, curr);
-    this._broker.publish(_TOPIC, message).catch((reason?: any): void => {
+    const traceSource = PointerActivity.Trace.Source.from(event);
+    traceSource.prev = this.#prevMap.get(event.pointerId) ?? null,
+    this.#prevMap.set(event.pointerId, traceSource);
+    this._broker.publish(_TRACE, traceSource).catch((reason?: any): void => {
       console.error(reason);
     });
   }
 }
 
 export {
-  type ViewportPointerRecord,
   ViewportPointerTracker,
 };
