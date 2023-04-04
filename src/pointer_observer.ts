@@ -1,18 +1,15 @@
 import { Geometry2d } from "@i-xi-dev/ui-utils";
 import _Debug from "./debug";
+import { type pointerid } from "./pointer";
 import { PointerDevice } from "./pointer_device";
 import { PointerActivity } from "./pointer_activity";
 import {
-  type milliseconds,
-  type pointerid,
-  type timestamp,
-  _pointerIsInContact,
-  _pointerTraceFrom,
   Pointer,
-} from "./pointer";
-import {
-  ViewportPointerTracker,
-} from "./viewport_pointer_tracker";
+} from "./pointer";//TODO 整理
+import { ViewportPointerTracker } from "./viewport_pointer_tracker";
+
+type milliseconds = number;
+type timestamp = number;
 
 type _PointerActivityOptions = {
   signal: AbortSignal,
@@ -246,26 +243,20 @@ class _PointerActivityController {
     this.#progressResolver();
   }
 
-  setBeforeTrace(event: PointerActivity.Trace.Source): void {
+  setBeforeTrace(source: PointerActivity.Trace.Source): void {
     const target = this.target as Element;// （終了後に外部から呼び出したのでもなければ）nullはありえない
-    const trace: PointerActivity.Trace = _pointerTraceFrom(event, target, {
-      // modifiersToWatch: this.#modifiersToWatch,
-      prevTrace: this.#lastTrace,
-    });
+    const trace: PointerActivity.Trace = PointerActivity.Trace.from(source, target, this.#lastTrace);
     this.#beforeTrace = trace;
   }
 
-  appendTrace(event: PointerActivity.Trace.Source): void {
+  appendTrace(source: PointerActivity.Trace.Source): void {
     if (this.#terminated === true) {
       throw new Error("InvalidStateError appendTrace#1");
     }
 
     if (this.#traceStreamController) {
       const target = this.target as Element;// （終了後に外部から呼び出したのでもなければ）nullはありえない
-      const trace: PointerActivity.Trace = _pointerTraceFrom(event, target, {
-        // modifiersToWatch: this.#modifiersToWatch,
-        prevTrace: this.#lastTrace,
-      });
+      const trace: PointerActivity.Trace = PointerActivity.Trace.from(source, target, this.#lastTrace);
       if (!this.#startTrace) {
         this.#startTrace = trace;
       }
@@ -393,7 +384,7 @@ class _TargetObservation {
       }
 
       // mouseで左ボタンが押されているか、pen/touchで接触がある場合
-      if (_pointerIsInContact(event) === true) {
+      if (PointerActivity.State.isInContact(event) === true) {
         if (this.#capturingPointerIds.has(event.pointerId) === true) {
           return;
         }
@@ -408,7 +399,7 @@ class _TargetObservation {
     }) as EventListener, listenerOptions);
 
     this.#target.addEventListener("pointerup", ((event: PointerEvent): void => {
-      if (_pointerIsInContact(event) !== true) {
+      if (PointerActivity.State.isInContact(event) !== true) {
         (event.target as Element).releasePointerCapture(event.pointerId);
         this.#capturingPointerIds.delete(event.pointerId);
       }
@@ -483,7 +474,7 @@ class _TargetObservation {
       return;
     }
 
-    const pointerHasContact = (_pointerIsInContact(traceSource) === true);
+    const pointerHasContact = (PointerActivity.State.isInContact(traceSource) === true);
     let activityController: _PointerActivityController;
 
     if (traceSource.composedPath.includes(this.#target) === true) {

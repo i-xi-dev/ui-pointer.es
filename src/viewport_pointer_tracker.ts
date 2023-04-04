@@ -1,7 +1,7 @@
 import { PubSub } from "@i-xi-dev/pubsub";
 import _Debug from "./debug";
+import { type pointerid } from "./pointer";
 import { PointerActivity } from "./pointer_activity";
-import { pointerid } from "./pointer";
 
 const _TRACE = Symbol();
 

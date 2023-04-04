@@ -21,9 +21,9 @@ namespace PointerDevice {
   };
 
   export function of(source: Source): PointerDevice {
-    return {
+    return Object.freeze({
       type: source.pointerType,
-    };
+    });
   }
 }
 
