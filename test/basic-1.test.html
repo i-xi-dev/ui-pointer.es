@@ -70,14 +70,14 @@ const testArea = document.getElementById("TestArea");
 const indicatorMap = new Map();
 
 function indicatorIdFrom(activity) {
-  return `indicator-${activity.pointer.id}`;
+  return `indicator-${activity.pointerId}`;
 }
 
 function onstart(activity) {
   const indicatorId = indicatorIdFrom(activity);
   const indicator = document.getElementById("template1").content.cloneNode(true).firstElementChild;
   indicator.id = indicatorId;
-  indicator.querySelector("*.pointer-indicator-description").textContent = `${activity.pointer.id}::${activity.pointer.type}${activity.pointer.isPrimary ? "[primary]" : ""}`;
+  indicator.querySelector("*.pointer-indicator-description").textContent = `${activity.pointerId}::${activity.device.type}${activity.isPrimary ? "[primary]" : ""}`;
   indicatorMap.set(indicatorId, indicator);
 }
 
@@ -92,7 +92,7 @@ function onprogress(activity, trace) {
   const indicatorId = indicatorIdFrom(activity);
   const indicator = indicatorMap.get(indicatorId);
 
-  if (activity.pointer.isPrimary === true) {
+  if (activity.isPrimary === true) {
     if (indicator.classList.contains("primary") !== true) {
       indicator.classList.add("primary");
     }
@@ -125,15 +125,15 @@ function onprogress(activity, trace) {
 }
 
 const observer = new PointerObserver(async (activity) => {
-  console.log(`[START] pointerId:${activity.pointer.id}, startTime:${activity.startTime}`);
+  console.log(`[START] pointerId:${activity.pointerId}, startTime:${activity.startTime}`);
   onstart(activity);
 
   for await (const trace of activity) {
-    console.log(JSON.stringify(trace), JSON.stringify(activity));
+    console.log(trace, activity);
     onprogress(activity, trace);
   }
 
-  console.log(`[END] pointerId:${activity.pointer.id}, duration:${activity.duration}`);
+  console.log(`[END] pointerId:${activity.pointerId}, duration:${activity.duration}`);
   console.log(activity);
   onend(activity);
 }, {});

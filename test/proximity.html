@@ -7,7 +7,7 @@
     <script type="module">
 import { PointerObserver } from "../dist/index.js";
 
-const SHADOW_SIZE = 120;
+const SHADOW_SIZE = 200;
 const testGrid = document.getElementById("TestGrid");
 const testCells = [...testGrid.querySelectorAll("*.test-cell")];
 const testShadows = document.getElementById("TestShadows");
@@ -57,7 +57,7 @@ function rateOfContact(cell, shadowRects) {
 }
 
 const observer = new PointerObserver(async (activity) => {
-  console.log(`[START] pointerId:${activity.pointer.id}, startTime:${activity.startTime}`);
+  console.log(`[START] pointerId:${activity.pointerId}, startTime:${activity.startTime}`);
 
   const shadow = document.createElement("div");
   shadow.classList.add("test-shadow");
@@ -69,7 +69,7 @@ const observer = new PointerObserver(async (activity) => {
     onTrace(activity, trace, shadow);
   }
 
-  console.log(`[END] pointerId:${activity.pointer.id}, duration:${activity.duration}`);
+  console.log(`[END] pointerId:${activity.pointerId}, duration:${activity.duration}`);
   console.log(activity);
 
   shadow.remove();

@@ -2,23 +2,23 @@
   background-color: #cfcfcf;
   column-gap: 30px;
   display: grid;
-  grid-template-columns: repeat(10, 30px);
-  grid-template-rows: repeat(10, 30px);
+  grid-template-columns: repeat(10, 40px);
+  grid-template-rows: repeat(10, 40px);
   margin: 100px auto;
-  padding: 30px;
-  row-gap: 30px;
+  padding: 20px;
+  row-gap: 20px;
   width: max-content;
 }
 
 *.test-cell {
-  background-color: #787878;
-  border: 2px solid #0008;
+  background-color: #e0e0e0;
+  box-shadow: 0 2px 8px #0006;
 }
 *.test-cell.contact {
-  background-color: #ae8888;
+  background-color: #ebd4d4;
 }
 *.test-cell.contact.full {
-  background-color: #e38c8c;
+  background-color: #f7aaaa;
 }
 
 *.test-cell:hover,
@@ -36,7 +36,7 @@
 }
 
 *.test-shadow {
-  --shadowsize: 200px;
+  --shadowsize: 400px;
   box-sizing: border-box;
   height: var(--shadowsize);
   margin-left: calc(var(--shadowsize) / -2);
