@@ -1,70 +1,12 @@
-import { Geometry2d, Keyboard } from "@i-xi-dev/ui-utils";
+import { Geometry2d } from "@i-xi-dev/ui-utils";
 import { type pointerid } from "./pointer";
 import { PointerDevice } from "./pointer_device";
-import { PointerProperties } from "./pointer_properties";
+import { PointerState } from "./pointer_state";
 
 type timestamp = number;
 type milliseconds = number;
 
 namespace PointerActivity {
-  export namespace State {
-    export type Source = {
-      buttons: number,
-    };
-
-    export function isInContact(source: Source): boolean {
-      return ((source.buttons & 0b1) === 0b1);
-    }
-
-    /** @experimental */
-    export const MouseButton = {
-      LEFT: "left",
-      MIDDLE: "middle",
-      RIGHT: "right",
-      X_BUTTON_1: "xbutton1",
-      X_BUTTON_2: "xbutton2",
-    } as const;
-    export type MouseButton = typeof MouseButton[keyof typeof MouseButton];
-
-    export function mouseButtonsOf(source: Source): Array<MouseButton> {
-      const mouseButtons: Array<MouseButton> = [];
-      if ((source.buttons & 0b1) === 0b1) {
-        mouseButtons.push(MouseButton.LEFT);
-      }
-      if ((source.buttons & 0b10) === 0b10) {
-        mouseButtons.push(MouseButton.RIGHT);
-      }
-      if ((source.buttons & 0b100) === 0b100) {
-        mouseButtons.push(MouseButton.MIDDLE);
-      }
-      if ((source.buttons & 0b1000) === 0b1000) {
-        mouseButtons.push(MouseButton.X_BUTTON_1);
-      }
-      if ((source.buttons & 0b10000) === 0b10000) {
-        mouseButtons.push(MouseButton.X_BUTTON_2);
-      }
-      return mouseButtons;
-    }
-
-    /** @experimental */
-    export const PenButton = {
-      BARREL: "barrel",// ボタン
-      ERASER: "eraser",// 副先端での接触
-    } as const;
-    export type PenButton = typeof PenButton[keyof typeof PenButton];
-
-    export function penButtonsOf(source: Source): Array<PenButton> {
-      const penButtons: Array<PenButton> = [];
-      if ((source.buttons & 0b10) === 0b10) {
-        penButtons.push(PenButton.BARREL);
-      }
-      if ((source.buttons & 0b100000) === 0b100000) {
-        penButtons.push(PenButton.ERASER);
-      }
-      return penButtons;
-    }
-  }
-
   export interface Trace {
     readonly timeStamp: timestamp;
     readonly viewportX: number, // from viewport left
@@ -74,9 +16,7 @@ namespace PointerActivity {
     readonly movementX: number;// 直前のTraceからの相対位置
     readonly movementY: number;// 直前のTraceからの相対位置
     readonly inContact: boolean;// pointerがactiveかつ接触があるか否か
-    readonly properties: PointerProperties,
-    readonly buttons: Array<string>,//XXX Record<string, boolean>にする？
-    //TODO readonly modifiers: Array<Pointer.Modifier>;//XXX Record<string, boolean>にする？ // タッチ間で共有だが現在値なのでここに持たせる //XXX buttonなどもふくめる
+    readonly properties: PointerState,
     readonly captured: boolean;// 「targetに」captureされているか否か
     //XXX readonly context: {
     //   dispatcher: Element,
@@ -88,7 +28,7 @@ namespace PointerActivity {
   export namespace Trace {
     //[$119] FirefoxでPointerEventを保持していると、いつのまにかoffsetX,Yが0に更新される為
     //       必要な項目だけコピーしたオブジェクトを保持する
-    export interface Source extends State.Source, PointerProperties.Source {
+    export interface Source extends PointerState.Source {
       readonly clientX: number;
       readonly clientY: number;
       readonly composedPath: Array<Element>;
@@ -154,19 +94,19 @@ namespace PointerActivity {
         targetX = targetX + x;
         targetY = targetY + y;
       }
-    
+
       const viewportX = source.clientX;
       const viewportY = source.clientY;
-    
+
       let movementX: number = 0;
       let movementY: number = 0;
       if (prevTrace) {
         movementX = (viewportX - prevTrace.viewportX);
         movementY = (viewportY - prevTrace.viewportY);
       }
-    
+
       // const modifiers: Array<Pointer.Modifier> = [...options.modifiersToWatch].filter((modifier) => event.getModifierState(modifier) === true);
-    
+
       return Object.freeze({
         timeStamp: source.timeStamp,
         viewportX,
@@ -175,10 +115,8 @@ namespace PointerActivity {
         targetY,
         movementX,
         movementY,
-        inContact: State.isInContact(source),
-        properties: PointerProperties.of(source),
-        buttons: (source.pointerType === PointerDevice.Type.PEN) ? State.penButtonsOf(source) : State.mouseButtonsOf(source),
-        // modifiers,
+        inContact: PointerState.inContact(source),
+        properties: PointerState.of(source),
         captured: target.hasPointerCapture(source.pointerId),
         source,
       });

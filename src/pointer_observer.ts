@@ -2,11 +2,23 @@ import { Geometry2d } from "@i-xi-dev/ui-utils";
 import _Debug from "./debug";
 import { type pointerid } from "./pointer";
 import { PointerDevice } from "./pointer_device";
+import { PointerState } from "./pointer_state";
 import { PointerActivity } from "./pointer_activity";
 import {
   Pointer,
 } from "./pointer";//TODO 整理
 import { ViewportPointerTracker } from "./viewport_pointer_tracker";
+
+
+
+
+
+
+
+
+
+
+
 
 type milliseconds = number;
 type timestamp = number;
@@ -384,7 +396,7 @@ class _TargetObservation {
       }
 
       // mouseで左ボタンが押されているか、pen/touchで接触がある場合
-      if (PointerActivity.State.isInContact(event) === true) {
+      if (PointerState.inContact(event) === true) {
         if (this.#capturingPointerIds.has(event.pointerId) === true) {
           return;
         }
@@ -399,7 +411,7 @@ class _TargetObservation {
     }) as EventListener, listenerOptions);
 
     this.#target.addEventListener("pointerup", ((event: PointerEvent): void => {
-      if (PointerActivity.State.isInContact(event) !== true) {
+      if (PointerState.inContact(event) !== true) {
         (event.target as Element).releasePointerCapture(event.pointerId);
         this.#capturingPointerIds.delete(event.pointerId);
       }
@@ -474,7 +486,7 @@ class _TargetObservation {
       return;
     }
 
-    const pointerHasContact = (PointerActivity.State.isInContact(traceSource) === true);
+    const pointerHasContact = (PointerState.inContact(traceSource) === true);
     let activityController: _PointerActivityController;
 
     if (traceSource.composedPath.includes(this.#target) === true) {
