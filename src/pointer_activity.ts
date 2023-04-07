@@ -141,14 +141,14 @@ interface PointerActivity {
   readonly target: Element | null;
   readonly startTime: timestamp;
   readonly duration: milliseconds;
+  readonly [Symbol.asyncIterator]: () => AsyncGenerator<PointerActivity.Trace, void, void>;
+  readonly result: Promise<PointerActivity.Result>;
   //XXX readonly traceStream: ReadableStream<PointerActivity.Trace>;
   //XXX readonly startViewportOffset: Geometry2d.Point | null;
   //XXX readonly startTargetOffset: Geometry2d.Point | null;
-  readonly result: Promise<PointerActivity.Result>;
 
   //XXX readonly current
 
-  readonly [Symbol.asyncIterator]: () => AsyncGenerator<PointerActivity.Trace, void, void>;
   readonly inProgress: boolean;
   readonly beforeTrace: PointerActivity.Trace | null;
   readonly startTrace: PointerActivity.Trace | null;

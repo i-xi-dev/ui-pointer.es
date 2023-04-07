@@ -9,17 +9,6 @@ import {
 } from "./pointer";//TODO 整理
 import { ViewportPointerTracker } from "./viewport_pointer_tracker";
 
-
-
-
-
-
-
-
-
-
-
-
 type milliseconds = number;
 type timestamp = number;
 
@@ -28,112 +17,23 @@ type _PointerActivityOptions = {
   // modifiersToWatch: Set<Pointer.Modifier>,
 };
 
-// namespace _Internal {
-//   export const terminate: unique symbol = Symbol();
-//   export const setBeforeTrace: unique symbol = Symbol();
-//   export const appendTrace: unique symbol = Symbol();
-// }
-
-class _PointerActivityController {
-  readonly #activity: PointerActivity;
-  // readonly #modifiersToWatch: Set<Pointer.Modifier>;
-  readonly #traceStreamTerminator: AbortController;
+class _PointerActivityImpl implements PointerActivity {
+  readonly #controller: _PointerActivityController;
   readonly #pointerId: pointerid;
   readonly #device: PointerDevice;
   readonly #isPrimary: boolean;
   readonly #target: WeakRef<Element>;
-  readonly #progress: Promise<void>;
   readonly #traceStream: ReadableStream<PointerActivity.Trace>;
+  readonly #progress: Promise<void>;
 
-  #traceCount: number = 0;
-  #terminated: boolean = false;
-  #progressResolver: () => void = (): void => {};
-  #traceStreamController: ReadableStreamDefaultController<PointerActivity.Trace> | null = null;
-  #beforeTrace: PointerActivity.Trace | null = null;
-  #startTrace: PointerActivity.Trace | null = null;
-  #lastTrace: PointerActivity.Trace | null = null;
-  #trackLength: number = 0;
-
-  constructor(event: PointerActivity.Trace.Source, target: Element, options: _PointerActivityOptions) {
-    this.#activity = this.#createActivity();
-    // this.#modifiersToWatch = options.modifiersToWatch;
-    this.#traceStreamTerminator = new AbortController();
-    this.#pointerId = event.pointerId;
-    this.#device = PointerDevice.of(event);
-    this.#isPrimary = event.isPrimary;
-    this.#progress = new Promise((resolve: () => void) => {
-      this.#progressResolver = resolve;
-    });
+  constructor(controller: _PointerActivityController, source: PointerActivity.Trace.Source, target: Element, underlyingSource: UnderlyingDefaultSource<PointerActivity.Trace>, progress: Promise<void>) {
+    this.#controller = controller;
+    this.#pointerId = source.pointerId;
+    this.#device = PointerDevice.of(source);
+    this.#isPrimary = source.isPrimary;
     this.#target = new WeakRef(target);
-    const start = (controller: ReadableStreamDefaultController<PointerActivity.Trace>): void => {
-      options.signal.addEventListener("abort", () => {
-        controller.close();
-      }, {
-        passive: true,
-        signal: this.#traceStreamTerminator.signal,
-      });
-      this.#traceStreamController = controller;
-    };
-    if (options.signal.aborted === true) {
-      this.#traceStream = new ReadableStream({
-        start(controller) {
-          controller.close();
-        }
-      });
-      return;
-    }
-    this.#traceStream = new ReadableStream({
-      start,
-    });
-  }
-
-  #createActivity(): PointerActivity {
-    const ref = this;
-    return Object.freeze({
-      get pointerId() {
-        return ref.pointerId;
-      },
-      get device() {
-        return ref.device;
-      },
-      get isPrimary() {
-        return ref.isPrimary;
-      },
-      get target() {
-        return ref.target;
-      },
-      get startTime() {
-        return ref.startTime;
-      },
-      get duration() {
-        return ref.duration;
-      },
-      get result() {
-        return ref.result;
-      },
-      [Symbol.asyncIterator]() {
-        return ref.traceIterator();
-      },
-      get inProgress() {
-        return ref.inProgress;
-      },
-      get beforeTrace() {
-        return ref.beforeTrace;
-      },
-      get startTrace() {
-        return ref.startTrace;
-      },
-      get endTrace() {
-        return ref.endTrace;
-      },
-      // get watchedModifiers() {
-      //   return ref.watchedModifiers;
-      // },
-    });
-  }
-
-  get activity(): PointerActivity {
-    return this.#activity;
+    this.#traceStream = new ReadableStream(underlyingSource);
+    this.#progress = progress;
   }
 
   get pointerId(): pointerid {
@@ -153,16 +53,103 @@ class _PointerActivityController {
   }
 
   get startTime(): timestamp {
-    return this.#startTrace ? this.#startTrace.timeStamp : Number.NaN;
+    return this.#controller.startTrace ? this.#controller.startTrace.timeStamp : Number.NaN;
   }
 
   get duration(): milliseconds {
-    return (this.#lastTrace && this.#startTrace) ? (this.#lastTrace.timeStamp - this.#startTrace.timeStamp) : Number.NaN;
+    return (this.#controller.lastTrace && this.#controller.startTrace) ? (this.#controller.lastTrace.timeStamp - this.#controller.startTrace.timeStamp) : Number.NaN;
   }
 
-  //get traceStream(): ReadableStream<PointerActivity.Trace> {
-  //  return this.#traceStream;
-  //}
+  async *[Symbol.asyncIterator](): AsyncGenerator<PointerActivity.Trace, void, void> {
+    const streamReader = this.#traceStream.getReader();
+    try {
+      for (let i = await streamReader.read(); (i.done !== true); i = await streamReader.read()) {
+        yield i.value;
+      }
+      return;
+    }
+    finally {
+      streamReader.releaseLock();
+    }
+  }
+
+  get result(): Promise<PointerActivity.Result> {
+    return new Promise((resolve, reject) => {
+      this.#progress.then(() => {
+        const { movement, trackLength } = this.#controller;
+        resolve({
+          movementX: movement.x,
+          movementY: movement.y,
+          track: trackLength,
+        });
+      }).catch((r) => {
+        reject(r);
+      });
+    });
+  }
+
+  get inProgress() {
+    return this.#controller.inProgress;
+  }
+  get beforeTrace() {
+    return this.#controller.beforeTrace;
+  }
+  get startTrace() {
+    return this.#controller.startTrace;
+  }
+  get endTrace() {
+    return this.#controller.endTrace;
+  }
+  // get watchedModifiers() {
+  //   return this.#controller.watchedModifiers;
+  // }
+
+}
+
+class _PointerActivityController {
+  readonly #traceStreamTerminator: AbortController;
+  readonly #activity: _PointerActivityImpl;
+  // readonly #modifiersToWatch: Set<Pointer.Modifier>;
+
+  #traceCount: number = 0;
+  #terminated: boolean = false;
+  #progressResolver: () => void = (): void => {};
+  #traceStreamController: ReadableStreamDefaultController<PointerActivity.Trace> | null = null;
+  #beforeTrace: PointerActivity.Trace | null = null;
+  #startTrace: PointerActivity.Trace | null = null;
+  #lastTrace: PointerActivity.Trace | null = null;
+  #trackLength: number = 0;
+
+  constructor(event: PointerActivity.Trace.Source, target: Element, options: _PointerActivityOptions) {
+    this.#traceStreamTerminator = new AbortController();
+    // this.#modifiersToWatch = options.modifiersToWatch;
+
+    let start: (controller: ReadableStreamDefaultController<PointerActivity.Trace>) => void;
+    if (options.signal.aborted === true) {
+      start = (controller: ReadableStreamDefaultController<PointerActivity.Trace>): void => {
+        controller.close();
+      };
+    }
+    else {
+      start = (controller: ReadableStreamDefaultController<PointerActivity.Trace>): void => {
+        options.signal.addEventListener("abort", () => {
+          controller.close();
+        }, {
+          passive: true,
+          signal: this.#traceStreamTerminator.signal,
+        });
+        this.#traceStreamController = controller;
+      };
+    }
+    const progress: Promise<void> = new Promise((resolve: () => void) => {
+      this.#progressResolver = resolve;
+    });
+    this.#activity = new _PointerActivityImpl(this, event, target, { start }, progress);
+  }
+
+  get activity(): PointerActivity {
+    return this.#activity;
+  }
 
   //get startViewportOffset(): Geometry2d.Point | null {
   //  return this.#startTrace ? {x:this.#startTrace.viewportX : null;
@@ -172,11 +159,11 @@ class _PointerActivityController {
   //  return this.#startTrace ? {x:this.#startTrace.targetX,y:} : null;
   //}
 
-  get #currentMovement(): Geometry2d.Point {
-    if (this.#lastTrace && this.#startTrace) {
+  get movement(): Geometry2d.Point {
+    if (this.lastTrace && this.startTrace) {
       return Object.freeze({
-        x: (this.#lastTrace.viewportX - this.#startTrace.viewportX),
-        y: (this.#lastTrace.viewportY - this.#startTrace.viewportY),
+        x: (this.lastTrace.viewportX - this.startTrace.viewportX),
+        y: (this.lastTrace.viewportY - this.startTrace.viewportY),
       });
     }
     return Object.freeze({
@@ -185,19 +172,8 @@ class _PointerActivityController {
     });
   }
 
-  get result(): Promise<PointerActivity.Result> {
-    return new Promise((resolve, reject) => {
-      this.#progress.then(() => {
-        const resultMovement = this.#currentMovement;
-        resolve({
-          movementX: resultMovement.x,
-          movementY: resultMovement.y,
-          track: this.#trackLength,
-        });
-      }).catch((r) => {
-        reject(r);
-      });
-    });
+  get trackLength(): number {
+    return this.#trackLength;
   }
 
   get inProgress(): boolean {
@@ -212,9 +188,9 @@ class _PointerActivityController {
     return this.#startTrace ? this.#startTrace : null;
   }
 
-  // get lastTrace(): PointerActivity.Trace | null {
-  //   return this.#lastTrace ? this.#lastTrace : null;
-  // }
+  get lastTrace(): PointerActivity.Trace | null {
+    return this.#lastTrace ? this.#lastTrace : null;
+  }
 
   get endTrace(): PointerActivity.Trace | null {
     return (this.#terminated && this.#lastTrace) ? this.#lastTrace : null;
@@ -228,25 +204,12 @@ class _PointerActivityController {
     return this.#traceCount;
   }
 
-  async *traceIterator(): AsyncGenerator<PointerActivity.Trace, void, void> {
-    const streamReader = this.#traceStream.getReader();
-    try {
-      for (let i = await streamReader.read(); (i.done !== true); i = await streamReader.read()) {
-        yield i.value;
-      }
-      return;
-    }
-    finally {
-      streamReader.releaseLock();
-    }
-  }
-
   terminate(): void {
     _Debug.assertWarn((this.#beforeTrace !== null), "beforeTrace not detected");  // 境界外からhoverまたは接触の状態でpointerenterした場合のみ存在する（タッチのように境界内でpointerenterした場合は無くても妥当）
     _Debug.assertWarn((this.#terminated !== true), "already terminated");
 
     if (this.#traceStreamController) {
-      _Debug.logText(`activity terminated (${this.#device.type}[${this.#pointerId}])`);
+      _Debug.logText(`activity terminated (${this.#activity.device.type}[${this.#activity.pointerId}])`);
       this.#traceStreamController.close();
       this.#traceStreamTerminator.abort();
     }
@@ -256,7 +219,7 @@ class _PointerActivityController {
   }
 
   setBeforeTrace(source: PointerActivity.Trace.Source): void {
-    const target = this.target as Element;// （終了後に外部から呼び出したのでもなければ）nullはありえない
+    const target = this.#activity.target as Element;// （終了後に外部から呼び出したのでもなければ）nullはありえない
     const trace: PointerActivity.Trace = PointerActivity.Trace.from(source, target, this.#lastTrace);
     this.#beforeTrace = trace;
   }
@@ -267,7 +230,7 @@ class _PointerActivityController {
     }
 
     if (this.#traceStreamController) {
-      const target = this.target as Element;// （終了後に外部から呼び出したのでもなければ）nullはありえない
+      const target = this.#activity.target as Element;// （終了後に外部から呼び出したのでもなければ）nullはありえない
       const trace: PointerActivity.Trace = PointerActivity.Trace.from(source, target, this.#lastTrace);
       if (!this.#startTrace) {
         this.#startTrace = trace;
