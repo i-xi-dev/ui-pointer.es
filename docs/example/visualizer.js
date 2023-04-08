@@ -1,6 +1,6 @@
 import { createApp } from "https://unpkg.com/vue@3/dist/vue.esm-browser.prod.js";
-import { VTrackCanvas } from "./visualizer-tracks.js";
-import { VPointerIndicator } from "./visualizer-pointer.js";
+import { VTrackCanvas } from "./visualizer-tracks.js?0.0.1-beta-1";
+import { VPointerIndicator } from "./visualizer-pointer.js?0.0.1-beta-1";
 import { PointerObserver } from "https://unpkg.com/@i-xi-dev/ui-pointer@0.0.1-beta-1/dist/index.js";
 
 function formatTimeStamp(timestamp) {
