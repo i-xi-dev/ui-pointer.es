@@ -1,5 +1,5 @@
 import { createApp } from "https://unpkg.com/vue@3/dist/vue.esm-browser.prod.js";
-import { PointerObserver } from "https://unpkg.com/@i-xi-dev/ui-pointer@0.0.1-alpha-12/dist/index.js";
+import { PointerObserver } from "https://unpkg.com/@i-xi-dev/ui-pointer@0.0.1-beta-1/dist/index.js";
 
 function formatTimeStamp(timestamp) {
   const dt = new Date(performance.timeOrigin + timestamp);
@@ -7,7 +7,12 @@ function formatTimeStamp(timestamp) {
 }
 
 const template = `
-<div class="v-app">
+<div
+class="v-app"
+:style="{
+  '--input-size': inputBoxSize + 'px',
+  '--inset': inputSpace + 'px',
+}">
   <div class="v-control">
     <button class="v-control-button v--pushbutton" @click="onToggle">
       <svg v-if="inWatching === true" viewBox="0 0 24 24">
@@ -18,19 +23,19 @@ const template = `
       </svg>
       <span>{{ (inWatching === true) ? "Stop" : "Start" }}</span>
     </button>
-    <fieldset class="v-control-group" :disabled="inWatching === true">
+    <fieldset class="v-control-group" :disabled="inWatching === true" v-if="false">
       <legend>Watch following pointer types</legend>
       <div class="v-control-flow">
         <label :aria-disabled="inWatching === true ? 'true' : 'false'" class="v-control-button">
-          <input type="checkbox" v-model="watchMouse"/>
+          <input type="checkbox"/>
           <span>Mouse</span>
         </label>
         <label :aria-disabled="inWatching === true ? 'true' : 'false'" class="v-control-button">
-          <input type="checkbox" v-model="watchPen"/>
+          <input type="checkbox"/>
           <span>Pen</span>
         </label>
         <label :aria-disabled="inWatching === true ? 'true' : 'false'" class="v-control-button">
-          <input type="checkbox" v-model="watchTouch"/>
+          <input type="checkbox"/>
           <span>Touch</span>
         </label>
       </div>
@@ -39,32 +44,35 @@ const template = `
 
   <div class="v-input-wrapper">
     <div :aria-disabled="inWatching !== true ? 'true' : 'false'" class="v-input" ref="input1">
-      <svg class="v-input-layers" v-if="drawMode === 'svg'" :viewBox="'0 0 ' + inputSize + ' ' + inputSize">
-      </svg>
-      <div class="v-input-layers" v-if="drawMode === 'canvas'">
-        <canvas class="v-input-layer" :height="inputSize" :width="inputSize"></canvas>
-      </div>
+      <div class="v-input-range"></div>
+    </div>
 
-      <div
-      :class="{
-        'v-input-indicator': true,
-        'v--primary': indicator.primary === true,
-        'v--contact': indicator.inContact === true,
-        'v--mouse': indicator.type === 'mouse',
-        'v--pen': indicator.type === 'pen',
-        'v--touch': indicator.type === 'touch',
-      }"
-      :style="{
-        'left': indicator.offsetX + 'px',
-        'top': indicator.offsetY + 'px',
-        '--width': indicator.width + 'px',
-        '--height': indicator.height + 'px',
-      }"
-      v-for="indicator of indicators">
-        <div class="v-input-indicator-crosshair"></div>
-        <div class="v-input-indicator-circle"></div>
-        <div class="v-input-indicator-contact"></div>
-      </div>
+    <div class="v-input-layers">
+      <canvas class="v-input-layer" :height="inputBoxSize * 2" :width="inputBoxSize * 2" :style="{
+        'width': inputBoxSize + 'px',
+        'height': inputBoxSize + 'px',
+      }"></canvas>
+    </div>
+
+    <div
+    :class="{
+      'v-input-indicator': true,
+      'v--primary': indicator.primary === true,
+      'v--contact': indicator.inContact === true,
+      'v--mouse': indicator.type === 'mouse',
+      'v--pen': indicator.type === 'pen',
+      'v--touch': indicator.type === 'touch',
+    }"
+    :style="{
+      'left': indicator.offsetX + 'px',
+      'top': indicator.offsetY + 'px',
+      '--width': indicator.width + 'px',
+      '--height': indicator.height + 'px',
+    }"
+    v-for="indicator of indicators">
+      <div class="v-input-indicator-crosshair"></div>
+      <div class="v-input-indicator-circle"></div>
+      <div class="v-input-indicator-contact"></div>
     </div>
   </div>
 
@@ -111,8 +119,9 @@ createApp({
   data() {
     return {
       timeScale: 0.01,
-      drawMode: "svg", // "svg" | "canvas"
       inputSize: 400,
+      inputSpace: 100,
+      pathColor: "#000",
       layerContext: null,
       observer: null,
       watchingStartAt: 0,
@@ -127,15 +136,15 @@ createApp({
       history: [],
       historyHead: 0,
       inWatching: false,
-      watchMouse: true,
-      watchPen: true,
-      watchTouch: true,
     };
   },
 
   template,
 
   computed: {
+    inputBoxSize() {
+      return this.inputSize + (this.inputSpace * 2);
+    },
     indicators() {
       return [...this.indicatorMap.values()];
     },
@@ -146,25 +155,25 @@ createApp({
       return this.idGen.next().value;
     },
 
+    drawPathCanvas(x1, y1, x2, y2, pressure) {
+      this.layerContext.lineWidth = Math.max(4 * pressure, 0.5);
+      this.layerContext.beginPath();
+      this.layerContext.moveTo(x1, y1);
+      this.layerContext.lineTo(x2, y2);
+      this.layerContext.stroke();
+      //XXX 座標動かさずにclickした場合に何も描画されない
+    },
+
     onstart(activity) {
       const { startTrace, beforeTrace } = activity;
       const offsetX = startTrace.targetX;
       const offsetY = startTrace.targetY;
 
       let path;
-      if (this.drawMode === "svg") {
-        path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        path.classList.add("v-input-layer-path");
-        if (beforeTrace) {
-          const x0 = beforeTrace.targetX;
-          const y0 = beforeTrace.targetY;
-          const c = (startTrace.inContact === true) ? "L" : "M";
-          path.setAttribute("d", `M ${x0} ${y0} ${c} ${offsetX} ${offsetY}`);
-        }
-        else {
-          path.setAttribute("d", `M ${offsetX} ${offsetY}`);
-        }
-        document.querySelector("*.v-input-layers").append(path);
+      if (startTrace.inContact === true && beforeTrace) {
+        const prevOffsetX = beforeTrace.targetX;
+        const prevOffsetY = beforeTrace.targetY;
+        this.drawPathCanvas(prevOffsetX, prevOffsetY, offsetX, offsetY, startTrace.properties.pressure);
       }
 
       const { device } = activity;
@@ -205,12 +214,6 @@ createApp({
       this.indicatorMap.delete(activity);
       indicator.live = false;
 
-      if (this.drawMode === "canvas") {
-        //
-      }
-      else if (this.drawMode === "svg") {
-        //
-      }
     },
 
     onprogress(activity, trace, prevTrace) {
@@ -251,35 +254,15 @@ createApp({
       indicator.duration = activity.duration;
       indicator.durationStr = activity.duration.toFixed(3);
 
-      if (this.drawMode === "canvas") {
-        if (inContact === true && prevTrace) {
-          const prevOffsetX = prevTrace.targetX;
-          const prevOffsetY = prevTrace.targetY;
-          this.layerContext.beginPath();
-          this.layerContext.moveTo(prevOffsetX, prevOffsetY);
-          this.layerContext.lineTo(offsetX, offsetY);
-          this.layerContext.stroke();
-          //XXX 座標動かさずにclickした場合に何も描画されない
-        }
-      }
-      else if (this.drawMode === "svg") {
-        const c = (inContact === true) ? "L" : "M";
-        indicator.path.setAttribute("d", indicator.path.getAttribute("d") + ` ${c} ${offsetX} ${offsetY}`);
-        //XXX 長いと重くなる 適当に切るか？
-        //XXX Mの前がMの場合は、前のMは消す
+      if (inContact === true && prevTrace) {
+        const prevOffsetX = prevTrace.targetX;
+        const prevOffsetY = prevTrace.targetY;
+        this.drawPathCanvas(prevOffsetX, prevOffsetY, offsetX, offsetY, trace.properties.pressure);
       }
     },
 
     clearRecords() {
-      if (this.drawMode === "svg") {
-        const svg = document.querySelector("svg.v-input-layers");
-        while (svg.firstElementChild) {
-          svg.firstElementChild.remove();
-        }
-      }
-      if (this.drawMode === "canvas") {
-        this.layerContext.clearRect(0, 0, this.inputSize, this.inputSize);
-      }
+      this.layerContext.clearRect(0, 0, this.inputBoxSize, this.inputBoxSize);
 
       this.history.splice(0);
       this.historyHead = 0;
@@ -299,17 +282,6 @@ createApp({
       this.clearRecords();
       this.inWatching = true;
 
-      const pointerTypeFilter = [];
-      if (this.watchMouse === true) {
-        pointerTypeFilter.push("mouse");
-      }
-      if (this.watchPen === true) {
-        pointerTypeFilter.push("pen");
-      }
-      if (this.watchTouch === true) {
-        pointerTypeFilter.push("touch");
-      }
-
       this.observer = new PointerObserver(async (activity) => {
         this.onstart(activity);
         let prevTrace = null;
@@ -318,8 +290,6 @@ createApp({
           prevTrace = trace;
         }
         this.onend(activity);
-      }, {
-        pointerTypeFilter,
       });
 
       this.watchingStartAt = performance.now();
@@ -351,28 +321,26 @@ createApp({
   },
 
   mounted() {
-    if (this.drawMode === "canvas") {
-      this.layerContext = document.querySelector("canvas.v-input-layer")?.getContext("2d");
-      this.layerContext.lineWidth = 1;
-      this.layerContext.strokeStyle = "#d12";
-    }
+    this.layerContext = document.querySelector("canvas.v-input-layer")?.getContext("2d");
+    this.layerContext.scale(2, 2);
+    this.layerContext.strokeStyle = this.pathColor;
+
     this.resetObserver();
 
-    //TODO readmeに記載する
     // mouseは境界外でpointerdownしてそのまま境界内にpointermoveするとpointerenterが発火する
     // pen,touchはそうはならない
     document.querySelector("*.v-input-wrapper").addEventListener("pointerdown", (e) => {
-      if (e.target.hasPointerCapture(e.pointerId)) {
-        e.target.releasePointerCapture(e.pointerId);
+      if (e.target !== this.$refs.input1) {
+        if (e.target.hasPointerCapture(e.pointerId)) {
+          e.target.releasePointerCapture(e.pointerId);
+        }
       }
     }, { passive: true, });
   },
 
   beforeDestroy() {
     this.disposeObserver();
-    if (this.drawMode === "canvas") {
-      this.layerContext = null;
-    }
+    this.layerContext = null;
   },
 
 }).mount("#app");

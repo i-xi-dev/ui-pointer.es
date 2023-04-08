@@ -13,13 +13,14 @@ body {
 }
 
 *.v-app {
-  --input-size: 400px;
+  --input-size: 600px;
+  --inset: 100px;
   background-color: #525252;
   box-sizing: border-box;
   column-gap: 40px;
   display: grid;
-  grid-template-columns: minmax(200px, var(--input-size)) minmax(calc(var(--input-size) + 200px), 1fr);
-  grid-template-rows: calc(var(--input-size) + 200px) 1fr;
+  grid-template-columns: minmax(200px, 400px) minmax(var(--input-size), 1fr);
+  grid-template-rows: var(--input-size) 1fr;
   height: 100vh;
   min-width: 460px;
   overflow: auto;
@@ -35,47 +36,93 @@ body {
 }
 
 *.v-input-wrapper {
-  background-color: #444444;
   box-shadow: 0 0 0 2px #2a2a2a;
   height: var(--input-size);
   overflow: hidden;
-  padding: 100px;
-  touch-action: none;
-  -webkit-user-select: none;
-  user-select: none;
+  position: relative;
   width: var(--input-size);
 }
 
 *.v-input {
-  background-color: #5e5e5e;
-  background-image: url("./checkered.svg");
-  background-size: 100px 100px;
-  box-shadow: 0 2px 8px #0004;
+  background-color: #3c3c3c;
   position: relative;
   height: var(--input-size);
   width: var(--input-size);
 }
 *.v-input:not([aria-disabled="true"]):hover {
-  background-color: #616161;
+  background-color: #474747;
 }
 *.v-input:not([aria-disabled="true"]):active {
   cursor: none;
 }
 
-*.v-input-layers {
-  height: inherit;
-  inset: 0;
+*.v-input-range {
+  background-color: #e4e4e4;
+  background-image: url("./checkered.svg");
+  background-size: 100px 100px;
+  height: calc(var(--input-size) - calc(var(--inset) * 2));
+  inset-block-start: var(--inset);
+  inset-inline-start: var(--inset);
   pointer-events: none;
   position: absolute;
-  width: inherit;
+  width: calc(var(--input-size) - calc(var(--inset) * 2));
+}
+*.v-input:not([aria-disabled="true"]):hover *.v-input-range {
+  box-shadow: 0 2px 8px #0004;
 }
 
+*.v-input-layers {
+  clip-path: inset(var(--inset));
+  height: var(--input-size);
+  inset: 0;
+  mix-blend-mode: darken;
+  pointer-events: none;
+  position: absolute;
+  width: var(--input-size);
+  z-index: 1;
+}
+
+*.v-input-layers::after {
+  background-image: linear-gradient(to bottom, #3480dd 0%, #0f3a51 100%);
+  content: "";
+  inset: 0;
+  mix-blend-mode: plus-lighter;
+  pointer-events: none;
+  position: absolute;
+  z-index: 3;
+}
+
+/*
+*.v-input-layers::before {
+  border: var(--inset) solid #3c3c3cf8;
+  content: "";
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 3;
+}
+
+*.v-input-layers::after {
+  box-shadow: 0 2px 8px #000c;
+  content: "";
+  height: calc(var(--input-size) - calc(var(--inset) * 2));
+  inset-block-start: var(--inset);
+  inset-inline-start: var(--inset);
+  pointer-events: none;
+  position: absolute;
+  width: calc(var(--input-size) - calc(var(--inset) * 2));
+  z-index: 1;
+}
+*/
+
 *.v-input-layer {
+  background-color: #fff;
   height: inherit;
   inset: 0;
   pointer-events: none;
   position: absolute;
   width: inherit;
+  z-index: 2;
 }
 
 *.v-input-layer-path {
@@ -94,6 +141,7 @@ body {
   pointer-events: none;
   position: absolute;
   width: 1px;
+  z-index: 1;
 }
 
 *.v-input-indicator-crosshair,
