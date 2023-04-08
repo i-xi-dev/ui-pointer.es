@@ -299,7 +299,11 @@ createApp({
     clearRecords() {
       this.layerContext.clearRect(0, 0, this.inputSizeX, this.inputSizeY);
       this.layerContext.scale(this.dppx, this.dppx);
-      this.layerContext.strokeStyle = this.pathColor;
+      const gradient = this.layerContext.createLinearGradient(0, this.inputSpace, 0, this.inputSpace + this.clipSizeY);
+      gradient.addColorStop(0, "#3480dd");
+      gradient.addColorStop(1, "#0f3a51");
+      this.layerContext.strokeStyle = gradient;
+      this.layerContext.lineCap = "round";
 
       this.history.splice(0);
       this.historyHead = 0;

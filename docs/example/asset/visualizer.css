@@ -34,7 +34,8 @@ body {
 }
 @media (max-width: 700px) {
   *.v-app {
-    display: block;
+    grid-template-columns: var(--pane1-size-x);
+    grid-template-rows: auto var(--pane1-size-y) auto;
   }
 }
 
@@ -47,6 +48,12 @@ body {
   position: relative;
   min-width: var(--pane1-size-x);
   z-index: 1;
+}
+@media (max-width: 700px) {
+  *.v-input-pane {
+    grid-column: 1;
+    grid-row: 2;
+  }
 }
 
 *.v-input {
@@ -82,7 +89,6 @@ body {
   clip-path: inset(var(--inset));
   height: var(--content-size-y);
   inset: 0;
-  mix-blend-mode: darken;
   pointer-events: none;
   position: absolute;
   width: var(--content-size-x);
@@ -90,17 +96,14 @@ body {
 }
 
 *.v-input-layers::after {
-  background-image: linear-gradient(to bottom, #3480dd 0%, #0f3a51 100%);
   content: "";
   inset: 0;
-  mix-blend-mode: plus-lighter;
   pointer-events: none;
   position: absolute;
   z-index: 3;
 }
 
 *.v-input-layer {
-  background-color: #fff;
   height: inherit;
   inset: 0;
   pointer-events: none;
@@ -123,6 +126,12 @@ body {
   overflow: hidden;
   pointer-events: none;
   z-index: 1;
+}
+@media (max-width: 700px) {
+  *.v-pointer-indicators {
+    grid-column: 1;
+    grid-row: 2;
+  }
 }
 
 *.v-pointer-indicator {
@@ -239,6 +248,8 @@ body {
 }
 @media (max-width: 700px) {
   *.v-control {
+    grid-column: 1;
+    grid-row: 1;
     overflow: visible;
   }
 }
@@ -328,6 +339,8 @@ input[type="checkbox"]:disabled {
 }
 @media (max-width: 700px) {
   *.v-output-pane {
+    grid-column: 1;
+    grid-row: 3;
     min-height: 200px;
   }
 }
