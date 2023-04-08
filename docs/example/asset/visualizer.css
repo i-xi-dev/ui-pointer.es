@@ -12,6 +12,10 @@ body {
   padding: 0;
 }
 
+input[type="range"] {
+  width: 120px;
+}
+
 *.v-app {
   --content-size-x: 600px;
   --content-size-y: 600px;
@@ -40,7 +44,6 @@ body {
 }
 
 *.v-input-pane {
-  box-shadow: 0 0 0 2px #2a2a2a;
   grid-column: 2;
   grid-row: 1;
   height: var(--pane1-size-y);
@@ -232,19 +235,10 @@ body {
   box-shadow: 0 0 0 2px var(--i-color);
 }
 
-*.v-control {
-  align-items: start;
-  background-color: #a3a3a3;
-  box-shadow: 0 0 0 2px #2a2a2a;
-  column-gap: 20px;
-  display: flex;
-  flex-flow: column nowrap;
+*.v-control-pane {
   grid-column: 1;
   grid-row: 1;
-  /*min-width: */
   overflow: auto;
-  padding: 15px 20px;
-  row-gap: 20px;
 }
 @media (max-width: 700px) {
   *.v-control {
@@ -252,6 +246,21 @@ body {
     grid-row: 1;
     overflow: visible;
   }
+}
+
+*.v-control {
+  align-items: start;
+  background-color: #a3a3a3;
+  column-gap: 20px;
+  display: flex;
+  flex-flow: column nowrap;
+  /*min-width: */
+  padding: 15px 20px;
+  row-gap: 20px;
+}
+
+*.v-control + *.v-control {
+  margin-top: 10px;
 }
 
 *.v-control-group {
@@ -266,7 +275,11 @@ body {
   margin-block: 0px;
 }
 
-*.v-control-group *.v-control-group + *.v-control-group {
+*.v-control-item *.v-control-item {
+  width: 170px;
+}
+
+*.v-control-group *.v-control-item + *.v-control-group {
   margin-block-start: 10px;
 }
 
@@ -300,6 +313,12 @@ body {
   transition: background-color 200ms;
   user-select: none;
 }
+*.v-control-group *.v-control-item + *.v-control-button {
+  box-sizing: border-box;
+  margin-block-start: 15px;
+  width: 190px;
+}
+
 input[type="checkbox"] {
   cursor: pointer;
   transform: scale(1.25);
@@ -331,7 +350,6 @@ input[type="checkbox"]:disabled {
 
 *.v-output-pane {
   background-color: #2a2a2a;
-  box-shadow: 0 0 0 2px #2a2a2a;
   grid-column: 1 / -1;
   grid-row: 2;
   min-height: 200px;

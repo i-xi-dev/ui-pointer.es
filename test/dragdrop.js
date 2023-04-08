@@ -1,5 +1,5 @@
 import { createApp } from "https://unpkg.com/vue@3/dist/vue.esm-browser.js";
-import { VItem } from "./dragdrop-item.js";
+import { VItem } from "../docs/example/dragdrop-item.js";
 import { PointerObserver } from "../dist/index.js";
 
 const template = `

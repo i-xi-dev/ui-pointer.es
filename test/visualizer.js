@@ -1,4 +1,5 @@
 import { createApp } from "https://unpkg.com/vue@3/dist/vue.esm-browser.js";
+import { VTrackCanvas } from "../docs/example/visualizer-tracks.js";
 import { VPointerIndicator } from "../docs/example/visualizer-pointer.js";
 import { PointerObserver } from "../dist/index.js";
 
@@ -15,64 +16,98 @@ class="v-app"
   '--content-size-y': inputSizeY + 'px',
   '--inset': inputSpace + 'px',
 }">
-  <div class="v-control">
-    <button class="v-control-button v--pushbutton" @click="onToggle">
-      <svg v-if="inWatching === true" viewBox="0 0 24 24">
-        <path d="M 5 5 L 19 5 L 19 19 L 5 19 z" fill="#fff"/>
-      </svg>
-      <svg v-else viewBox="0 0 24 24">
-        <path d="M 3 3 L 22 12 L 3 21 z" fill="#fff"/>
-      </svg>
-      <span>{{ (inWatching === true) ? "Stop" : "Start" }}</span>
-    </button>
-    <fieldset class="v-control-group" :disabled="inWatching === true" v-if="false">
-      <legend>Watch following pointer types</legend>
-      <div class="v-control-flow">
-        <label :aria-disabled="inWatching === true ? 'true' : 'false'" class="v-control-button">
-          <input type="checkbox"/>
-          <span>Mouse</span>
-        </label>
-        <label :aria-disabled="inWatching === true ? 'true' : 'false'" class="v-control-button">
-          <input type="checkbox"/>
-          <span>Pen</span>
-        </label>
-        <label :aria-disabled="inWatching === true ? 'true' : 'false'" class="v-control-button">
-          <input type="checkbox"/>
-          <span>Touch</span>
-        </label>
-      </div>
-    </fieldset>
-    <fieldset class="v-control-group" :disabled="inWatching === true">
-      <legend>Canvas size</legend>
-      <fieldset class="v-control-group" :disabled="inWatching === true">
-        <legend>Width</legend>
-        <div class="v-control-item v--range">
-          <input
-          :disabled="inWatching === true"
-          @input="clipSizeX = Number.parseInt($event.target.value)"
-          min="200"
-          max="1400"
-          step="10"
-          type="range"
-          :value="clipSizeX"/>
-          <output>{{ clipSizeX }}</output>
+  <div class="v-control-pane">
+    <div class="v-control">
+      <button class="v-control-button v--pushbutton" @click="onToggle">
+        <svg v-if="inWatching === true" viewBox="0 0 24 24">
+          <path d="M 5 5 L 19 5 L 19 19 L 5 19 z" fill="#fff"/>
+        </svg>
+        <svg v-else viewBox="0 0 24 24">
+          <path d="M 3 3 L 22 12 L 3 21 z" fill="#fff"/>
+        </svg>
+        <span>{{ (inWatching === true) ? "Stop" : "Start" }}</span>
+      </button>
+      <fieldset class="v-control-group" :disabled="inWatching === true" v-if="false">
+        <legend>Watch following pointer types</legend>
+        <div class="v-control-flow">
+          <label :aria-disabled="inWatching === true ? 'true' : 'false'" class="v-control-button">
+            <input type="checkbox"/>
+            <span>Mouse</span>
+          </label>
+          <label :aria-disabled="inWatching === true ? 'true' : 'false'" class="v-control-button">
+            <input type="checkbox"/>
+            <span>Pen</span>
+          </label>
+          <label :aria-disabled="inWatching === true ? 'true' : 'false'" class="v-control-button">
+            <input type="checkbox"/>
+            <span>Touch</span>
+          </label>
         </div>
       </fieldset>
+
       <fieldset class="v-control-group" :disabled="inWatching === true">
-        <legend>Height</legend>
-        <div class="v-control-item v--range">
-          <input
-          :disabled="inWatching === true"
-          @input="clipSizeY = Number.parseInt($event.target.value)"
-          min="200"
-          max="1400"
-          step="10"
-          type="range"
-          :value="clipSizeY"/>
-          <output>{{ clipSizeY }}</output>
-        </div>
+        <legend>Canvas size</legend>
+        <fieldset class="v-control-item v-control-group" :disabled="inWatching === true">
+          <legend>Width</legend>
+          <div class="v-control-item v--range">
+            <input
+            :disabled="inWatching === true"
+            @input="clipSizeX = Number.parseInt($event.target.value)"
+            min="200"
+            max="1400"
+            step="10"
+            type="range"
+            :value="clipSizeX"/>
+            <output>{{ clipSizeX }}</output>
+          </div>
+        </fieldset>
+        <fieldset class="v-control-item v-control-group" :disabled="inWatching === true">
+          <legend>Height</legend>
+          <div class="v-control-item v--range">
+            <input
+            :disabled="inWatching === true"
+            @input="clipSizeY = Number.parseInt($event.target.value)"
+            min="200"
+            max="1400"
+            step="10"
+            type="range"
+            :value="clipSizeY"/>
+            <output>{{ clipSizeY }}</output>
+          </div>
+        </fieldset>
       </fieldset>
-    </fieldset>
+    </div>
+
+    <div class="v-control">
+      <fieldset class="v-control-group">
+        <legend>Stroke</legend>
+        <fieldset class="v-control-item v-control-group">
+          <legend>Color</legend>
+          <div class="v-control-item v--color">
+            <input type="color" v-model="lineColor"/>
+          </div>
+        </fieldset>
+        <fieldset class="v-control-item v-control-group">
+          <legend>Thickness</legend>
+          <div class="v-control-item v--range">
+            <input
+            @input="lineThickness = Number.parseInt($event.target.value)"
+            min="2"
+            max="20"
+            step="2"
+            type="range"
+            :value="lineThickness"/>
+            <output>{{ lineThickness / 2 }}</output>
+          </div>
+        </fieldset>
+        <!--
+        <label class="v-control-item v-control-button">
+          <input type="checkbox"/>
+          <span>Detect pressure (pen only)</span>
+        </label>
+        -->
+      </fieldset>
+    </div>
   </div>
 
   <div class="v-input-pane">
@@ -80,16 +115,7 @@ class="v-app"
       <div class="v-input-clip"></div>
     </div>
 
-    <div class="v-input-layers">
-      <canvas
-      class="v-input-layer"
-      :height="inputSizeY * dppx"
-      :style="{
-        'width': inputSizeX + 'px',
-        'height': inputSizeY + 'px',
-      }"
-      :width="inputSizeX * dppx"></canvas>
-    </div>
+    <v-track-canvas ref="canvas1"></v-track-canvas>
   </div>
 
   <div class="v-pointer-indicators">
@@ -105,6 +131,7 @@ class="v-app"
       :style="{
         '--len': historyHead + 'px',
       }"></div>
+
       <div class="v-output-detail" v-for="item of history">
         <div class="v-output-detail-name">
           <div class="v-output-detail-name-content">{{ item.name }}</div>
@@ -145,8 +172,8 @@ createApp({
       clipSizeY: 400,
       inputSpace: 100,
       dppx: 2,
-      pathColor: "#000",
-      layerContext: null,
+      lineColor: "#0f3a51",
+      lineThickness: 4,
       observer: null,
       watchingStartAt: 0,
       timer: undefined,
@@ -167,6 +194,7 @@ createApp({
 
   components: {
     "v-pointer-indicator": VPointerIndicator,
+    "v-track-canvas": VTrackCanvas,
   },
 
   computed: {
@@ -187,12 +215,11 @@ createApp({
     },
 
     drawPathCanvas(x1, y1, x2, y2, pressure) {
-      this.layerContext.lineWidth = Math.max(4 * pressure, 0.5);
-      this.layerContext.beginPath();
-      this.layerContext.moveTo(x1, y1);
-      this.layerContext.lineTo(x2, y2);
-      this.layerContext.stroke();
-      //XXX 座標動かさずにclickした場合に何も描画されない
+      this.$refs.canvas1.drawLine(x1, y1, x2, y2, {
+        pressure,
+        color: this.lineColor,
+        thickness: this.lineThickness,
+      });
     },
 
     onstart(activity) {
@@ -297,13 +324,7 @@ createApp({
     },
 
     clearRecords() {
-      this.layerContext.clearRect(0, 0, this.inputSizeX, this.inputSizeY);
-      this.layerContext.scale(this.dppx, this.dppx);
-      const gradient = this.layerContext.createLinearGradient(0, this.inputSpace, 0, this.inputSpace + this.clipSizeY);
-      gradient.addColorStop(0, "#3480dd");
-      gradient.addColorStop(1, "#0f3a51");
-      this.layerContext.strokeStyle = gradient;
-      this.layerContext.lineCap = "round";
+      this.$refs.canvas1.reset(this.inputSizeX, this.inputSizeX, this.dppx);
 
       this.history.splice(0);
       this.historyHead = 0;
@@ -362,8 +383,6 @@ createApp({
   },
 
   mounted() {
-    this.layerContext = document.querySelector("canvas.v-input-layer")?.getContext("2d");
-
     this.resetObserver();
 
     // mouseは境界外でpointerdownしてそのまま境界内にpointermoveするとpointerenterが発火する
@@ -379,7 +398,6 @@ createApp({
 
   beforeDestroy() {
     this.disposeObserver();
-    this.layerContext = null;
   },
 
 }).mount("#app");
