@@ -1,4 +1,5 @@
 import { createApp } from "https://unpkg.com/vue@3/dist/vue.esm-browser.js";
+import { VPointerIndicator } from "../docs/example/visualizer-pointer.js";
 import { PointerObserver } from "../dist/index.js";
 
 function formatTimeStamp(timestamp) {
@@ -10,7 +11,8 @@ const template = `
 <div
 class="v-app"
 :style="{
-  '--input-size': inputBoxSize + 'px',
+  '--content-size-x': inputSizeX + 'px',
+  '--content-size-y': inputSizeY + 'px',
   '--inset': inputSpace + 'px',
 }">
   <div class="v-control">
@@ -40,43 +42,63 @@ class="v-app"
         </label>
       </div>
     </fieldset>
+    <fieldset class="v-control-group" :disabled="inWatching === true">
+      <legend>Canvas size</legend>
+      <fieldset class="v-control-group" :disabled="inWatching === true">
+        <legend>Width</legend>
+        <div class="v-control-item v--range">
+          <input
+          :disabled="inWatching === true"
+          @input="clipSizeX = Number.parseInt($event.target.value)"
+          min="200"
+          max="1400"
+          step="10"
+          type="range"
+          :value="clipSizeX"/>
+          <output>{{ clipSizeX }}</output>
+        </div>
+      </fieldset>
+      <fieldset class="v-control-group" :disabled="inWatching === true">
+        <legend>Height</legend>
+        <div class="v-control-item v--range">
+          <input
+          :disabled="inWatching === true"
+          @input="clipSizeY = Number.parseInt($event.target.value)"
+          min="200"
+          max="1400"
+          step="10"
+          type="range"
+          :value="clipSizeY"/>
+          <output>{{ clipSizeY }}</output>
+        </div>
+      </fieldset>
+    </fieldset>
   </div>
 
-  <div class="v-input-wrapper">
+  <div class="v-input-pane">
     <div :aria-disabled="inWatching !== true ? 'true' : 'false'" class="v-input" ref="input1">
-      <div class="v-input-range"></div>
+      <div class="v-input-clip"></div>
     </div>
 
     <div class="v-input-layers">
-      <canvas class="v-input-layer" :height="inputBoxSize * 2" :width="inputBoxSize * 2" :style="{
-        'width': inputBoxSize + 'px',
-        'height': inputBoxSize + 'px',
-      }"></canvas>
-    </div>
-
-    <div
-    :class="{
-      'v-input-indicator': true,
-      'v--primary': indicator.primary === true,
-      'v--contact': indicator.inContact === true,
-      'v--mouse': indicator.type === 'mouse',
-      'v--pen': indicator.type === 'pen',
-      'v--touch': indicator.type === 'touch',
-    }"
-    :style="{
-      'left': indicator.offsetX + 'px',
-      'top': indicator.offsetY + 'px',
-      '--width': indicator.width + 'px',
-      '--height': indicator.height + 'px',
-    }"
-    v-for="indicator of indicators">
-      <div class="v-input-indicator-crosshair"></div>
-      <div class="v-input-indicator-circle"></div>
-      <div class="v-input-indicator-contact"></div>
+      <canvas
+      class="v-input-layer"
+      :height="inputSizeY * dppx"
+      :style="{
+        'width': inputSizeX + 'px',
+        'height': inputSizeY + 'px',
+      }"
+      :width="inputSizeX * dppx"></canvas>
     </div>
   </div>
 
-  <div class="v-output-wrapper" ref="out1">
+  <div class="v-pointer-indicators">
+    <v-pointer-indicator
+    :indicator="indicator"
+    v-for="indicator of indicators"></v-pointer-indicator>
+  </div>
+
+  <div class="v-output-pane" ref="out1">
     <div class="v-output">
       <div
       class="v-output-head"
@@ -119,8 +141,10 @@ createApp({
   data() {
     return {
       timeScale: 0.01,
-      inputSize: 400,
+      clipSizeX: 400,
+      clipSizeY: 400,
       inputSpace: 100,
+      dppx: 2,
       pathColor: "#000",
       layerContext: null,
       observer: null,
@@ -141,9 +165,16 @@ createApp({
 
   template,
 
+  components: {
+    "v-pointer-indicator": VPointerIndicator,
+  },
+
   computed: {
-    inputBoxSize() {
-      return this.inputSize + (this.inputSpace * 2);
+    inputSizeX() {
+      return this.clipSizeX + (this.inputSpace * 2);
+    },
+    inputSizeY() {
+      return this.clipSizeY + (this.inputSpace * 2);
     },
     indicators() {
       return [...this.indicatorMap.values()];
@@ -187,6 +218,8 @@ createApp({
         startTimeStr: formatTimeStamp(activity.startTime),
         offsetX,
         offsetY,
+        vX: startTrace.viewportX,
+        vY: startTrace.viewportY,
         width: 1,
         height: 1,
         inContact: false,
@@ -247,6 +280,8 @@ createApp({
 
       indicator.offsetX = offsetX;
       indicator.offsetY = offsetY;
+      indicator.vX = trace.viewportX;
+      indicator.vY = trace.viewportY;
       indicator.width = trace.properties.radiusX * 2;
       indicator.height = trace.properties.radiusY * 2;
       indicator.inContact = inContact;
@@ -262,7 +297,9 @@ createApp({
     },
 
     clearRecords() {
-      this.layerContext.clearRect(0, 0, this.inputBoxSize, this.inputBoxSize);
+      this.layerContext.clearRect(0, 0, this.inputSizeX, this.inputSizeY);
+      this.layerContext.scale(this.dppx, this.dppx);
+      this.layerContext.strokeStyle = this.pathColor;
 
       this.history.splice(0);
       this.historyHead = 0;
@@ -322,14 +359,12 @@ createApp({
 
   mounted() {
     this.layerContext = document.querySelector("canvas.v-input-layer")?.getContext("2d");
-    this.layerContext.scale(2, 2);
-    this.layerContext.strokeStyle = this.pathColor;
 
     this.resetObserver();
 
     // mouseは境界外でpointerdownしてそのまま境界内にpointermoveするとpointerenterが発火する
     // pen,touchはそうはならない
-    document.querySelector("*.v-input-wrapper").addEventListener("pointerdown", (e) => {
+    document.querySelector("*.v-input-pane").addEventListener("pointerdown", (e) => {
       if (e.target !== this.$refs.input1) {
         if (e.target.hasPointerCapture(e.pointerId)) {
           e.target.releasePointerCapture(e.pointerId);
