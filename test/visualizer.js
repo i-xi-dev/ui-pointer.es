@@ -42,7 +42,10 @@ const template = `
       <svg class="v-input-layers" v-if="drawMode === 'svg'" :viewBox="'0 0 ' + inputSize + ' ' + inputSize">
       </svg>
       <div class="v-input-layers" v-if="drawMode === 'canvas'">
-        <canvas class="v-input-layer" :height="inputSize" :width="inputSize"></canvas>
+        <canvas class="v-input-layer" :height="inputSize * 2" :width="inputSize * 2" :style="{
+          'width': inputSize + 'px',
+          'height': inputSize + 'px',
+        }"></canvas>
       </div>
 
       <div
@@ -111,7 +114,7 @@ createApp({
   data() {
     return {
       timeScale: 0.01,
-      drawMode: "svg", // "svg" | "canvas"
+      drawMode: "canvas", // "canvas" | "svg"
       inputSize: 400,
       layerContext: null,
       observer: null,
@@ -146,13 +149,29 @@ createApp({
       return this.idGen.next().value;
     },
 
+    drawPathCanvas(x1, y1, x2, y2, pressure) {
+      this.layerContext.lineWidth = Math.max(4 * pressure, 0.5);
+      this.layerContext.beginPath();
+      this.layerContext.moveTo(x1, y1);
+      this.layerContext.lineTo(x2, y2);
+      this.layerContext.stroke();
+      //XXX 座標動かさずにclickした場合に何も描画されない
+    },
+
     onstart(activity) {
       const { startTrace, beforeTrace } = activity;
       const offsetX = startTrace.targetX;
       const offsetY = startTrace.targetY;
 
       let path;
-      if (this.drawMode === "svg") {
+      if (this.drawMode === "canvas") {
+        if (startTrace.inContact === true && beforeTrace) {
+          const prevOffsetX = beforeTrace.targetX;
+          const prevOffsetY = beforeTrace.targetY;
+          this.drawPathCanvas(prevOffsetX, prevOffsetY, offsetX, offsetY, startTrace.properties.pressure);
+        }
+      }
+      else if (this.drawMode === "svg") {
         path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         path.classList.add("v-input-layer-path");
         if (beforeTrace) {
@@ -255,11 +274,7 @@ createApp({
         if (inContact === true && prevTrace) {
           const prevOffsetX = prevTrace.targetX;
           const prevOffsetY = prevTrace.targetY;
-          this.layerContext.beginPath();
-          this.layerContext.moveTo(prevOffsetX, prevOffsetY);
-          this.layerContext.lineTo(offsetX, offsetY);
-          this.layerContext.stroke();
-          //XXX 座標動かさずにclickした場合に何も描画されない
+          this.drawPathCanvas(prevOffsetX, prevOffsetY, offsetX, offsetY, trace.properties.pressure);
         }
       }
       else if (this.drawMode === "svg") {
@@ -353,7 +368,7 @@ createApp({
   mounted() {
     if (this.drawMode === "canvas") {
       this.layerContext = document.querySelector("canvas.v-input-layer")?.getContext("2d");
-      this.layerContext.lineWidth = 1;
+      this.layerContext.scale(2, 2);
       this.layerContext.strokeStyle = "#d12";
     }
     this.resetObserver();
@@ -362,8 +377,10 @@ createApp({
     // mouseは境界外でpointerdownしてそのまま境界内にpointermoveするとpointerenterが発火する
     // pen,touchはそうはならない
     document.querySelector("*.v-input-wrapper").addEventListener("pointerdown", (e) => {
-      if (e.target.hasPointerCapture(e.pointerId)) {
-        e.target.releasePointerCapture(e.pointerId);
+      if (e.target !== this.$refs.input1) {
+        if (e.target.hasPointerCapture(e.pointerId)) {
+          e.target.releasePointerCapture(e.pointerId);
+        }
       }
     }, { passive: true, });
   },
