@@ -358,19 +358,7 @@ class _TargetObservation {
         }
       }
 
-      // mouseで左ボタンが押されているか、pen/touchで接触がある場合
-      if (PointerState.inContact(event) === true) {
-        if (this.#capturingPointerIds.has(event.pointerId) === true) {
-          return;
-        }
-
-        if (this.#usePointerCapture === true) {
-          if (this.#pointerTypeFilter(event) === true) {
-            this.#capturingPointerIds.add(event.pointerId);
-            this.#target.setPointerCapture(event.pointerId);
-          }
-        }
-      }
+      this._setPointerCaptureIfContacted(event);
     }) as EventListener, listenerOptions);
 
     this.#target.addEventListener("pointerup", ((event: PointerEvent): void => {
@@ -403,12 +391,29 @@ class _TargetObservation {
       }
       _Debug.logEvent(event);
 
+      this._setPointerCaptureIfContacted(event);
+
       this.#handleTargetEvent(event).catch((reason?: any): void => {
         console.error(reason);
       });
     }) as EventListener, listenerOptions);
 
     this._service.subscribe(this._handleWindowEvent);
+  }
+
+  private _setPointerCaptureIfContacted(event: PointerEvent): void {
+    if (PointerState.inContact(event) === true) {
+      if (this.#capturingPointerIds.has(event.pointerId) === true) {
+        return;
+      }
+
+      if (this.#usePointerCapture === true) {
+        if (this.#pointerTypeFilter(event) === true) {
+          this.#capturingPointerIds.add(event.pointerId);
+          this.#target.setPointerCapture(event.pointerId);
+        }
+      }
+    }
   }
 
   get target(): Element {
