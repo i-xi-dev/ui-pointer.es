@@ -3,6 +3,7 @@ import { nextTick } from "https://unpkg.com/vue@3/dist/vue.esm-browser.prod.js";
 export const VTrackCanvas = {
   data() {
     return {
+      ink: null,
       context: null,
       dppx: 1,
       sizeX: 0,
@@ -42,7 +43,7 @@ export const VTrackCanvas = {
   },
 
   methods: {
-    drawLine(x1, y1, x2, y2, { thickness, color } = {}) {
+    drawLine(x1, y1, x2, y2, { pointerEvent, thickness, color } = {}) {
       this.context.lineCap = "round";
       this.context.lineWidth = thickness;
       this.context.strokeStyle = color;
@@ -50,6 +51,13 @@ export const VTrackCanvas = {
       this.context.moveTo(x1, y1);
       this.context.lineTo(x2, y2);
       this.context.stroke();
+
+      if (pointerEvent && this.ink) {
+        this.ink.updateInkTrailStartPoint(pointerEvent, {
+          color: color,
+          diameter: thickness,
+        });
+      }
     },
 
     reset(sizeX, sizeY, dppx) {
@@ -65,7 +73,16 @@ export const VTrackCanvas = {
   },
 
   mounted() {
-    this.context = this.$refs.canvas1.getContext("2d");
+    const canvas = this.$refs.canvas1;
+    this.context = canvas.getContext("2d");
+
+    (async () => {
+      if (navigator.ink) {
+        this.ink = await navigator.ink.requestPresenter({
+          presentationArea: canvas,
+        });
+      }
+    })();
   },
 
   beforeDestroy() {

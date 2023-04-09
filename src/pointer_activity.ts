@@ -32,7 +32,6 @@ namespace PointerActivity {
       readonly clientX: number;
       readonly clientY: number;
       readonly composedPath: Array<Element>;
-      readonly currentTarget: Element | null;
       readonly isPrimary: boolean;
       readonly isTrusted: boolean;
       readonly offsetX: number;
@@ -44,6 +43,7 @@ namespace PointerActivity {
       readonly type: string;
 
       prev: Source | null;
+      readonly raw: PointerEvent;//[$141] ink用に追加
 
       // getCoalescedEvents() → 不要（Sourceを複数作成）
       // getModifierState() //XXX
@@ -57,7 +57,6 @@ namespace PointerActivity {
           clientX: event.clientX,
           clientY: event.clientY,
           composedPath: event.composedPath() as Array<Element>,
-          currentTarget: event.currentTarget as (Element | null),
           height: event.height,
           isPrimary: event.isPrimary,
           isTrusted: event.isTrusted,
@@ -75,6 +74,7 @@ namespace PointerActivity {
           type: event.type,
           width: event.width,
           prev: null,
+          raw: event,
         };
       }
     }

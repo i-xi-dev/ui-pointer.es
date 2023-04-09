@@ -246,7 +246,7 @@ createApp({
       return this.idGen.next().value;
     },
 
-    drawPathCanvas(x1, y1, x2, y2, trace, device) {
+    drawPathCanvas(x1, y1, x2, y2, trace, device, pointerEvent) {
       let lineThickness;
       let lineColor;
       switch (device.type) {
@@ -271,6 +271,7 @@ createApp({
       this.$refs.canvas1.drawLine(x1, y1, x2, y2, {
         color: lineColor,
         thickness: lineThickness,
+        pointerEvent,
       });
     },
 
@@ -283,7 +284,7 @@ createApp({
       if (startTrace.inContact === true && beforeTrace) {
         const prevOffsetX = beforeTrace.targetX;
         const prevOffsetY = beforeTrace.targetY;
-        this.drawPathCanvas(prevOffsetX, prevOffsetY, offsetX, offsetY, startTrace, activity.device);
+        this.drawPathCanvas(prevOffsetX, prevOffsetY, offsetX, offsetY, startTrace, activity.device, startTrace.source.raw);
       }
 
       const { device } = activity;
@@ -371,7 +372,7 @@ createApp({
       if (inContact === true && prevTrace) {
         const prevOffsetX = prevTrace.targetX;
         const prevOffsetY = prevTrace.targetY;
-        this.drawPathCanvas(prevOffsetX, prevOffsetY, offsetX, offsetY, trace, activity.device);
+        this.drawPathCanvas(prevOffsetX, prevOffsetY, offsetX, offsetY, trace, activity.device, trace.source.raw);
       }
     },
 
