@@ -88,7 +88,7 @@ input[type="range"] {
   box-shadow: 0 2px 8px #0004;
 }
 
-*.v-input-layers {
+*.v-track-layers {
   clip-path: inset(var(--inset));
   height: var(--content-size-y);
   inset: 0;
@@ -98,7 +98,7 @@ input[type="range"] {
   z-index: 1;
 }
 
-*.v-input-layers::after {
+*.v-track-layers::after {
   content: "";
   inset: 0;
   pointer-events: none;
@@ -106,21 +106,13 @@ input[type="range"] {
   z-index: 3;
 }
 
-*.v-input-layer {
+*.v-track-layer {
   height: inherit;
   inset: 0;
   pointer-events: none;
   position: absolute;
   width: inherit;
   z-index: 2;
-}
-
-*.v-input-layer-path {
-  fill: none;
-  stroke: #a21;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 2px;
 }
 
 *.v-pointer-indicators {

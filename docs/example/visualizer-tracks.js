@@ -11,9 +11,9 @@ export const VTrackCanvas = {
   },
 
   template: `
-    <div class="v-input-layers">
+    <div class="v-track-layers">
       <canvas
-      class="v-input-layer"
+      class="v-track-layer"
       :height="coordsY"
       ref="canvas1"
       :style="style"
@@ -42,11 +42,9 @@ export const VTrackCanvas = {
   },
 
   methods: {
-    drawLine(x1, y1, x2, y2, { pressure, color, thickness } = {}) {
-      const pressureA = Number.isFinite(pressure) ? pressure : 0.5;
-
+    drawLine(x1, y1, x2, y2, { thickness, color } = {}) {
       this.context.lineCap = "round";
-      this.context.lineWidth = Math.max(thickness * pressureA, 0.5);
+      this.context.lineWidth = thickness;
       this.context.strokeStyle = color;
       this.context.beginPath();
       this.context.moveTo(x1, y1);

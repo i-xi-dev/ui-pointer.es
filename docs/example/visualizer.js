@@ -27,23 +27,6 @@ class="v-app"
         </svg>
         <span>{{ (inWatching === true) ? "Stop" : "Start" }}</span>
       </button>
-      <fieldset class="v-control-group" :disabled="inWatching === true" v-if="false">
-        <legend>Watch following pointer types</legend>
-        <div class="v-control-flow">
-          <label :aria-disabled="inWatching === true ? 'true' : 'false'" class="v-control-button">
-            <input type="checkbox"/>
-            <span>Mouse</span>
-          </label>
-          <label :aria-disabled="inWatching === true ? 'true' : 'false'" class="v-control-button">
-            <input type="checkbox"/>
-            <span>Pen</span>
-          </label>
-          <label :aria-disabled="inWatching === true ? 'true' : 'false'" class="v-control-button">
-            <input type="checkbox"/>
-            <span>Touch</span>
-          </label>
-        </div>
-      </fieldset>
 
       <fieldset class="v-control-group" :disabled="inWatching === true">
         <legend>Canvas size</legend>
@@ -80,32 +63,76 @@ class="v-app"
 
     <div class="v-control">
       <fieldset class="v-control-group">
-        <legend>Stroke</legend>
+        <legend>Pen Stroke</legend>
         <fieldset class="v-control-item v-control-group">
           <legend>Color</legend>
           <div class="v-control-item v--color">
-            <input type="color" v-model="lineColor"/>
+            <input type="color" v-model="penLineColor"/>
           </div>
         </fieldset>
         <fieldset class="v-control-item v-control-group">
           <legend>Thickness</legend>
           <div class="v-control-item v--range">
             <input
-            @input="lineThickness = Number.parseInt($event.target.value)"
+            @input="penLineThickness = Number.parseInt($event.target.value)"
             min="2"
             max="20"
             step="2"
             type="range"
-            :value="lineThickness"/>
-            <output>{{ lineThickness / 2 }}</output>
+            :value="penLineThickness"/>
+            <output>{{ penLineThickness / 2 }}</output>
           </div>
         </fieldset>
-        <!--
         <label class="v-control-item v-control-button">
-          <input type="checkbox"/>
-          <span>Detect pressure (pen only)</span>
+          <input type="checkbox" v-model="penPressure"/>
+          <span>Detect pressure</span>
         </label>
-        -->
+      </fieldset>
+
+      <fieldset class="v-control-group">
+        <legend>Touch Stroke</legend>
+        <fieldset class="v-control-item v-control-group">
+          <legend>Color</legend>
+          <div class="v-control-item v--color">
+            <input type="color" v-model="touchLineColor"/>
+          </div>
+        </fieldset>
+        <fieldset class="v-control-item v-control-group">
+          <legend>Thickness</legend>
+          <div class="v-control-item v--range">
+            <input
+            @input="touchLineThickness = Number.parseInt($event.target.value)"
+            min="2"
+            max="20"
+            step="2"
+            type="range"
+            :value="touchLineThickness"/>
+            <output>{{ touchLineThickness / 2 }}</output>
+          </div>
+        </fieldset>
+      </fieldset>
+
+      <fieldset class="v-control-group">
+        <legend>Mouse Stroke</legend>
+        <fieldset class="v-control-item v-control-group">
+          <legend>Color</legend>
+          <div class="v-control-item v--color">
+            <input type="color" v-model="mouseLineColor"/>
+          </div>
+        </fieldset>
+        <fieldset class="v-control-item v-control-group">
+          <legend>Thickness</legend>
+          <div class="v-control-item v--range">
+            <input
+            @input="mouseLineThickness = Number.parseInt($event.target.value)"
+            min="2"
+            max="20"
+            step="2"
+            type="range"
+            :value="mouseLineThickness"/>
+            <output>{{ mouseLineThickness / 2 }}</output>
+          </div>
+        </fieldset>
       </fieldset>
     </div>
   </div>
@@ -172,8 +199,13 @@ createApp({
       clipSizeY: 400,
       inputSpace: 100,
       dppx: 2,
-      lineColor: "#0f3a51",
-      lineThickness: 4,
+      mouseLineColor: "#1a66b7",
+      penLineColor: "#0f3a51",
+      touchLineColor: "#4b89aa",
+      mouseLineThickness: 2,
+      penLineThickness: 10,
+      touchLineThickness: 20,
+      penPressure: true,
       observer: null,
       watchingStartAt: 0,
       timer: undefined,
@@ -214,11 +246,31 @@ createApp({
       return this.idGen.next().value;
     },
 
-    drawPathCanvas(x1, y1, x2, y2, pressure) {
+    drawPathCanvas(x1, y1, x2, y2, trace, device) {
+      let lineThickness;
+      let lineColor;
+      switch (device.type) {
+        case "pen":
+          lineColor = this.penLineColor;
+          if (this.penPressure === true) {
+            lineThickness = Math.max(this.penLineThickness * trace.properties.pressure, 0.5);
+          }
+          else {
+            lineThickness = this.penLineThickness;
+          }
+          break;
+        case "touch":
+          lineColor = this.touchLineColor;
+          lineThickness = this.touchLineThickness;
+          break;
+        default:
+          lineColor = this.mouseLineColor;
+          lineThickness = this.mouseLineThickness;
+          break;
+      }
       this.$refs.canvas1.drawLine(x1, y1, x2, y2, {
-        pressure,
-        color: this.lineColor,
-        thickness: this.lineThickness,
+        color: lineColor,
+        thickness: lineThickness,
       });
     },
 
@@ -231,7 +283,7 @@ createApp({
       if (startTrace.inContact === true && beforeTrace) {
         const prevOffsetX = beforeTrace.targetX;
         const prevOffsetY = beforeTrace.targetY;
-        this.drawPathCanvas(prevOffsetX, prevOffsetY, offsetX, offsetY, startTrace.properties.pressure);
+        this.drawPathCanvas(prevOffsetX, prevOffsetY, offsetX, offsetY, startTrace, activity.device);
       }
 
       const { device } = activity;
@@ -319,7 +371,7 @@ createApp({
       if (inContact === true && prevTrace) {
         const prevOffsetX = prevTrace.targetX;
         const prevOffsetY = prevTrace.targetY;
-        this.drawPathCanvas(prevOffsetX, prevOffsetY, offsetX, offsetY, trace.properties.pressure);
+        this.drawPathCanvas(prevOffsetX, prevOffsetY, offsetX, offsetY, trace, activity.device);
       }
     },
 
@@ -379,7 +431,7 @@ createApp({
   },
 
   created() {
-    PointerObserver._enableDevMode();
+    // PointerObserver._enableDevMode();
   },
 
   mounted() {
