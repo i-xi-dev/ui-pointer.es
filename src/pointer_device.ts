@@ -3,7 +3,7 @@
  */
 interface PointerDevice {
   /**
-   * Indicates the {@link https://www.w3.org/TR/pointerevents2/#dom-pointerevent-pointertype | PointerEvent#pointerType}.
+   * Indicates the {@link https://developer.mozilla.org/en-US/docs/Web/API/PointerEvent/pointerType | `pointerType`} property of the `PointerEvent`.
    */
   readonly type: string;
 

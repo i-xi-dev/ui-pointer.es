@@ -1,9 +1,14 @@
 import { Geometry2d } from "@i-xi-dev/ui-utils";
 import _Debug from "./debug";
 import { type pointerid } from "./pointer";
-import { PointerDevice } from "./pointer_device";
-import { PointerState } from "./pointer_state";
-import { PointerActivity } from "./pointer_activity";
+import { _pointerDeviceOf, PointerDevice } from "./pointer_device";
+import { _pointerIsInContact } from "./pointer_state";
+import {
+  _pointerActivityTraceFrom,
+  _pointerActivityTraceSourceFrom,
+  _PointerActivityTraceSource,
+  PointerActivity,
+} from "./pointer_activity";
 import {
   Pointer,
 } from "./pointer";//TODO 整理
@@ -26,10 +31,10 @@ class _PointerActivityImpl implements PointerActivity {
   readonly #traceStream: ReadableStream<PointerActivity.Trace>;
   readonly #progress: Promise<void>;
 
-  constructor(controller: _PointerActivityController, source: PointerActivity.Trace.Source, target: Element, underlyingSource: UnderlyingDefaultSource<PointerActivity.Trace>, progress: Promise<void>) {
+  constructor(controller: _PointerActivityController, source: _PointerActivityTraceSource, target: Element, underlyingSource: UnderlyingDefaultSource<PointerActivity.Trace>, progress: Promise<void>) {
     this.#controller = controller;
     this.#pointerId = source.pointerId;
-    this.#device = PointerDevice.of(source);
+    this.#device = _pointerDeviceOf(source);
     this.#isPrimary = source.isPrimary;
     this.#target = new WeakRef(target);
     this.#traceStream = new ReadableStream(underlyingSource);
@@ -120,7 +125,7 @@ class _PointerActivityController {
   #lastTrace: PointerActivity.Trace | null = null;
   #trackLength: number = 0;
 
-  constructor(event: PointerActivity.Trace.Source, target: Element, options: _PointerActivityOptions) {
+  constructor(event: _PointerActivityTraceSource, target: Element, options: _PointerActivityOptions) {
     this.#traceStreamTerminator = new AbortController();
     // this.#modifiersToWatch = options.modifiersToWatch;
 
@@ -218,20 +223,20 @@ class _PointerActivityController {
     this.#progressResolver();
   }
 
-  setBeforeTrace(source: PointerActivity.Trace.Source): void {
+  setBeforeTrace(source: _PointerActivityTraceSource): void {
     const target = this.#activity.target as Element;// （終了後に外部から呼び出したのでもなければ）nullはありえない
-    const trace: PointerActivity.Trace = PointerActivity.Trace.from(source, target, this.#lastTrace);
+    const trace: PointerActivity.Trace = _pointerActivityTraceFrom(source, target, this.#lastTrace);
     this.#beforeTrace = trace;
   }
 
-  appendTrace(source: PointerActivity.Trace.Source): void {
+  appendTrace(source: _PointerActivityTraceSource): void {
     if (this.#terminated === true) {
       throw new Error("InvalidStateError appendTrace#1");
     }
 
     if (this.#traceStreamController) {
       const target = this.#activity.target as Element;// （終了後に外部から呼び出したのでもなければ）nullはありえない
-      const trace: PointerActivity.Trace = PointerActivity.Trace.from(source, target, this.#lastTrace);
+      const trace: PointerActivity.Trace = _pointerActivityTraceFrom(source, target, this.#lastTrace);
       if (!this.#startTrace) {
         this.#startTrace = trace;
       }
@@ -248,7 +253,7 @@ class _PointerActivityController {
   }
 }
 
-type _PointerTypeFilter = (event: PointerEvent | PointerActivity.Trace.Source) => boolean;
+type _PointerTypeFilter = (event: PointerEvent | _PointerActivityTraceSource) => boolean;
 
 // ダブルタップのズームはiOSでテキストをダブルタップしたときだけ？ →他の手段でズームしたのをダブルタップで戻すことはできる
 // パン無効にする場合タブレット等でスクロール手段がなくなるので注意。スクロールが必要な場合は自前でスクロールを実装すること
@@ -362,7 +367,7 @@ class _TargetObservation {
     }) as EventListener, listenerOptions);
 
     this.#target.addEventListener("pointerup", ((event: PointerEvent): void => {
-      if (PointerState.inContact(event) !== true) {
+      if (_pointerIsInContact(event) !== true) {
         (event.target as Element).releasePointerCapture(event.pointerId);
         this.#capturingPointerIds.delete(event.pointerId);
       }
@@ -402,7 +407,7 @@ class _TargetObservation {
   }
 
   private _setPointerCaptureIfContacted(event: PointerEvent): void {
-    if (PointerState.inContact(event) === true) {
+    if (_pointerIsInContact(event) === true) {
       if (this.#capturingPointerIds.has(event.pointerId) === true) {
         return;
       }
@@ -421,7 +426,7 @@ class _TargetObservation {
   }
 
   //[$85]
-  private _handleWindowEvent: (traceSource: PointerActivity.Trace.Source) => Promise<void> = (traceSource: PointerActivity.Trace.Source) => {
+  private _handleWindowEvent: (traceSource: _PointerActivityTraceSource) => Promise<void> = (traceSource: _PointerActivityTraceSource) => {
     const executor = (resolve: (value: void | PromiseLike<void>) => void, reject: (reason?: any) => void) => {
       try {
         this.#handle(traceSource);
@@ -438,7 +443,7 @@ class _TargetObservation {
   #handleTargetEvent: (event: PointerEvent) => Promise<void> = (event: PointerEvent) => {
     const executor = (resolve: (value: void | PromiseLike<void>) => void, reject: (reason?: any) => void) => {
       try {
-        this.#handle(PointerActivity.Trace.Source.from(event));
+        this.#handle(_pointerActivityTraceSourceFrom(event));
         resolve();
       }
       catch (exception) {
@@ -449,12 +454,12 @@ class _TargetObservation {
     return new Promise(executor);
   }
 
-  #handle(traceSource: PointerActivity.Trace.Source): void {
+  #handle(traceSource: _PointerActivityTraceSource): void {
     if (this.#pointerTypeFilter(traceSource) !== true) {
       return;
     }
 
-    const pointerHasContact = (PointerState.inContact(traceSource) === true);
+    const pointerHasContact = (_pointerIsInContact(traceSource) === true);
     let activityController: _PointerActivityController;
 
     if (traceSource.composedPath.includes(this.#target) === true) {
@@ -561,7 +566,7 @@ function _createPointerTypeFilter(pointerTypeFilterSource?: Array<string>): _Poi
   }
 
   const pointerTypes = pointerTypeFilterSource ? [...pointerTypeFilterSource] : [..._DEFAULT_POINTER_TYPE_FILTER];
-  return (event: PointerEvent | PointerActivity.Trace.Source): boolean => {
+  return (event: PointerEvent | _PointerActivityTraceSource): boolean => {
     return (pointerTypes.includes(event.pointerType) === true);
   };
 }

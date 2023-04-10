@@ -1,5 +1,6 @@
+export { PointerDevice } from "./pointer_device";
+export { PointerState } from "./pointer_state";
 export { PointerActivity } from "./pointer_activity";
-export { Pointer } from "./pointer";
 export { PointerObserver } from "./pointer_observer";
 
 //TODO readmeに記載↓

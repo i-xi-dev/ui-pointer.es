@@ -1,7 +1,11 @@
 import { PubSub } from "@i-xi-dev/pubsub";
 import _Debug from "./debug";
 import { type pointerid } from "./pointer";
-import { PointerActivity } from "./pointer_activity";
+import {
+  _pointerActivityTraceSourceFrom,
+  _PointerActivityTraceSource,
+  PointerActivity,
+} from "./pointer_activity";
 
 const _TRACE = Symbol();
 
@@ -9,9 +13,9 @@ class ViewportPointerTracker {
   static #instance: ViewportPointerTracker | null = null;
 
   readonly #aborter: AbortController;
-  private readonly _broker: PubSub.Broker<PointerActivity.Trace.Source>;//[$85]
+  private readonly _broker: PubSub.Broker<_PointerActivityTraceSource>;//[$85]
   readonly #view: Window;
-  #prevMap: Map<pointerid, PointerActivity.Trace.Source>;
+  #prevMap: Map<pointerid, _PointerActivityTraceSource>;
 
   private constructor(view: Window) {
     this.#aborter = new AbortController();
@@ -89,18 +93,18 @@ class ViewportPointerTracker {
     this._broker.clear();
   }
 
-  subscribe(callback: (traceSource: PointerActivity.Trace.Source) => Promise<void>): void {
+  subscribe(callback: (traceSource: _PointerActivityTraceSource) => Promise<void>): void {
     this._broker.subscribe(_TRACE, callback, {
       signal: this.#aborter.signal,
     });
   }
 
-  unsubscribe(callback: (traceSource: PointerActivity.Trace.Source) => Promise<void>): void {
+  unsubscribe(callback: (traceSource: _PointerActivityTraceSource) => Promise<void>): void {
     this._broker.unsubscribe(_TRACE, callback);
   }
 
   #publish(event: PointerEvent): void {
-    const traceSource = PointerActivity.Trace.Source.from(event);
+    const traceSource = _pointerActivityTraceSourceFrom(event);
     traceSource.prev = this.#prevMap.get(event.pointerId) ?? null,
     this.#prevMap.set(event.pointerId, traceSource);
     this._broker.publish(_TRACE, traceSource).catch((reason?: any): void => {

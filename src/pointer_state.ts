@@ -75,37 +75,37 @@ interface PointerState {
   readonly buttons: Array<string>;//XXX Record<string, boolean>にする？あるいはmodifierにまとめる？
 
   /**
-   * Indicates the {@link https://www.w3.org/TR/pointerevents2/#dom-pointerevent-pressure | PointerEvent#pressure}.
+   * Indicates the {@link https://developer.mozilla.org/en-US/docs/Web/API/PointerEvent/pressure | `pressure`} property of the `PointerEvent`.
    */
   readonly pressure: number;
 
   /**
-   * Indicates <math><mfrac><mn>1</mn><mn>2</mn></mfrac></math> of the {@link https://www.w3.org/TR/pointerevents2/#dom-pointerevent-width | PointerEvent#width}.
+   * Indicates <math><mfrac><mn>1</mn><mn>2</mn></mfrac></math> of the {@link https://developer.mozilla.org/en-US/docs/Web/API/PointerEvent/width | `width`} property of the `PointerEvent`.
    */
   readonly radiusX: number;
 
   /**
-   * Indicates <math><mfrac><mn>1</mn><mn>2</mn></mfrac></math> of the {@link https://www.w3.org/TR/pointerevents2/#dom-pointerevent-height | PointerEvent#height}.
+   * Indicates <math><mfrac><mn>1</mn><mn>2</mn></mfrac></math> of the {@link https://developer.mozilla.org/en-US/docs/Web/API/PointerEvent/height | `height`} property of the `PointerEvent`.
    */
   readonly radiusY: number;
 
   /**
-   * Indicates the {@link https://www.w3.org/TR/pointerevents2/#dom-pointerevent-tangentialpressure | PointerEvent#tangentialPressure}.
+   * Indicates the {@link https://developer.mozilla.org/en-US/docs/Web/API/PointerEvent/tangentialPressure | `tangentialPressure`} property of the `PointerEvent`.
    */
   readonly tangentialPressure: number;
 
   /**
-   * Indicates the {@link https://www.w3.org/TR/pointerevents2/#dom-pointerevent-tiltx | PointerEvent#tiltX}.
+   * Indicates the {@link https://developer.mozilla.org/en-US/docs/Web/API/PointerEvent/tiltX | `tiltX`} property of the `PointerEvent`.
    */
   readonly tiltX: number;
 
   /**
-   * Indicates the {@link https://www.w3.org/TR/pointerevents2/#dom-pointerevent-tilty | PointerEvent#tiltY}.
+   * Indicates the {@link https://developer.mozilla.org/en-US/docs/Web/API/PointerEvent/tiltY | `tiltY`} property of the `PointerEvent`.
    */
   readonly tiltY: number;
 
   /**
-   * Indicates the {@link https://www.w3.org/TR/pointerevents2/#dom-pointerevent-twist | PointerEvent#twist}.
+   * Indicates the {@link https://developer.mozilla.org/en-US/docs/Web/API/PointerEvent/twist | `twist`} property of the `PointerEvent`.
    */
   readonly twist: number;
 
