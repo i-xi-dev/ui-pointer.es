@@ -121,22 +121,22 @@ namespace PointerActivity {
     /**
      * Indicates the {@link https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/clientX | `clientX`} property of the `PointerEvent`.
      */
-    readonly viewportX: number,
+    readonly viewportX: number;
 
     /**
      * Indicates the {@link https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/clientY | `clientY`} property of the `PointerEvent`.
      */
-    readonly viewportY: number,
+    readonly viewportY: number;
 
     /**
      * Indicates the x-coordinate in the bounding box (not a padding-box) of the {@link PointerActivity.target | target element} of the `PointerActivity`.
      */
-    readonly targetX: number,
+    readonly targetX: number;
 
     /**
      * Indicates the y-coordinate in the bounding box (not a padding-box) of the {@link PointerActivity.target | target element} of the `PointerActivity`.
      */
-    readonly targetY: number,
+    readonly targetY: number;
 
     /**
      * Indicates the difference from x-coordinate of the previous `PointerActivity.Trace`.
@@ -160,12 +160,12 @@ namespace PointerActivity {
     /**
      * Indicates the `PointerState` properties.
      */
-    readonly properties: PointerState,
+    readonly properties: PointerState;
 
     /**
      * Indicates the {@link PointerActivity.pointerId | pointer id} of the `PointerActivity` is pointer-captured by the {@link PointerActivity.target | target element} of the `PointerActivity`.
      */
-    readonly captured: boolean;// 「targetに」captureされているか否か
+    readonly captured: boolean;
 
     //XXX readonly context: {
     //   dispatcher: Element,
@@ -179,9 +179,20 @@ namespace PointerActivity {
   }
 
   export interface Result {
-    readonly movementX: number;// PointerActivity始点からの相対位置
-    readonly movementY: number;// PointerActivity始点からの相対位置
-    readonly track: number;// 軌跡の近似値
+    /**
+     * Indicates the relative distance in x-coordinates from the start point of the `PointerActivity` to the end point of the `PointerActivity`.
+     */
+    readonly movementX: number;
+
+    /**
+     * Indicates the relative distance in y-coordinates from the start point of the `PointerActivity` to the end point of the `PointerActivity`.
+     */
+    readonly movementY: number;
+
+    /**
+     * Indicates the track length from the start point of the `PointerActivity` to the end point of the `PointerActivity`.
+     */
+    readonly track: number;
   }
 }
 
