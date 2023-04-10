@@ -1,5 +1,7 @@
 /**
  * Represents a pointer device.
+ * 
+ * This is an immutable object.
  */
 interface PointerDevice {
   /**

@@ -626,7 +626,10 @@ class PointerObserver {
     }
   }
 
-  /** @experimental */
+  /**
+   * @hidden
+   * @experimental
+   */
   static _enableDevMode(): void {
     _Debug.setConfig({ enabled: true });
   }

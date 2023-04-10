@@ -111,6 +111,8 @@ function _pointerActivityTraceFrom(source: _PointerActivityTraceSource, target: 
 namespace PointerActivity {
   /**
    * Represents a pointer motion record.
+   * 
+   * This is an immutable object.
    */
   export interface Trace {
     /**
@@ -180,6 +182,8 @@ namespace PointerActivity {
 
   /**
    * Represents a pointer activity result.
+   * 
+   * This is an immutable object.
    */
   export interface Result {
     /**
@@ -205,34 +209,50 @@ namespace PointerActivity {
 interface PointerActivity {
   /**
    * Indicates the {@link https://developer.mozilla.org/en-US/docs/Web/API/PointerEvent/pointerId | `pointerId`} property of the `PointerEvent`.
+   * 
+   * This value is never changed.
    */
   readonly pointerId: pointerid;
 
   /**
    * Indicates the `PointerDevice`.
+   * 
+   * This value is never changed.
    */
   readonly device: PointerDevice;
 
   /**
    * Indicates the {@link https://developer.mozilla.org/en-US/docs/Web/API/PointerEvent/isPrimary | `isPrimary`} property of the `PointerEvent`.
+   * 
+   * This value is never changed.
    */
-  readonly isPrimary: boolean;// 途中で変わることはない（複数タッチしてプライマリを離した場合、タッチを全部離すまでプライマリは存在しなくなる。その状態でタッチを増やしてもプライマリは無い）
+  readonly isPrimary: boolean;
 
   /**
    * Indicates the monitoring target element of the {@link PointerObserver | `PointerObserver`}.
+   * 
+   * This value is never changed.
    */
   readonly target: Element | null;
 
   /**
    * Indicates the `timeStamp` property of this {@link PointerActivity.startTrace | `startTrace`} record.
+   * 
+   * This value is never changed.
    */
   readonly startTime: timestamp;
 
-
+  /**
+   * Indicates the elapsed time from {@link PointerActivity.startTrace | `startTrace`} record to latest `PointerActivity.Trace` record.
+   *
+   * This value is `0` when the instance is created; it keeps increasing while tracking the pointer. When the instance {@link PointerActivity.inProgress | `inProgress`} is set to `false`, this value is not changed thereafter.
+   */
   readonly duration: milliseconds;
 
-
-  readonly [Symbol.asyncIterator]: () => AsyncGenerator<PointerActivity.Trace, void, void>;
+  /**
+   * Returns the AsyncGenerator of `PointerActivity.Trace` records.
+   */
+  [Symbol.asyncIterator](): AsyncGenerator<PointerActivity.Trace, void, void>;
 
   /**
    * The `Promise` that resolves to a `PointerActivity.Result`.
@@ -245,20 +265,35 @@ interface PointerActivity {
 
   //XXX readonly current
 
-
+  /**
+   * Indicates whether that no {@link PointerActivity.endTrace | `endTrace`} record has been recorded.
+   * 
+   * The value is `true` when the instance is created. Never changed after being changed to `false`.
+   */
   readonly inProgress: boolean;
 
-
+  /**
+   * Indicates the `PointerActivity.Trace` record before the {@link PointerActivity.startTrace | `startTrace`} record.
+   * Set if the pointer is `pointerenter` from outside the boundaries of {@link PointerActivity.target | target element}. Otherwise, `null`.
+   * 
+   * This value is never changed.
+   */
   readonly beforeTrace: PointerActivity.Trace | null;
 
   /**
    * Indicates the start `PointerActivity.Trace` record of the `PointerActivity`.
+   * 
+   * This value is never changed.
    */
   readonly startTrace: PointerActivity.Trace | null;
 
   //XXX readonly lastTrace: PointerActivity.Trace | null; その時点の最新trace 終了後はendTraceと同じ
 
-
+  /**
+   * Indicates the end `PointerActivity.Trace` record of the `PointerActivity`.
+   * 
+   * This value is `null` when the instance is created. When the instance {@link PointerActivity.inProgress | `inProgress`} is set to `false`, the `PointerActivity.Trace` is set to this value and this value is not changed thereafter.
+   */
   readonly endTrace: PointerActivity.Trace | null;
 
   //XXX readonly watchedModifiers: Array<Pointer.Modifier>;

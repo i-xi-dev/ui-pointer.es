@@ -66,9 +66,12 @@ function _penButtonsOf(source: _PointerStateSource): Array<PenButton> {
 
 /**
  * Represents a pointer state.
+ * 
+ * This is an immutable object.
  */
 interface PointerState {
   //TODO readonly modifiers: Array<Pointer.Modifier>;//XXX Record<string, boolean>にする？ // タッチ間で共有だが現在値なのでここに持たせる //XXX buttonなどもふくめる
+
   /**
    * @experimental
    */
