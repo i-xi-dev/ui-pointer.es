@@ -1,9 +1,17 @@
-
+/**
+ * The pointer device.
+ */
 interface PointerDevice {
+  /**
+   * Indicates the {@link PointerDevice.Type | pointer device type}.
+   */
   readonly type: string;
   //XXX sourceCapabilities
 }
 
+/**
+ * The pointer device.
+ */
 namespace PointerDevice {
   /**
    * The type of the pointer device.
@@ -13,20 +21,21 @@ namespace PointerDevice {
     MOUSE: "mouse",
     PEN: "pen",
     TOUCH: "touch",
-    UNKNOWN: "",
   } as const;
+}
 
-  export type Source = {
-    pointerType: string,
-  };
+type _PointerDeviceSource = {
+  pointerType: string,
+};
 
-  export function of(source: Source): PointerDevice {
-    return Object.freeze({
-      type: source.pointerType,
-    });
-  }
+function _pointerDeviceOf(source: _PointerDeviceSource): PointerDevice {
+  return Object.freeze({
+    type: source.pointerType,
+  });
 }
 
 export {
+  type _PointerDeviceSource,
+  _pointerDeviceOf,
   PointerDevice,
 };
