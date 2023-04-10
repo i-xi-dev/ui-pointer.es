@@ -1,11 +1,12 @@
 /**
- * The pointer device.
+ * Represents a pointer device.
  */
 interface PointerDevice {
   /**
-   * Indicates the {@link PointerDevice.Type | pointer device type}.
+   * Indicates the {@link https://www.w3.org/TR/pointerevents2/#dom-pointerevent-pointertype | PointerEvent#pointerType}.
    */
   readonly type: string;
+
   //XXX sourceCapabilities
 }
 
@@ -15,7 +16,6 @@ interface PointerDevice {
 namespace PointerDevice {
   /**
    * The type of the pointer device.
-   * @see {@link https://www.w3.org/TR/pointerevents2/#dom-pointerevent-pointertype | [Pointer Events Level 2] pointerType}
    */
   export const Type = {
     MOUSE: "mouse",

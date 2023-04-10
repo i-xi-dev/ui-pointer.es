@@ -1,5 +1,21 @@
 import { PointerDevice } from "./pointer_device";
 
+type _PointerStateSource = {
+  pointerType: string,
+  buttons: number,
+  height: number,
+  pressure: number,
+  tangentialPressure: number,
+  tiltX: number,
+  tiltY: number,
+  twist: number,
+  width: number,
+};
+
+function _pointerIsInContact(source: _PointerStateSource): boolean {
+  return ((source.buttons & 0b1) === 0b1);
+}
+
 /** @experimental */
 const MouseButton = {
   LEFT: "left",
@@ -10,7 +26,7 @@ const MouseButton = {
 } as const;
 type MouseButton = typeof MouseButton[keyof typeof MouseButton];
 
-function _mouseButtonsOf(source: PointerState.Source): Array<MouseButton> {
+function _mouseButtonsOf(source: _PointerStateSource): Array<MouseButton> {
   const mouseButtons: Array<MouseButton> = [];
   if ((source.buttons & 0b1) === 0b1) {
     mouseButtons.push(MouseButton.LEFT);
@@ -37,7 +53,7 @@ const PenButton = {
 } as const;
 type PenButton = typeof PenButton[keyof typeof PenButton];
 
-function _penButtonsOf(source: PointerState.Source): Array<PenButton> {
+function _penButtonsOf(source: _PointerStateSource): Array<PenButton> {
   const penButtons: Array<PenButton> = [];
   if ((source.buttons & 0b10) === 0b10) {
     penButtons.push(PenButton.BARREL);
@@ -48,51 +64,71 @@ function _penButtonsOf(source: PointerState.Source): Array<PenButton> {
   return penButtons;
 }
 
+/**
+ * Represents a pointer state.
+ */
 interface PointerState {
   //TODO readonly modifiers: Array<Pointer.Modifier>;//XXX Record<string, boolean>にする？ // タッチ間で共有だが現在値なのでここに持たせる //XXX buttonなどもふくめる
+  /**
+   * @experimental
+   */
   readonly buttons: Array<string>;//XXX Record<string, boolean>にする？あるいはmodifierにまとめる？
+
+  /**
+   * Indicates the {@link https://www.w3.org/TR/pointerevents2/#dom-pointerevent-pressure | PointerEvent#pressure}.
+   */
   readonly pressure: number;
+
+  /**
+   * Indicates <math><mfrac><mn>1</mn><mn>2</mn></mfrac></math> of the {@link https://www.w3.org/TR/pointerevents2/#dom-pointerevent-width | PointerEvent#width}.
+   */
   readonly radiusX: number;
+
+  /**
+   * Indicates <math><mfrac><mn>1</mn><mn>2</mn></mfrac></math> of the {@link https://www.w3.org/TR/pointerevents2/#dom-pointerevent-height | PointerEvent#height}.
+   */
   readonly radiusY: number;
+
+  /**
+   * Indicates the {@link https://www.w3.org/TR/pointerevents2/#dom-pointerevent-tangentialpressure | PointerEvent#tangentialPressure}.
+   */
   readonly tangentialPressure: number;
+
+  /**
+   * Indicates the {@link https://www.w3.org/TR/pointerevents2/#dom-pointerevent-tiltx | PointerEvent#tiltX}.
+   */
   readonly tiltX: number;
+
+  /**
+   * Indicates the {@link https://www.w3.org/TR/pointerevents2/#dom-pointerevent-tilty | PointerEvent#tiltY}.
+   */
   readonly tiltY: number;
+
+  /**
+   * Indicates the {@link https://www.w3.org/TR/pointerevents2/#dom-pointerevent-twist | PointerEvent#twist}.
+   */
   readonly twist: number;
+
   //XXX altitudeAngle 未実装のブラウザが多い
   //XXX azimuthAngle 未実装のブラウザが多い
 }
 
-namespace PointerState {//TODO contactstate
-  export type Source = {
-    pointerType: string,
-    buttons: number,
-    height: number,
-    pressure: number,
-    tangentialPressure: number,
-    tiltX: number,
-    tiltY: number,
-    twist: number,
-    width: number,
-  };
-
-  export function inContact(source: Source): boolean {
-    return ((source.buttons & 0b1) === 0b1);
-  }
-
-  export function of(source: Source): PointerState {
-    return Object.freeze({
-      buttons: (source.pointerType === PointerDevice.Type.PEN) ? _penButtonsOf(source) : _mouseButtonsOf(source),
-      pressure: source.pressure,
-      radiusX: source.width / 2,
-      radiusY: source.height / 2,
-      tangentialPressure: source.tangentialPressure,
-      tiltX: source.tiltX,
-      tiltY: source.tiltY,
-      twist: source.twist,
-    });
-  }
+function _pointerStateOf(source: _PointerStateSource): PointerState {
+  return Object.freeze({
+    buttons: (source.pointerType === PointerDevice.Type.PEN) ? _penButtonsOf(source) : _mouseButtonsOf(source),
+    pressure: source.pressure,
+    radiusX: source.width / 2,
+    radiusY: source.height / 2,
+    tangentialPressure: source.tangentialPressure,
+    tiltX: source.tiltX,
+    tiltY: source.tiltY,
+    twist: source.twist,
+  });
 }
 
 export {
+  type _PointerStateSource,
+  _pointerIsInContact,
+  _pointerStateOf,
   PointerState,
 };
