@@ -178,6 +178,9 @@ namespace PointerActivity {
     readonly source: PointerEvent;
   }
 
+  /**
+   * Represents a pointer activity result.
+   */
   export interface Result {
     /**
      * Indicates the relative distance in x-coordinates from the start point of the `PointerActivity` to the end point of the `PointerActivity`.
@@ -196,30 +199,60 @@ namespace PointerActivity {
   }
 }
 
+/**
+ * Represents a pointer activity.
+ */
 interface PointerActivity {
   /**
-   * The identifier for the pointer.
-   * @see {@link https://www.w3.org/TR/pointerevents2/#dom-pointerevent-pointerid | [Pointer Events Level 2] pointerId}
+   * Indicates the {@link https://developer.mozilla.org/en-US/docs/Web/API/PointerEvent/pointerId | `pointerId`} property of the `PointerEvent`.
    */
   readonly pointerId: pointerid;
+
+  /**
+   * Indicates the `PointerDevice`.
+   */
   readonly device: PointerDevice;
+
+  /**
+   * Indicates the {@link https://developer.mozilla.org/en-US/docs/Web/API/PointerEvent/isPrimary | `isPrimary`} property of the `PointerEvent`.
+   */
   readonly isPrimary: boolean;// 途中で変わることはない（複数タッチしてプライマリを離した場合、タッチを全部離すまでプライマリは存在しなくなる。その状態でタッチを増やしてもプライマリは無い）
+
+
   readonly target: Element | null;
+
+
   readonly startTime: timestamp;
+
+
   readonly duration: milliseconds;
+
+
   readonly [Symbol.asyncIterator]: () => AsyncGenerator<PointerActivity.Trace, void, void>;
+
+
   readonly result: Promise<PointerActivity.Result>;
+
   //XXX readonly traceStream: ReadableStream<PointerActivity.Trace>;
   //XXX readonly startViewportOffset: Geometry2d.Point | null;
   //XXX readonly startTargetOffset: Geometry2d.Point | null;
 
   //XXX readonly current
 
+
   readonly inProgress: boolean;
+
+
   readonly beforeTrace: PointerActivity.Trace | null;
+
+
   readonly startTrace: PointerActivity.Trace | null;
+
   //XXX readonly lastTrace: PointerActivity.Trace | null; その時点の最新trace 終了後はendTraceと同じ
+
+
   readonly endTrace: PointerActivity.Trace | null;
+  
   //XXX readonly watchedModifiers: Array<Pointer.Modifier>;
   //XXX getPredictedTrace()
 }
