@@ -218,10 +218,14 @@ interface PointerActivity {
    */
   readonly isPrimary: boolean;// 途中で変わることはない（複数タッチしてプライマリを離した場合、タッチを全部離すまでプライマリは存在しなくなる。その状態でタッチを増やしてもプライマリは無い）
 
-
+  /**
+   * Indicates the monitoring target element of the {@link PointerObserver | `PointerObserver`}.
+   */
   readonly target: Element | null;
 
-
+  /**
+   * Indicates the `timeStamp` property of this {@link PointerActivity.startTrace | `startTrace`} record.
+   */
   readonly startTime: timestamp;
 
 
@@ -230,7 +234,9 @@ interface PointerActivity {
 
   readonly [Symbol.asyncIterator]: () => AsyncGenerator<PointerActivity.Trace, void, void>;
 
-
+  /**
+   * The `Promise` that resolves to a `PointerActivity.Result`.
+   */
   readonly result: Promise<PointerActivity.Result>;
 
   //XXX readonly traceStream: ReadableStream<PointerActivity.Trace>;
@@ -245,14 +251,16 @@ interface PointerActivity {
 
   readonly beforeTrace: PointerActivity.Trace | null;
 
-
+  /**
+   * Indicates the start `PointerActivity.Trace` record of the `PointerActivity`.
+   */
   readonly startTrace: PointerActivity.Trace | null;
 
   //XXX readonly lastTrace: PointerActivity.Trace | null; その時点の最新trace 終了後はendTraceと同じ
 
 
   readonly endTrace: PointerActivity.Trace | null;
-  
+
   //XXX readonly watchedModifiers: Array<Pointer.Modifier>;
   //XXX getPredictedTrace()
 }
