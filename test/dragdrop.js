@@ -36,13 +36,15 @@ const template = `
         :col-width="colWidth"
         :is-anchor="!!draggingItem && (item === draggingItem.item)"
         :item="item"
+        @pointerdown="onItemPointerDown(item, $event)"
         :row-height="rowHeight"
         >
         </v-item>
       </div>
     </div>
 
-    <div v-if="mode === 'itemdrag'" class="v-grid-shadow">
+    
+    <div v-if="false" class="v-grid-shadow">
       <div v-if="!!draggingItem"
       :style="{
         'left': draggingItem.dragXInBoundingBox + 'px',
@@ -54,6 +56,7 @@ const template = `
         </div>
       </div>
     </div>
+    
   </div>
 </div>
 `;
@@ -88,6 +91,10 @@ createApp({
         { id: 16, colNum: 8, rowNum: 2, name: "P" },
       ],
       draggingItem: null,
+      draggingPointer: null,
+      draggingX: 0,
+      draggingY: 0,
+      observer: null,
     };
   },
 
@@ -167,9 +174,67 @@ createApp({
   },
 
   methods: {
+    onItemPointerDown(item, event) {
+      if (this.draggingItem) {
+        return;
+      }
+      this.draggingItem = item;
+      this.draggingPointer = event.pointerId;
+      this.draggingX = 0;
+      this.draggingY = 0;
+    },
 
+    onstart(activity) {
+
+    },
+
+    onend(activity) {
+
+    },
+
+    onprogress(activity, trace) {
+      if (this.draggingPointer && (this.draggingPointer !== activity.pointerId)) {
+        return;
+      }
+
+      if (trace.inContact === true) {
+
+      }
+      else {
+
+      }
+    },
+
+    resetObserver() {
+      this.disposeObserver();
+
+      this.observer = new PointerObserver(async (activity) => {
+        this.onstart(activity);
+        let prevTrace = null;
+        for await (const trace of activity) {
+          this.onprogress(activity, trace, prevTrace);
+          prevTrace = trace;
+        }
+        this.onend(activity);
+      });
+
+      this.observer.observe(this.$refs.ref2);
+    },
+
+    disposeObserver() {
+      if (this.observer) {
+        this.observer.disconnect();
+      }
+      this.observer = null;
+    },
   },
 
   mounted() {
+    this.resetObserver();
   },
+
+  beforeDestroy() {
+    this.disposeObserver();
+  },
+
 }).mount("#app");

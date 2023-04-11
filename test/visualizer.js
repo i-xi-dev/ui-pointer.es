@@ -284,7 +284,7 @@ createApp({
       if (startTrace.inContact === true && beforeTrace) {
         const prevOffsetX = beforeTrace.targetX;
         const prevOffsetY = beforeTrace.targetY;
-        this.drawPathCanvas(prevOffsetX, prevOffsetY, offsetX, offsetY, startTrace, activity.device, startTrace.source.raw);
+        this.drawPathCanvas(prevOffsetX, prevOffsetY, offsetX, offsetY, startTrace, activity.device, startTrace.source);
       }
 
       const { device } = activity;
@@ -372,7 +372,7 @@ createApp({
       if (inContact === true && prevTrace) {
         const prevOffsetX = prevTrace.targetX;
         const prevOffsetY = prevTrace.targetY;
-        this.drawPathCanvas(prevOffsetX, prevOffsetY, offsetX, offsetY, trace, activity.device, trace.source.raw);
+        this.drawPathCanvas(prevOffsetX, prevOffsetY, offsetX, offsetY, trace, activity.device, trace.source);
       }
     },
 
@@ -410,7 +410,6 @@ createApp({
       this.watchingStartAt = performance.now();
       this.timer = setInterval(this.drawOutputHead, 100);
 
-      console.log(this.$refs.input1.tagName);
       this.observer.observe(this.$refs.input1);
     },
 

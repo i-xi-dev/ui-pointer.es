@@ -9,9 +9,6 @@ import {
   _PointerActivityTraceSource,
   PointerActivity,
 } from "./pointer_activity";
-import {
-  Pointer,
-} from "./pointer";//TODO 整理
 import { ViewportPointerTracker } from "./viewport_pointer_tracker";
 
 type milliseconds = number;
@@ -571,21 +568,24 @@ function _createPointerTypeFilter(pointerTypeFilterSource?: Array<string>): _Poi
   };
 }
 
-function _normalizeModifiers(modifiers?: Array<string>): Set<Pointer.Modifier> {
-  if (!modifiers) {
-    return new Set();
-  }
-  if (Array.isArray(modifiers) !== true) {
-    return new Set();
-  }
-  if (modifiers.every((s) => typeof s === "string") !== true) {
-    return new Set();
-  }
+// function _normalizeModifiers(modifiers?: Array<string>): Set<Pointer.Modifier> {
+//   if (!modifiers) {
+//     return new Set();
+//   }
+//   if (Array.isArray(modifiers) !== true) {
+//     return new Set();
+//   }
+//   if (modifiers.every((s) => typeof s === "string") !== true) {
+//     return new Set();
+//   }
 
-  const validModifiers = Object.values(Pointer.Modifier);
-  return new Set([...modifiers].filter((modifier) => validModifiers.includes(modifier as Pointer.Modifier)) as Array<Pointer.Modifier>);
-}
+//   const validModifiers = Object.values(Pointer.Modifier);
+//   return new Set([...modifiers].filter((modifier) => validModifiers.includes(modifier as Pointer.Modifier)) as Array<Pointer.Modifier>);
+// }
 
+/**
+ * Reports pointer activity.
+ */
 class PointerObserver {
   private readonly _callback: PointerObserver.Callback;//[$85] ES標準（#）でprivateにするとVueから使ったときエラーになるのでTypeScriptのprivate修飾子を使用
   private readonly _targets: Map<Element, Set<_TargetObservation>>;//[$85]
@@ -593,13 +593,24 @@ class PointerObserver {
   // private readonly _modifiersToWatch: Set<Pointer.Modifier>;//[$85]
   private readonly _pointerTypeFilter: _PointerTypeFilter;//[$85]
 
+  /**
+   * Creates a new `PointerObserver` object.
+   * @param callback - A function that is called whenever a pointer activity is detected.
+   * @param options - An optional object that customizes this observer.
+   */
   constructor(callback: PointerObserver.Callback, options: PointerObserver.Options = {}) {
+    void options;
     this._callback = callback;
     this._targets = new Map();
     // this._modifiersToWatch = _normalizeModifiers(options.modifiersToWatch);
-    this._pointerTypeFilter = _createPointerTypeFilter(options.pointerTypeFilter);
+    //this._pointerTypeFilter = _createPointerTypeFilter(options.pointerTypeFilter);
+    this._pointerTypeFilter = _createPointerTypeFilter([PointerDevice.Type.MOUSE, PointerDevice.Type.PEN, PointerDevice.Type.TOUCH]);
   }
 
+  /**
+   * Starts observing of the `target` element.
+   * @param target - An `Element` to be observed.
+   */
   observe(target: Element): void {
     const observation = new _TargetObservation(target, this._callback, {
       // modifiersToWatch: this._modifiersToWatch,
@@ -611,6 +622,10 @@ class PointerObserver {
     (this._targets.get(target) as Set<_TargetObservation>).add(observation);
   }
 
+  /**
+   * Ends the observing of `target` element.
+   * @param target - An `Element` to be unobserved.
+   */
   unobserve(target: Element): void {
     const observations = (this._targets.get(target) as Set<_TargetObservation>);
     for (const observation of observations) {
@@ -620,6 +635,9 @@ class PointerObserver {
     this._targets.delete(target);
   }
 
+  /**
+   * Ends the all observing.
+   */
   disconnect(): void {
     for (const target of this._targets.keys()) {
       this.unobserve(target);
@@ -636,15 +654,22 @@ class PointerObserver {
 }
 
 namespace PointerObserver {
-
+  /**
+   * A function that is called whenever a pointer activity is detected.
+   * @callback
+   * @param {PointerActivity} activity - The `PointerActivity` created when a `pointerenter` event fires on the target element.
+   */
   export type Callback = (activity: PointerActivity) => void;
 
   /**
+   * The options to customize the `PointerObserver` object.
    * 
+   * Current version has no configurable options.
    */
   export type Options = {
     //XXX modifiersToWatch?: Array<string>,// PointerEvent発生時にgetModifierState()で検査する対象
-    pointerTypeFilter?: Array<string>, // マッチしない場合streamを生成しない（pointerTypeは不変なので生成してからフィルタする必要はない）
+
+    //pointerTypeFilter?: Array<string>, // マッチしない場合streamを生成しない（pointerTypeは不変なので生成してからフィルタする必要はない）
 
     //XXX pointerdown,pointermove(,pointerupも？)イベントをキャンセルするか否か
     //    - 中ボタン押下でのスクロール

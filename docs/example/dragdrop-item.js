@@ -8,6 +8,7 @@ export const VItem = {
   template: `
     <div
     :class="cssClass"
+    :data-id="item.id"
     :style="cssStyle">
       <div class="v-item-main">
         <div class="v-item-name">{{ item.name }}</div>

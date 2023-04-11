@@ -1,7 +1,7 @@
 import { createApp } from "https://unpkg.com/vue@3/dist/vue.esm-browser.prod.js";
-import { VTrackCanvas } from "./visualizer-tracks.js?0.0.1-beta-1";
-import { VPointerIndicator } from "./visualizer-pointer.js?0.0.1-beta-1";
-import { PointerObserver } from "https://unpkg.com/@i-xi-dev/ui-pointer@0.0.1-beta-1/dist/index.js";
+import { VTrackCanvas } from "./visualizer-tracks.js?0.0.1-beta-2";
+import { VPointerIndicator } from "./visualizer-pointer.js?0.0.1-beta-2";
+import { PointerObserver } from "https://unpkg.com/@i-xi-dev/ui-pointer@0.0.1-beta-2/dist/index.js";
 
 function formatTimeStamp(timestamp) {
   const dt = new Date(performance.timeOrigin + timestamp);
@@ -284,7 +284,7 @@ createApp({
       if (startTrace.inContact === true && beforeTrace) {
         const prevOffsetX = beforeTrace.targetX;
         const prevOffsetY = beforeTrace.targetY;
-        this.drawPathCanvas(prevOffsetX, prevOffsetY, offsetX, offsetY, startTrace, activity.device, startTrace.source.raw);
+        this.drawPathCanvas(prevOffsetX, prevOffsetY, offsetX, offsetY, startTrace, activity.device, startTrace.source);
       }
 
       const { device } = activity;
@@ -372,7 +372,7 @@ createApp({
       if (inContact === true && prevTrace) {
         const prevOffsetX = prevTrace.targetX;
         const prevOffsetY = prevTrace.targetY;
-        this.drawPathCanvas(prevOffsetX, prevOffsetY, offsetX, offsetY, trace, activity.device, trace.source.raw);
+        this.drawPathCanvas(prevOffsetX, prevOffsetY, offsetX, offsetY, trace, activity.device, trace.source);
       }
     },
 
@@ -410,7 +410,6 @@ createApp({
       this.watchingStartAt = performance.now();
       this.timer = setInterval(this.drawOutputHead, 100);
 
-      console.log(this.$refs.input1.tagName);
       this.observer.observe(this.$refs.input1);
     },
 
