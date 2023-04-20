@@ -110,7 +110,7 @@ function _pointerActivityTraceFrom(source: _PointerActivityTraceSource, target: 
  */
 namespace PointerActivity {
   /**
-   * Represents a pointer motion record.
+   * Represents a `PointerEvent`.
    * 
    * This is an immutable object.
    */
@@ -205,6 +205,8 @@ namespace PointerActivity {
 
 /**
  * Represents a pointer activity.
+ * 
+ * An object that represents a sequence of `PointerEvent`s with the same `pointerId` from after `pointerenter` to `ponterleave`.
  */
 interface PointerActivity {
   /**
