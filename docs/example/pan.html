@@ -3,9 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <title>Panning</title>
-    <link href="./asset/pan.css?0.0.1-beta-2" rel="stylesheet" />
+    <link href="./asset/pan.css?0.0.1-beta-3" rel="stylesheet" />
     <script type="module">
-import { PointerObserver } from "https://unpkg.com/@i-xi-dev/ui-pointer@0.0.1-beta-2/dist/index.js";
+import { PointerActivityObserver } from "https://unpkg.com/@i-xi-dev/ui-pointer@0.0.1-beta-3/dist/index.js";
 
 const testScroller = document.getElementById("TestScroller");
 const scrollbarX = document.getElementById("ScrollbarX");
@@ -35,7 +35,7 @@ function updateIndicator() {
   outputY.value = (rateY * 100).toFixed(2) + "%";
 }
 
-const observer = new PointerObserver(async (activity) => {
+const observer = new PointerActivityObserver(async (activity) => {
   if (lock === true) {
     return;
   }

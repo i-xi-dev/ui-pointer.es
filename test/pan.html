@@ -5,7 +5,7 @@
     <title>Panning</title>
     <link href="../docs/example/asset/pan.css" rel="stylesheet" />
     <script type="module">
-import { PointerObserver } from "../dist/index.js";
+import { PointerActivityObserver } from "../dist/index.js";
 
 const testScroller = document.getElementById("TestScroller");
 const scrollbarX = document.getElementById("ScrollbarX");
@@ -35,7 +35,7 @@ function updateIndicator() {
   outputY.value = (rateY * 100).toFixed(2) + "%";
 }
 
-const observer = new PointerObserver(async (activity) => {
+const observer = new PointerActivityObserver(async (activity) => {
   if (lock === true) {
     return;
   }

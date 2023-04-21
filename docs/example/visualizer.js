@@ -1,7 +1,7 @@
 import { createApp } from "https://unpkg.com/vue@3/dist/vue.esm-browser.prod.js";
-import { VTrackCanvas } from "./visualizer-tracks.js?0.0.1-beta-2";
-import { VPointerIndicator } from "./visualizer-pointer.js?0.0.1-beta-2";
-import { PointerObserver } from "https://unpkg.com/@i-xi-dev/ui-pointer@0.0.1-beta-2/dist/index.js";
+import { VTrackCanvas } from "./visualizer-tracks.js?0.0.1-beta-3";
+import { VPointerIndicator } from "./visualizer-pointer.js?0.0.1-beta-3";
+import { PointerActivityObserver } from "https://unpkg.com/@i-xi-dev/ui-pointer@0.0.1-beta-3/dist/index.js";
 
 function formatTimeStamp(timestamp) {
   const dt = new Date(performance.timeOrigin + timestamp);
@@ -397,7 +397,7 @@ createApp({
       this.clearRecords();
       this.inWatching = true;
 
-      this.observer = new PointerObserver(async (activity) => {
+      this.observer = new PointerActivityObserver(async (activity) => {
         this.onstart(activity);
         let prevTrace = null;
         for await (const trace of activity) {
@@ -431,7 +431,7 @@ createApp({
   },
 
   created() {
-    // PointerObserver._enableDevMode();
+    // PointerActivityObserver._enableDevMode();
   },
 
   mounted() {

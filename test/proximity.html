@@ -5,7 +5,7 @@
     <title>Proximity detection</title>
     <link href="../docs/example/asset/proximity.css" rel="stylesheet" />
     <script type="module">
-import { PointerObserver } from "../dist/index.js";
+import { PointerActivityObserver } from "../dist/index.js";
 
 const SHADOW_SIZE = 200;
 const testGrid = document.getElementById("TestGrid");
@@ -56,7 +56,7 @@ function rateOfContact(cell, shadowRects) {
   return rate;
 }
 
-const observer = new PointerObserver(async (activity) => {
+const observer = new PointerActivityObserver(async (activity) => {
   console.log(`[START] pointerId:${activity.pointerId}, startTime:${activity.startTime}`);
 
   const shadow = document.createElement("div");

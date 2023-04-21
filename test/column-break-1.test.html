@@ -65,8 +65,8 @@ details > dl {
       </div>
     </template>
     <script type="module">
-import { PointerObserver } from "../dist/index.js";
-PointerObserver._enableDevMode();
+import { PointerActivityObserver } from "../dist/index.js";
+PointerActivityObserver._enableDevMode();
 
 const testArea = document.getElementById("TestArea");
 const indicatorMap = new Map();
@@ -126,7 +126,7 @@ function onprogress(activity, trace) {
   }
 }
 
-const observer = new PointerObserver(async (activity) => {
+const observer = new PointerActivityObserver(async (activity) => {
   console.log(`[START] pointerId:${activity.pointerId}, startTime:${activity.startTime}`);
   onstart(activity);
 

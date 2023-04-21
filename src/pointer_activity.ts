@@ -231,7 +231,7 @@ interface PointerActivity {
   readonly isPrimary: boolean;
 
   /**
-   * Indicates the monitoring target element of the {@link PointerObserver | `PointerObserver`}.
+   * Indicates the monitoring target element of the {@link PointerActivityObserver | `PointerActivityObserver`}.
    * 
    * This value is never changed.
    */

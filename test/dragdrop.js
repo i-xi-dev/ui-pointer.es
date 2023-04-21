@@ -1,6 +1,6 @@
 import { createApp } from "https://unpkg.com/vue@3/dist/vue.esm-browser.js";
 import { VItem } from "../docs/example/dragdrop-item.js";
-import { PointerObserver } from "../dist/index.js";
+import { PointerActivityObserver } from "../dist/index.js";
 
 const template = `
 <div class="v-app">
@@ -208,7 +208,7 @@ createApp({
     resetObserver() {
       this.disposeObserver();
 
-      this.observer = new PointerObserver(async (activity) => {
+      this.observer = new PointerActivityObserver(async (activity) => {
         this.onstart(activity);
         let prevTrace = null;
         for await (const trace of activity) {

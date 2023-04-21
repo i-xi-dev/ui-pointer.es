@@ -67,8 +67,8 @@ details > dl {
       </div>
     </template>
     <script type="module">
-import { PointerObserver } from "../dist/index.js";
-PointerObserver._enableDevMode();
+import { PointerActivityObserver } from "../dist/index.js";
+PointerActivityObserver._enableDevMode();
 
 const testArea = document.getElementById("TestArea");
 const indicatorMap = new Map();
@@ -128,7 +128,7 @@ function onprogress(activity, trace) {
   }
 }
 
-const observer = new PointerObserver(async (activity) => {
+const observer = new PointerActivityObserver(async (activity) => {
   console.log(`[START] pointerId:${activity.pointerId}, startTime:${activity.startTime}`);
   onstart(activity);
 
@@ -162,7 +162,7 @@ observer.observe(testArea);
       <section>
         <h3>対応予定なし（対応可能であろうと思われるが）</h3>
         <ul>
-          <li>CSS transformがかかった要素が<code>PointerObserver</code>のtargetのとき、translateは座標を換算してくれるが、scaleやrotateはそうならない</li>
+          <li>CSS transformがかかった要素が<code>PointerActivityObserver</code>のtargetのとき、translateは座標を換算してくれるが、scaleやrotateはそうならない</li>
         </ul>
       </section>
 
@@ -171,13 +171,13 @@ observer.observe(testArea);
         <ul>
           <li>
             <details>
-              <summary>display算出値がinlineの要素が<code>PointerObserver</code>のtargetのとき、またはtargetの子孫のとき、座標がブラウザによって異なる</summary>
+              <summary>display算出値がinlineの要素が<code>PointerActivityObserver</code>のtargetのとき、またはtargetの子孫のとき、座標がブラウザによって異なる</summary>
               <dl>
                 <div>
                   <dt>回避手段</dt>
                   <dd>
                     <ul>
-                      <li>display算出値がinlineの要素を<code>PointerObserver</code>のtargetにしない</li>
+                      <li>display算出値がinlineの要素を<code>PointerActivityObserver</code>のtargetにしない</li>
                       <li>targetの子孫がdisplay算出値inlineの場合、pointer-events:noneにする</li>
                     </ul>
                   </dd>

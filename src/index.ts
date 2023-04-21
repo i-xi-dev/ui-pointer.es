@@ -1,7 +1,7 @@
 export { PointerDevice } from "./pointer_device";
 export { PointerState } from "./pointer_state";
 export { PointerActivity } from "./pointer_activity";
-export { PointerObserver } from "./pointer_observer";
+export { PointerActivityObserver } from "./pointer_observer";
 
 //TODO readmeに記載↓
 // - ターゲットのboundingBox外に位置する子孫の扱い

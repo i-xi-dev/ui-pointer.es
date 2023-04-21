@@ -3,9 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <title>Proximity detection</title>
-    <link href="./asset/proximity.css?0.0.1-beta-2" rel="stylesheet" />
+    <link href="./asset/proximity.css?0.0.1-beta-3" rel="stylesheet" />
     <script type="module">
-import { PointerObserver } from "https://unpkg.com/@i-xi-dev/ui-pointer@0.0.1-beta-2/dist/index.js";
+import { PointerActivityObserver } from "https://unpkg.com/@i-xi-dev/ui-pointer@0.0.1-beta-3/dist/index.js";
 
 const SHADOW_SIZE = 200;
 const testGrid = document.getElementById("TestGrid");
@@ -56,7 +56,7 @@ function rateOfContact(cell, shadowRects) {
   return rate;
 }
 
-const observer = new PointerObserver(async (activity) => {
+const observer = new PointerActivityObserver(async (activity) => {
   console.log(`[START] pointerId:${activity.pointerId}, startTime:${activity.startTime}`);
 
   const shadow = document.createElement("div");

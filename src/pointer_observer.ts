@@ -272,7 +272,7 @@ class _TargetObservation {
   private readonly _service: ViewportPointerTracker;//[$85]
   private readonly _observationCanceller: AbortController;//[$85]
   readonly #target: Element;
-  readonly #callback: PointerObserver.Callback;
+  readonly #callback: PointerActivityObserver.Callback;
   readonly #activityControllers: Map<pointerid, _PointerActivityController>;
   readonly #capturingPointerIds: Set<pointerid>;
 
@@ -284,7 +284,7 @@ class _TargetObservation {
   readonly #preventActions: Array<_PointerAction>;
   readonly #releaseImplicitPointerCapture: boolean;
 
-  constructor(target: Element, callback: PointerObserver.Callback, options: _ObservationOptions) {
+  constructor(target: Element, callback: PointerActivityObserver.Callback, options: _ObservationOptions) {
     this._service = ViewportPointerTracker.get(window);
     this._observationCanceller = new AbortController();
     this.#target = target;
@@ -586,19 +586,19 @@ function _createPointerTypeFilter(pointerTypeFilterSource?: Array<string>): _Poi
 /**
  * Reports pointer activity.
  */
-class PointerObserver {
-  private readonly _callback: PointerObserver.Callback;//[$85] ES標準（#）でprivateにするとVueから使ったときエラーになるのでTypeScriptのprivate修飾子を使用
+class PointerActivityObserver {
+  private readonly _callback: PointerActivityObserver.Callback;//[$85] ES標準（#）でprivateにするとVueから使ったときエラーになるのでTypeScriptのprivate修飾子を使用
   private readonly _targets: Map<Element, Set<_TargetObservation>>;//[$85]
 
   // private readonly _modifiersToWatch: Set<Pointer.Modifier>;//[$85]
   private readonly _pointerTypeFilter: _PointerTypeFilter;//[$85]
 
   /**
-   * Creates a new `PointerObserver` object.
+   * Creates a new `PointerActivityObserver` object.
    * @param callback - A function that is called whenever a pointer activity is detected.
    * @param options - An optional object that customizes this observer.
    */
-  constructor(callback: PointerObserver.Callback, options: PointerObserver.Options = {}) {
+  constructor(callback: PointerActivityObserver.Callback, options: PointerActivityObserver.Options = {}) {
     void options;
     this._callback = callback;
     this._targets = new Map();
@@ -653,7 +653,7 @@ class PointerObserver {
   }
 }
 
-namespace PointerObserver {
+namespace PointerActivityObserver {
   /**
    * A function that is called whenever a pointer activity is detected.
    * @callback
@@ -662,7 +662,7 @@ namespace PointerObserver {
   export type Callback = (activity: PointerActivity) => void;
 
   /**
-   * The options to customize the `PointerObserver` object.
+   * The options to customize the `PointerActivityObserver` object.
    * 
    * Current version has no configurable options.
    */
@@ -698,5 +698,5 @@ namespace PointerObserver {
 }
 
 export {
-  PointerObserver,
+  PointerActivityObserver,
 };
