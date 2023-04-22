@@ -4,67 +4,11 @@
     <meta charset="UTF-8" />
     <title>Panning</title>
     <link href="../docs/example/asset/pan.css" rel="stylesheet" />
-    <script type="module">
-import { PointerActivityObserver } from "../dist/index.js";
-
-const testScroller = document.getElementById("TestScroller");
-const scrollbarX = document.getElementById("ScrollbarX");
-const scrollbarY = document.getElementById("ScrollbarY");
-const outputX = document.getElementById("OutputX");
-const outputY = document.getElementById("OutputY");
-const testScrollportW = testScroller.offsetWidth;
-const testScrollportH = testScroller.offsetHeight;
-const testContentW = testScroller.scrollWidth;
-const testContentH = testScroller.scrollHeight;
-const maxScrollLeft = testContentW - testScrollportW;
-const maxScrollTop = testContentH - testScrollportH;
-const indicatorWidth = testScrollportW * (testScrollportW / testContentW);
-const indicatorHeight = testScrollportH * (testScrollportH / testContentH);
-
-let lock = false;
-
-function updateIndicator() {
-  scrollbarX.style.setProperty("width", `${indicatorWidth}px`);
-  scrollbarY.style.setProperty("height", `${indicatorHeight}px`);
-  const rateX = testScroller.scrollLeft / maxScrollLeft;
-  const rateY = testScroller.scrollTop / maxScrollTop;
-  scrollbarX.style.setProperty("margin-left", `${(testScrollportW - indicatorWidth) * rateX}px`);
-  scrollbarY.style.setProperty("margin-top", `${(testScrollportH - indicatorHeight) * rateY}px`);
-
-  outputX.value = (rateX * 100).toFixed(2) + "%";
-  outputY.value = (rateY * 100).toFixed(2) + "%";
-}
-
-const observer = new PointerActivityObserver(async (activity) => {
-  if (lock === true) {
-    return;
-  }
-  lock = true;
-  console.log(`[START] pointerId:${activity.pointerId}, startTime:${activity.startTime}`);
-
-  for await (const trace of activity) {
-    //console.log(JSON.stringify(trace), JSON.stringify(activity));
-    if (trace.inContact === true) {
-      testScroller.classList.add("xx-active");
-
-      testScroller.scrollBy(-trace.movementX, -trace.movementY);
-      updateIndicator();
-    }
-    else {
-      testScroller.classList.remove("xx-active");
-    }
-  }
-
-  console.log(`[END] pointerId:${activity.pointerId}, duration:${activity.duration}`);
-  console.log(activity);
-  lock = false;
-}, {});
-observer.observe(testScroller);
-    </script>
+    <script src="./pan.js" type="module"></script>
   </head>
   <body>
     <div class="test-container">
-      <div class="test-scroller" id="TestScroller">
+      <div class="test-scroller" id="Scroller">
         <div class="test-content"></div>
       </div>
       <div class="test-scrollbar" id="ScrollbarX"></div>
