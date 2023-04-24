@@ -3,26 +3,20 @@
   <head>
     <meta charset="UTF-8" />
     <title>Panning</title>
-    <link href="./asset/pan.css?1.0.0" rel="stylesheet" />
-    <script src="./pan.js?1.0.0" type="module"></script>
+    <link href="./asset/pan.css?1.1.0" rel="stylesheet" />
+    <script src="./pan.js?1.1.0" type="module"></script>
   </head>
   <body>
     <div class="test-container">
       <div class="test-scroller" id="Scroller">
         <div class="test-content"></div>
       </div>
-      <div class="test-scrollbar" id="ScrollbarX"></div>
-      <div class="test-scrollbar" id="ScrollbarY"></div>
+      <div class="test-scrollbar" id="ScrollbarX">
+        <output id="OutputX">0.00%</output>
+      </div>
+      <div class="test-scrollbar" id="ScrollbarY">
+        <output id="OutputY">0.00%</output>
+      </div>
     </div>
-    <dl>
-      <div>
-        <dt>x</dt>
-        <dd><output id="OutputX">0.00%</output></dd>
-      </div>
-      <div>
-        <dt>y</dt>
-        <dd><output id="OutputY">0.00%</output></dd>
-      </div>
-    </dl>
   </body>
 </html>

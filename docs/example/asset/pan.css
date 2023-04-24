@@ -60,26 +60,3 @@
   height: var(--content-h);
   width: var(--content-w);
 }
-
-dl {
-  column-gap: 8px;
-  display: grid;
-  grid-template-columns: auto 80px;
-  grid-template-rows: auto auto;
-  justify-items: end;
-  margin: auto;
-  row-gap: 8px;
-  width: max-content;
-}
-
-dl > div {
-  display: contents;
-}
-
-dt::after {
-  content: ":";
-}
-
-dd {
-  margin: 0;
-}
