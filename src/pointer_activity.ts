@@ -64,13 +64,14 @@ function _pointerActivityTraceSourceFrom(event: PointerEvent): _PointerActivityT
 
 function _pointerActivityTraceFrom(source: _PointerActivityTraceSource, target: Element, prevTrace: PointerActivity.Trace | null): PointerActivity.Trace {
   const dispatcher = (source.target instanceof Element) ? source.target : null;
-  let targetX = Number.NaN;
-  let targetY = Number.NaN;
-  if (dispatcher) {
-    targetX = source.offsetX;
-    targetY = source.offsetY;
+  if (!dispatcher) {
+    // ありえないはず
+    throw new Error("PointerEvent.target is falsy");
   }
-  if (!!dispatcher && (target !== dispatcher)) {
+
+  let targetX = source.offsetX;
+  let targetY = source.offsetY;
+  if (target !== dispatcher) {
     const targetBoundingBox = target.getBoundingClientRect();
     const dispatcherBoundingBox = dispatcher.getBoundingClientRect();
     const { x, y } = Geometry2d.Point.distanceBetween(targetBoundingBox, dispatcherBoundingBox);
@@ -100,8 +101,9 @@ function _pointerActivityTraceFrom(source: _PointerActivityTraceSource, target: 
     movementY,
     inContact: _pointerIsInContact(source),
     properties: _pointerStateOf(source),
-    captured: target.hasPointerCapture(source.pointerId),
+    isCaptured: target.hasPointerCapture(source.pointerId),
     source: source.raw,
+    directlyOver: dispatcher,
   });
 }
 
@@ -167,17 +169,17 @@ namespace PointerActivity {
     /**
      * Indicates the {@link PointerActivity.pointerId | pointer id} of the `PointerActivity` is pointer-captured by the {@link PointerActivity.target | target element} of the `PointerActivity`.
      */
-    readonly captured: boolean;
-
-    //XXX readonly context: {
-    //   dispatcher: Element,
-    //   composedPath
-    // };
+    readonly isCaptured: boolean;
 
     /**
      * References the source {@link https://developer.mozilla.org/en-US/docs/Web/API/PointerEvent | `PointerEvent`} of `PointerActivity.Trace`.
      */
     readonly source: PointerEvent;
+
+    /**
+     * References the `Element` that fired the source `PointerEvent`.
+     */
+    readonly directlyOver: Element;
   }
 
   /**
