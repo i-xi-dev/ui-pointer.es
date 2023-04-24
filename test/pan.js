@@ -27,6 +27,7 @@ function updateIndicator() {
   outputX.value = (rateX * 100).toFixed(2) + "%";
   outputY.value = (rateY * 100).toFixed(2) + "%";
 }
+updateIndicator();
 
 const observer = new PointerActivityObserver(async (activity) => {
   if (lock === true) {

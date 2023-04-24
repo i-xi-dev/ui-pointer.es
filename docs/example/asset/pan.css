@@ -19,6 +19,7 @@
   visibility: hidden;
 }
 
+*.test-scroller:hover ~ *.test-scrollbar,
 *.test-scroller.xx-active ~ *.test-scrollbar {
   visibility: visible;
 }
@@ -37,6 +38,10 @@
   width: 2px;
 }
 
+*.test-scrollbar output {
+  padding: 2px 4px;
+}
+
 *.test-scroller {
   background-color: #8f9a96;
   box-shadow: 0 0 0 2px gray;
@@ -49,8 +54,11 @@
   width: var(--scroller-w);
 }
 
-*.test-scroller.xx-active {
+*.test-scroller:hover {
   box-shadow: 0 0 0 4px gray;
+}
+
+*.test-scroller.xx-active {
   cursor: move;
 }
 
