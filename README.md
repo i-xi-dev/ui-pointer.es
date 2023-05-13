@@ -7,15 +7,15 @@ A `PointerActivityObserver` object observes pointer activities on a element. The
 
 ## Reference documentation
 
-- [`PointerActivityObserver` class](docs/reference/classes/PointerActivityObserver-1.html)
-- [`PointerActivity` interface](docs/reference/interfaces/PointerActivity-1.html)
+- [`PointerActivityObserver` class](https://i-xi-dev.github.io/ui-pointer.es/reference/classes/PointerActivityObserver-1.html)
+- [`PointerActivity` interface](https://i-xi-dev.github.io/ui-pointer.es/reference/interfaces/PointerActivity-1.html)
 
 
 ## Usage examples
 
-- [Panning by pointermove](docs/example/pan.html)
-- [Curosr proximity detection](docs/example/proximity.html)
+- [Panning by pointermove](https://i-xi-dev.github.io/ui-pointer.es/example/pan.html)
+- [Curosr proximity detection](https://i-xi-dev.github.io/ui-pointer.es/example/proximity.html)
 
 Examples of use with Vue.js are as follows
 
-- [Pointer activity visualizer](docs/example/visualizer.html)
+- [Pointer activity visualizer](https://i-xi-dev.github.io/ui-pointer.es/example/visualizer.html)
