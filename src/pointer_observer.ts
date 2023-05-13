@@ -62,6 +62,20 @@ class _PointerActivityImpl implements PointerActivity {
     return (this.#controller.lastTrace && this.#controller.startTrace) ? (this.#controller.lastTrace.timeStamp - this.#controller.startTrace.timeStamp) : Number.NaN;
   }
 
+  get movement(): {
+    x: number,
+    y: number,
+    length: number,
+    angle: number,
+  } {
+    const { movement } = this.#controller;
+    return Geometry2d.vector(movement.x, movement.y);
+  }
+
+  get track(): number {
+    return this.#controller.trackLength;
+  }
+
   async *[Symbol.asyncIterator](): AsyncGenerator<PointerActivity.Trace, void, void> {
     const streamReader = this.#traceStream.getReader();
     try {
@@ -78,11 +92,9 @@ class _PointerActivityImpl implements PointerActivity {
   get result(): Promise<PointerActivity.Result> {
     return new Promise((resolve, reject) => {
       this.#progress.then(() => {
-        const { movement, trackLength } = this.#controller;
         resolve({
-          movementX: movement.x,
-          movementY: movement.y,
-          track: trackLength,
+          movement: this.movement,
+          track: this.track,
         });
       }).catch((r) => {
         reject(r);
@@ -90,16 +102,16 @@ class _PointerActivityImpl implements PointerActivity {
     });
   }
 
-  get inProgress() {
+  get inProgress(): boolean {
     return this.#controller.inProgress;
   }
-  get beforeTrace() {
+  get beforeTrace(): PointerActivity.Trace | null {
     return this.#controller.beforeTrace;
   }
-  get startTrace() {
+  get startTrace(): PointerActivity.Trace | null {
     return this.#controller.startTrace;
   }
-  get endTrace() {
+  get endTrace(): PointerActivity.Trace | null {
     return this.#controller.endTrace;
   }
   // get watchedModifiers() {

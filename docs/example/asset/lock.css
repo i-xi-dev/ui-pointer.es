@@ -1,0 +1,97 @@
+*:root {
+  user-select: none;
+}
+
+body {
+  margin: 0;
+}
+
+*.test-container {
+  align-items: center;
+  display: flex;
+  flex-flow: column nowrap;
+  height: 100vh;
+  justify-content: center;
+  width: 100vw;
+}
+
+*.test-range {
+  background-color: #3a93e7;
+  border-radius: 20px;
+  box-shadow: inset 0 3px 12px #0123;
+  height: 300px;
+  overflow: hidden;
+  position: relative;
+  transition: background-color 300ms;
+  width: 300px;
+}
+
+*.test-range.xx-active {
+  background-color: #1e6dcd;
+  cursor: pointer;
+}
+
+*.test-thumb {
+  background-color: #fff;
+  border: 1px solid #6eaaff;
+  border-radius: 20px;
+  box-shadow: 0 6px 24px #0123, 0 3px 12px #0123;
+  box-sizing: border-box;
+  cursor: pointer;
+  height: 150px;
+  left: 0;
+  margin-left: 75px;
+  margin-top: 75px;
+  outline: 1px solid #0000;
+  position: absolute;
+  top: 0;
+  transition: outline-color 300ms, box-shadow 200ms;
+  width: 150px;
+}
+
+*.test-thumb:hover {
+  outline-color: #b0e1ff;
+}
+
+*.test-range.xx-active *.test-thumb {
+  outline-color: #b0e1ff;
+  box-shadow: 0 3px 12px #0123;
+}
+
+*.test-out#OutputH {
+  --h: #ff0000;
+}
+*.test-out::before {
+  background-color: var(--h);
+  border: 1px solid #000;
+  border-radius: 50%;
+  box-sizing: border-box;
+  content: "";
+  display: inline-block;
+  margin: 0 8px;
+  height: 1.4em;
+  width: 1.4em;
+}
+
+dl {
+  column-gap: 8px;
+  display: grid;
+  grid-template-columns: auto 80px;
+  grid-template-rows: auto auto;
+  justify-items: end;
+  margin: 0 auto;
+  row-gap: 8px;
+  width: max-content;
+}
+
+dl > div {
+  display: contents;
+}
+
+dt::after {
+  content: ":";
+}
+
+dd {
+  margin: 0;
+}

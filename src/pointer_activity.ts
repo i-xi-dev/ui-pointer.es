@@ -189,14 +189,14 @@ namespace PointerActivity {
    */
   export interface Result {
     /**
-     * Indicates the relative distance in x-coordinates from the start point of the `PointerActivity` to the end point of the `PointerActivity`.
+     * Indicates the relative distance from the start point of the `PointerActivity` to the end point of the `PointerActivity`.
      */
-    readonly movementX: number;
-
-    /**
-     * Indicates the relative distance in y-coordinates from the start point of the `PointerActivity` to the end point of the `PointerActivity`.
-     */
-    readonly movementY: number;
+    readonly movement: {
+      x: number,
+      y: number,
+      length: number,
+      angle: number,
+    };
 
     /**
      * Indicates the track length from the start point of the `PointerActivity` to the end point of the `PointerActivity`.
@@ -252,6 +252,15 @@ interface PointerActivity {
    * This value is `0` when the instance is created; it keeps increasing while tracking the pointer. When the instance {@link PointerActivity.inProgress | `inProgress`} is set to `false`, this value is not changed thereafter.
    */
   readonly duration: milliseconds;
+
+  readonly movement: {
+    x: number,
+    y: number,
+    length: number,
+    angle: number,
+  };
+
+  readonly track: number;
 
   /**
    * Returns the AsyncGenerator of `PointerActivity.Trace` records.
