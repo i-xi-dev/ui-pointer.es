@@ -5,7 +5,9 @@
   "excludeExternals": false,
   "excludePrivate": true,
   "excludeProtected": true,
-  "exclude": "**/*.test.ts",
+  "exclude": [
+    "**/*.test.ts"
+  ],
   "out": "docs/reference",
   "readme": "none",
   "includeVersion": true,
