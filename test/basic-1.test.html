@@ -140,7 +140,9 @@ const observer = new PointerActivityObserver(async (activity) => {
   console.log(`[END] pointerId:${activity.pointerId}, duration:${activity.duration}`);
   console.log(activity);
   onend(activity);
-}, {});
+}, {
+  //noAutoCapture: true,
+});
 observer.observe(testArea);
     </script>
   </head>

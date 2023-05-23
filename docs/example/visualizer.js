@@ -1,7 +1,7 @@
 import { createApp } from "https://unpkg.com/vue@3/dist/vue.esm-browser.prod.js";
-import { VTrackCanvas } from "./visualizer-tracks.js?1.1.0";
-import { VPointerIndicator } from "./visualizer-pointer.js?1.1.0";
-import { PointerActivityObserver } from "https://unpkg.com/@i-xi-dev/ui-pointer@1.1.0/dist/index.js";
+import { VTrackCanvas } from "./visualizer-tracks.js?1.2.0";
+import { VPointerIndicator } from "./visualizer-pointer.js?1.2.0";
+import { PointerActivityObserver } from "https://unpkg.com/@i-xi-dev/ui-pointer@1.2.0/dist/index.js";
 
 function formatTimeStamp(timestamp) {
   const dt = new Date(performance.timeOrigin + timestamp);
@@ -405,6 +405,8 @@ createApp({
           prevTrace = trace;
         }
         this.onend(activity);
+      }, {
+        //noAutoCapture: true,
       });
 
       this.watchingStartAt = performance.now();

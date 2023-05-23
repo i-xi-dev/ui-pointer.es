@@ -48,5 +48,7 @@ const observer = new PointerActivityObserver(async (activity) => {
   }
 
   lock = false;
-}, {});
+}, {
+  //noAutoCapture: true,
+});
 observer.observe(scroller);

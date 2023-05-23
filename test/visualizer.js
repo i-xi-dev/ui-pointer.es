@@ -405,6 +405,8 @@ createApp({
           prevTrace = trace;
         }
         this.onend(activity);
+      }, {
+        //noAutoCapture: true,
       });
 
       this.watchingStartAt = performance.now();

@@ -275,11 +275,6 @@ const _PointerAction = {
 } as const;
 export type _PointerAction = typeof _PointerAction[keyof typeof _PointerAction];
 
-type _ObservationOptions = {
-  // modifiersToWatch: Set<Pointer.Modifier>,
-  pointerTypeFilter: _PointerTypeFilter,
-};
-
 class _TargetObservation {
   private readonly _service: ViewportPointerTracker;//[$85]
   private readonly _observationCanceller: AbortController;//[$85]
@@ -291,12 +286,13 @@ class _TargetObservation {
   readonly #includesHover: boolean;
   // readonly #modifiersToWatch: Set<Pointer.Modifier>;
   readonly #pointerTypeFilter: _PointerTypeFilter;
-  readonly #usePointerCapture: boolean;
   // readonly #highPrecision: boolean;
   readonly #preventActions: Array<_PointerAction>;
   readonly #releaseImplicitPointerCapture: boolean;
 
-  constructor(target: Element, callback: PointerActivityObserver.Callback, options: _ObservationOptions) {
+  readonly #options: _ResolvedOptions;
+
+  constructor(target: Element, callback: PointerActivityObserver.Callback, options: _ResolvedOptions) {
     this._service = ViewportPointerTracker.get(window);
     this._observationCanceller = new AbortController();
     this.#target = target;
@@ -306,8 +302,8 @@ class _TargetObservation {
 
     this.#includesHover = true;//XXX とりあえず固定 //XXX _pointerIsInContactの代わりを直接設定できるようにする
     // this.#modifiersToWatch = options.modifiersToWatch;
-    this.#pointerTypeFilter = options.pointerTypeFilter;
-    this.#usePointerCapture = true;
+    this.#pointerTypeFilter = _createPointerTypeFilter([PointerDevice.Type.MOUSE, PointerDevice.Type.PEN, PointerDevice.Type.TOUCH]);
+    this.#options = options;
     // this.#highPrecision = false;//XXX webkit未実装:getCoalescedEvents
     this.#preventActions = [
       _PointerAction.CONTEXTMENU,
@@ -421,7 +417,7 @@ class _TargetObservation {
         return;
       }
 
-      if (this.#usePointerCapture === true) {
+      if (this.#options.noAutoCapture !== true) {
         if (this.#pointerTypeFilter(event) === true) {
           this.#capturingPointerIds.add(event.pointerId);
           this.#target.setPointerCapture(event.pointerId);
@@ -603,7 +599,9 @@ class PointerActivityObserver {
   private readonly _targets: Map<Element, Set<_TargetObservation>>;//[$85]
 
   // private readonly _modifiersToWatch: Set<Pointer.Modifier>;//[$85]
-  private readonly _pointerTypeFilter: _PointerTypeFilter;//[$85]
+  //private readonly _pointerTypeFilter: _PointerTypeFilter;//[$85]
+
+  private readonly _resolvedOptions: _ResolvedOptions;
 
   /**
    * Creates a new `PointerActivityObserver` object.
@@ -616,7 +614,9 @@ class PointerActivityObserver {
     this._targets = new Map();
     // this._modifiersToWatch = _normalizeModifiers(options.modifiersToWatch);
     //this._pointerTypeFilter = _createPointerTypeFilter(options.pointerTypeFilter);
-    this._pointerTypeFilter = _createPointerTypeFilter([PointerDevice.Type.MOUSE, PointerDevice.Type.PEN, PointerDevice.Type.TOUCH]);
+    //this._pointerTypeFilter = _createPointerTypeFilter([PointerDevice.Type.MOUSE, PointerDevice.Type.PEN, PointerDevice.Type.TOUCH]);
+
+    this._resolvedOptions = _resolveOptions(options);
   }
 
   /**
@@ -624,10 +624,7 @@ class PointerActivityObserver {
    * @param target - An `Element` to be observed.
    */
   observe(target: Element): void {
-    const observation = new _TargetObservation(target, this._callback, {
-      // modifiersToWatch: this._modifiersToWatch,
-      pointerTypeFilter: this._pointerTypeFilter,
-    });
+    const observation = new _TargetObservation(target, this._callback, this._resolvedOptions);
     if (this._targets.has(target) !== true) {
       this._targets.set(target, new Set());
     }
@@ -675,8 +672,6 @@ namespace PointerActivityObserver {
 
   /**
    * The options to customize the `PointerActivityObserver` object.
-   * 
-   * Current version has no configurable options.
    */
   export type Options = {
     //XXX modifiersToWatch?: Array<string>,// PointerEvent発生時にgetModifierState()で検査する対象
@@ -693,7 +688,12 @@ namespace PointerActivityObserver {
     //      厳密にやるなら後者をtargetの全子孫に対して行う必要がある（ただしelementsFromPointはgetBoundingClientRectより有意に遅い）
     //XXX activityの生存条件（trueのとき生成し、falseになったら終了する）
     //XXX mouseButton,penButtonも指定されたもの以外は監視しない？
-    //XXX pointer captureしない設定
+
+    /**
+     * If `true`, do not automatically pointer capture for target of the `PointerActivityObserver`.
+     */
+    noAutoCapture?: boolean;
+
     //XXX 排他設定（pointer 1つのみ監視）
     //XXX 監視中にポインターを停止している間、stream追加する/しない の設定
     //XXX pointerrawupdateを使用するか否か
@@ -707,6 +707,16 @@ namespace PointerActivityObserver {
     //XXX visualViewportのscroll,resizeでactivityを終了させるか否か
   };
 
+}
+
+type _ResolvedOptions = {
+  readonly noAutoCapture: boolean;
+};
+
+function _resolveOptions(options: PointerActivityObserver.Options): Readonly<_ResolvedOptions> {
+  return Object.freeze({
+    noAutoCapture: (options.noAutoCapture === true),
+  });
 }
 
 export {
