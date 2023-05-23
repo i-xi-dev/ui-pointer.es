@@ -4,7 +4,6 @@ import { type pointerid } from "./pointer";
 import {
   _pointerActivityTraceSourceFrom,
   _PointerActivityTraceSource,
-  PointerActivity,
 } from "./pointer_activity";
 
 const _TRACE = Symbol();
