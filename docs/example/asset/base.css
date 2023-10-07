@@ -5,6 +5,7 @@
   inset: 0;
   justify-content: center;
   position: fixed;
+  z-index: 10000;
 }
 
 *.progress[hidden] {

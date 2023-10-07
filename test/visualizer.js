@@ -1,7 +1,7 @@
 import { createApp } from "https://unpkg.com/vue@3/dist/vue.esm-browser.js";
-import { VTrackCanvas } from "../docs/example/visualizer-tracks.js";
-import { VPointerIndicator } from "../docs/example/visualizer-pointer.js";
-import { PointerActivityObserver } from "../dist/index.js";
+import { VTrackCanvas } from "../docs/example/visualizer-tracks.js?1.2.1";
+import { VPointerIndicator } from "../docs/example/visualizer-pointer.js?1.2.1";
+import { PointerActivityObserver } from "../dist/index.js?1.2.1";
 
 function formatTimeStamp(timestamp) {
   const dt = new Date(performance.timeOrigin + timestamp);
@@ -455,3 +455,5 @@ createApp({
   },
 
 }).mount("#app");
+
+document.querySelector("*.progress").hidden = true;
