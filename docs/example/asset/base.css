@@ -1,0 +1,12 @@
+*.progress {
+  align-items: center;
+  background-color: #ccc;
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  position: fixed;
+}
+
+*.progress[hidden] {
+  display: none;
+}
