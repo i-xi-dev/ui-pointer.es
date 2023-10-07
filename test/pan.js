@@ -52,3 +52,5 @@ const observer = new PointerActivityObserver(async (activity) => {
   //noAutoCapture: true,
 });
 observer.observe(scroller);
+
+document.querySelector("*.progress").hidden = true;

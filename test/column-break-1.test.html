@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <title>Test: targetX/Y, radiusX/Y, inContact per pointerId</title>
+    <link href="../docs/example/asset/base.css?1.2.1" rel="stylesheet" />
     <style>
 *.pointer-indicator {
   --color: #f80;
@@ -140,6 +141,8 @@ const observer = new PointerActivityObserver(async (activity) => {
   onend(activity);
 }, {});
 observer.observe(testArea);
+
+document.querySelector("*.progress").hidden = true;
     </script>
   </head>
   <body>
@@ -156,6 +159,10 @@ observer.observe(testArea);
         <span class="test-target-descendant" style="margin-left: -50px; position: relative; top: -300px;">Lorem ipsum dolor sit amet,<br/> consectetur adipiscing elit</span>
         -->
       </div>
+    </div>
+
+    <div class="progress">
+      <progress></progress>
     </div>
   </body>
 </html>
