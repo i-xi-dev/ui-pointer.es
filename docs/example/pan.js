@@ -1,4 +1,4 @@
-import { PointerActivityObserver } from "https://unpkg.com/@i-xi-dev/ui-pointer@1.2.0/dist/index.js";
+import { PointerActivityObserver } from "https://unpkg.com/@i-xi-dev/ui-pointer@1.2.1/dist/index.js";
 
 const scroller = document.getElementById("Scroller");
 const scrollbarX = document.getElementById("ScrollbarX");
