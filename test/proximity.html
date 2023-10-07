@@ -3,7 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <title>Proximity detection</title>
-    <link href="../docs/example/asset/proximity.css" rel="stylesheet" />
+    <link href="../docs/example/asset/base.css?1.2.1" rel="stylesheet" />
+    <link href="../docs/example/asset/proximity.css?1.2.1" rel="stylesheet" />
     <script type="module">
 import { PointerActivityObserver } from "../dist/index.js";
 
@@ -76,6 +77,8 @@ const observer = new PointerActivityObserver(async (activity) => {
   updateDraw();
 }, {});
 observer.observe(testGrid);
+
+document.querySelector("*.progress").hidden = true;
     </script>
   </head>
   <body>
@@ -192,6 +195,10 @@ observer.observe(testGrid);
       <div class="test-cell"></div>
       <div class="test-cell"></div>
 
+    </div>
+
+    <div class="progress">
+      <progress></progress>
     </div>
   </body>
 </html>
