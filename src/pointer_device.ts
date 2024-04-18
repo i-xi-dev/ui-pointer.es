@@ -9,7 +9,7 @@ interface PointerDevice {
    */
   readonly type: string;
 
-  //XXX sourceCapabilities
+  // XXX sourceCapabilities
 }
 
 /**

@@ -12,7 +12,7 @@ class ViewportPointerTracker {
   static #instance: ViewportPointerTracker | null = null;
 
   readonly #aborter: AbortController;
-  private readonly _broker: PubSub.Broker<_PointerActivityTraceSource>;//[$85]
+  private readonly _broker: PubSub.Broker<_PointerActivityTraceSource>;// [$85]
   readonly #view: Window;
   #prevMap: Map<pointerid, _PointerActivityTraceSource>;
 

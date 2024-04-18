@@ -48,8 +48,8 @@ function _mouseButtonsOf(source: _PointerStateSource): Array<MouseButton> {
 
 /** @experimental */
 const PenButton = {
-  BARREL: "barrel",// ボタン
-  ERASER: "eraser",// 副先端での接触
+  BARREL: "barrel", // ボタン
+  ERASER: "eraser", // 副先端での接触
 } as const;
 type PenButton = typeof PenButton[keyof typeof PenButton];
 
@@ -70,12 +70,12 @@ function _penButtonsOf(source: _PointerStateSource): Array<PenButton> {
  * This is an immutable object.
  */
 interface PointerState {
-  //TODO readonly modifiers: Array<Pointer.Modifier>;//XXX Record<string, boolean>にする？ // タッチ間で共有だが現在値なのでここに持たせる //XXX buttonなどもふくめる
+  // TODO readonly modifiers: Array<Pointer.Modifier>;//XXX Record<string, boolean>にする？ // タッチ間で共有だが現在値なのでここに持たせる //XXX buttonなどもふくめる
 
   /**
    * @experimental
    */
-  readonly buttons: Array<string>;//XXX Record<string, boolean>にする？あるいはmodifierにまとめる？
+  readonly buttons: Array<string>;// XXX Record<string, boolean>にする？あるいはmodifierにまとめる？
 
   /**
    * Indicates the {@link https://developer.mozilla.org/en-US/docs/Web/API/PointerEvent/pressure | `pressure`} property of the `PointerEvent`.
@@ -112,8 +112,8 @@ interface PointerState {
    */
   readonly twist: number;
 
-  //XXX altitudeAngle 未実装のブラウザが多い
-  //XXX azimuthAngle 未実装のブラウザが多い
+  // XXX altitudeAngle 未実装のブラウザが多い
+  // XXX azimuthAngle 未実装のブラウザが多い
 }
 
 function _pointerStateOf(source: _PointerStateSource): PointerState {

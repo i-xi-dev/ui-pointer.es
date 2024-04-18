@@ -11,12 +11,12 @@ const _DefaultEventFilter: Array<string> = [
   "pointerdown",
   "pointerenter",
   "pointerleave",
-  //"pointermove",
+  // "pointermove",
   "pointerup",
 ];
 
 let _enabled: boolean = false;
-let _eventFilter: Array<string> = [..._DefaultEventFilter];
+let _eventFilter: Array<string> = [ ..._DefaultEventFilter ];
 
 type _DebugConfig = {
   enabled: boolean,
@@ -26,7 +26,7 @@ type _DebugConfig = {
 namespace _Debug {
   export function setConfig(config: _DebugConfig): void {
     _enabled = config.enabled;
-    _eventFilter = Array.isArray(config.eventFilter) ? [...config.eventFilter] : [..._DefaultEventFilter];
+    _eventFilter = Array.isArray(config.eventFilter) ? [ ...config.eventFilter ] : [ ..._DefaultEventFilter ];
   }
 
   export function logText(message: string): void {

@@ -2,7 +2,7 @@ import { Keyboard } from "@i-xi-dev/ui-utils";
 
 type pointerid = number;
 
-//TODO 整理
+// TODO 整理
 namespace Pointer {
   export const Modifier = {
     ALT: Keyboard.Key.ALT,

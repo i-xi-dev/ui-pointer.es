@@ -3,7 +3,7 @@ export { PointerState } from "./pointer_state";
 export { PointerActivity } from "./pointer_activity";
 export { PointerActivityObserver } from "./pointer_observer";
 
-//TODO readmeに記載↓
+// TODO readmeに記載↓
 // - ターゲットのboundingBox外に位置する子孫の扱い
 //   Trackingは開始する仕様とする
 //   - ターゲットの子孫が何らかのCSS(position:absoluteなど)で、ターゲットのboundingBoxの外にある時

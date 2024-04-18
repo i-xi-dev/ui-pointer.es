@@ -11,7 +11,7 @@ import {
 type timestamp = number;
 type milliseconds = number;
 
-//[$119] FirefoxでPointerEventを保持していると、いつのまにかoffsetX,Yが0に更新される為
+// [$119] FirefoxでPointerEventを保持していると、いつのまにかoffsetX,Yが0に更新される為
 //       必要な項目だけコピーしたオブジェクトを保持する
 interface _PointerActivityTraceSource extends _PointerStateSource {
   readonly clientX: number;
@@ -28,7 +28,7 @@ interface _PointerActivityTraceSource extends _PointerStateSource {
   readonly type: string;
 
   prev: _PointerActivityTraceSource | null;
-  readonly raw: PointerEvent;//[$141] ink用に追加
+  readonly raw: PointerEvent;// [$141] ink用に追加
 
   // getCoalescedEvents() → 不要（Sourceを複数作成）
   // getModifierState() //XXX
@@ -272,11 +272,11 @@ interface PointerActivity {
    */
   readonly result: Promise<PointerActivity.Result>;
 
-  //XXX readonly traceStream: ReadableStream<PointerActivity.Trace>;
-  //XXX readonly startViewportOffset: Geometry2d.Point | null;
-  //XXX readonly startTargetOffset: Geometry2d.Point | null;
+  // XXX readonly traceStream: ReadableStream<PointerActivity.Trace>;
+  // XXX readonly startViewportOffset: Geometry2d.Point | null;
+  // XXX readonly startTargetOffset: Geometry2d.Point | null;
 
-  //XXX readonly current
+  // XXX readonly current
 
   /**
    * Indicates whether that no {@link PointerActivity.endTrace | `endTrace`} record has been recorded.
@@ -300,7 +300,7 @@ interface PointerActivity {
    */
   readonly startTrace: PointerActivity.Trace | null;
 
-  //XXX readonly lastTrace: PointerActivity.Trace | null; その時点の最新trace 終了後はendTraceと同じ
+  // XXX readonly lastTrace: PointerActivity.Trace | null; その時点の最新trace 終了後はendTraceと同じ
 
   /**
    * Indicates the end `PointerActivity.Trace` record of the `PointerActivity`.
@@ -309,8 +309,8 @@ interface PointerActivity {
    */
   readonly endTrace: PointerActivity.Trace | null;
 
-  //XXX readonly watchedModifiers: Array<Pointer.Modifier>;
-  //XXX getPredictedTrace()
+  // XXX readonly watchedModifiers: Array<Pointer.Modifier>;
+  // XXX getPredictedTrace()
 }
 
 export {

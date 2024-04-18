@@ -67,7 +67,7 @@ class _PointerActivityImpl implements PointerActivity {
     y: number,
     length: number,
     angle: number,
-  } {
+    } {
     const { movement } = this.#controller;
     return Geometry2d.vector(movement.x, movement.y);
   }
@@ -165,13 +165,13 @@ class _PointerActivityController {
     return this.#activity;
   }
 
-  //get startViewportOffset(): Geometry2d.Point | null {
+  // get startViewportOffset(): Geometry2d.Point | null {
   //  return this.#startTrace ? {x:this.#startTrace.viewportX : null;
-  //}
+  // }
 
-  //get startTargetOffset(): Geometry2d.Point | null {
+  // get startTargetOffset(): Geometry2d.Point | null {
   //  return this.#startTrace ? {x:this.#startTrace.targetX,y:} : null;
-  //}
+  // }
 
   get movement(): Geometry2d.Point {
     if (this.lastTrace && this.startTrace) {
@@ -253,7 +253,7 @@ class _PointerActivityController {
       this.#trackLength = this.#trackLength + Geometry2d.Area.diagonal({
         width: Math.abs(trace.movementX),
         height: Math.abs(trace.movementY),
-      });//XXX beforeとfirstの間の境界を起点にすべき
+      });// XXX beforeとfirstの間の境界を起点にすべき
 
       this.#lastTrace = trace;
       this.#traceStreamController.enqueue(trace);
@@ -267,7 +267,7 @@ type _PointerTypeFilter = (event: PointerEvent | _PointerActivityTraceSource) =>
 // ダブルタップのズームはiOSでテキストをダブルタップしたときだけ？ →他の手段でズームしたのをダブルタップで戻すことはできる
 // パン無効にする場合タブレット等でスクロール手段がなくなるので注意。スクロールが必要な場合は自前でスクロールを実装すること
 // （広い範囲で）ズーム無効にする場合タブレット等で自動ズームを元に戻す手段がなくなるので注意（小さい入力欄にフォーカスしたとき等に自動ズームされる）
-//type _PointerAction = "contextmenu" | "pan" | "pinch-zoom" | "double-tap-zoom" | "selection";// CSS touch-actionでは、ダブルタップズームだけを有効化する手段がない
+// type _PointerAction = "contextmenu" | "pan" | "pinch-zoom" | "double-tap-zoom" | "selection";// CSS touch-actionでは、ダブルタップズームだけを有効化する手段がない
 const _PointerAction = {
   CONTEXTMENU: "contextmenu",
   PAN_AND_ZOOM: "pan-and-zoom",
@@ -276,8 +276,8 @@ const _PointerAction = {
 export type _PointerAction = typeof _PointerAction[keyof typeof _PointerAction];
 
 class _TargetObservation {
-  private readonly _service: ViewportPointerTracker;//[$85]
-  private readonly _observationCanceller: AbortController;//[$85]
+  private readonly _service: ViewportPointerTracker;// [$85]
+  private readonly _observationCanceller: AbortController;// [$85]
   readonly #target: Element;
   readonly #callback: PointerActivityObserver.Callback;
   readonly #activityControllers: Map<pointerid, _PointerActivityController>;
@@ -300,17 +300,17 @@ class _TargetObservation {
     this.#activityControllers = new Map();
     this.#capturingPointerIds = new Set();
 
-    this.#includesHover = true;//XXX とりあえず固定 //XXX _pointerIsInContactの代わりを直接設定できるようにする
+    this.#includesHover = true;// XXX とりあえず固定 //XXX _pointerIsInContactの代わりを直接設定できるようにする
     // this.#modifiersToWatch = options.modifiersToWatch;
-    this.#pointerTypeFilter = _createPointerTypeFilter([PointerDevice.Type.MOUSE, PointerDevice.Type.PEN, PointerDevice.Type.TOUCH]);
+    this.#pointerTypeFilter = _createPointerTypeFilter([ PointerDevice.Type.MOUSE, PointerDevice.Type.PEN, PointerDevice.Type.TOUCH ]);
     this.#options = options;
     // this.#highPrecision = false;//XXX webkit未実装:getCoalescedEvents
     this.#preventActions = [
       _PointerAction.CONTEXTMENU,
       _PointerAction.PAN_AND_ZOOM,
       _PointerAction.SELECTION,
-    ];//XXX とりあえず固定
-    this.#releaseImplicitPointerCapture = true;//XXX とりあえず固定
+    ];// XXX とりあえず固定
+    this.#releaseImplicitPointerCapture = true;// XXX とりあえず固定
 
     const listenerOptions = {
       passive: true,
@@ -341,18 +341,18 @@ class _TargetObservation {
         }) as EventListener, activeListenerOptions);
       }
 
-      //[$109[ Safariでペンの場合、touchstartをキャンセルしないとポインターイベントの発火が間引かれる。
+      // [$109[ Safariでペンの場合、touchstartをキャンセルしないとポインターイベントの発火が間引かれる。
       //       touch-action:noneだけでは足りないらしい
       this.#target.addEventListener("touchstart", ((event: TouchEvent) => {
         event.preventDefault();
-      }) as EventListener, activeListenerOptions);//XXX キャンセルするか設定可能にする
-      //]$109]
+      }) as EventListener, activeListenerOptions);// XXX キャンセルするか設定可能にする
+      // ]$109]
       this.#target.addEventListener("touchmove", ((event: TouchEvent) => {
         event.preventDefault();
-      }) as EventListener, activeListenerOptions);//XXX キャンセルするか設定可能にする
+      }) as EventListener, activeListenerOptions);// XXX キャンセルするか設定可能にする
       this.#target.addEventListener("touchend", ((event: TouchEvent) => {
         event.preventDefault();
-      }) as EventListener, activeListenerOptions);//XXX キャンセルするか設定可能にする
+      }) as EventListener, activeListenerOptions);// XXX キャンセルするか設定可能にする
     }
 
     this.#target.addEventListener("pointerdown", ((event: PointerEvent): void => {
@@ -430,7 +430,7 @@ class _TargetObservation {
     return this.#target;
   }
 
-  //[$85]
+  // [$85]
   private _handleWindowEvent: (traceSource: _PointerActivityTraceSource) => Promise<void> = (traceSource: _PointerActivityTraceSource) => {
     const executor = (resolve: (value: void | PromiseLike<void>) => void, reject: (reason?: any) => void) => {
       try {
@@ -443,7 +443,7 @@ class _TargetObservation {
       }
     };
     return new Promise(executor);
-  }
+  };
 
   #handleTargetEvent: (event: PointerEvent) => Promise<void> = (event: PointerEvent) => {
     const executor = (resolve: (value: void | PromiseLike<void>) => void, reject: (reason?: any) => void) => {
@@ -457,7 +457,7 @@ class _TargetObservation {
       }
     };
     return new Promise(executor);
-  }
+  };
 
   #handle(traceSource: _PointerActivityTraceSource): void {
     if (this.#pointerTypeFilter(traceSource) !== true) {
@@ -480,11 +480,11 @@ class _TargetObservation {
         let appendAsLast = false;
         if (this.#includesHover === true) {
           // pointerenterでactivity生成、pointerleaveで終了
-          appendAsLast = ["pointerdown", "pointermove", "pointerup"].includes(traceSource.type);
+          appendAsLast = [ "pointerdown", "pointermove", "pointerup" ].includes(traceSource.type);
         }
         else {
           // pointerdown|pointermoveかつpointerHasContactでactivity生成、pointerHasContact!=trueで終了
-          appendAsLast = ["pointerdown", "pointermove"].includes(traceSource.type) && (pointerHasContact === true);
+          appendAsLast = [ "pointerdown", "pointermove" ].includes(traceSource.type) && (pointerHasContact === true);
         }
 
         activityController = new _PointerActivityController(traceSource, this.#target, {
@@ -518,7 +518,7 @@ class _TargetObservation {
         //   }
         // }
         // else {
-        activityController.appendTrace(traceSource);//XXX pointercancel（だけ？）は除外しないと座標が0,0？の場合がある 先にpointerleaveになるから問題ない？
+        activityController.appendTrace(traceSource);// XXX pointercancel（だけ？）は除外しないと座標が0,0？の場合がある 先にpointerleaveになるから問題ない？
         // }
       }
 
@@ -528,7 +528,7 @@ class _TargetObservation {
 
       if (
         ((this.#includesHover !== true) && (pointerHasContact !== true))
-        || (["pointercancel", "pointerleave"].includes(traceSource.type) === true)
+        || ([ "pointercancel", "pointerleave" ].includes(traceSource.type) === true)
       ) {
         this.#activityControllers.delete(traceSource.pointerId);
         activityController.terminate();
@@ -560,7 +560,7 @@ const _DEFAULT_POINTER_TYPE_FILTER = Object.freeze([
 
 // filterSourceは参照渡し
 function _createPointerTypeFilter(pointerTypeFilterSource?: Array<string>): _PointerTypeFilter {
-  if (!pointerTypeFilterSource ) {
+  if (!pointerTypeFilterSource) {
     return () => true;
   }
   if (Array.isArray(pointerTypeFilterSource) !== true) {
@@ -570,7 +570,7 @@ function _createPointerTypeFilter(pointerTypeFilterSource?: Array<string>): _Poi
     return () => true;
   }
 
-  const pointerTypes = pointerTypeFilterSource ? [...pointerTypeFilterSource] : [..._DEFAULT_POINTER_TYPE_FILTER];
+  const pointerTypes = pointerTypeFilterSource ? [ ...pointerTypeFilterSource ] : [ ..._DEFAULT_POINTER_TYPE_FILTER ];
   return (event: PointerEvent | _PointerActivityTraceSource): boolean => {
     return (pointerTypes.includes(event.pointerType) === true);
   };
@@ -595,11 +595,11 @@ function _createPointerTypeFilter(pointerTypeFilterSource?: Array<string>): _Poi
  * Reports pointer activity.
  */
 class PointerActivityObserver {
-  private readonly _callback: PointerActivityObserver.Callback;//[$85] ES標準（#）でprivateにするとVueから使ったときエラーになるのでTypeScriptのprivate修飾子を使用
-  private readonly _targets: Map<Element, Set<_TargetObservation>>;//[$85]
+  private readonly _callback: PointerActivityObserver.Callback;// [$85] ES標準（#）でprivateにするとVueから使ったときエラーになるのでTypeScriptのprivate修飾子を使用
+  private readonly _targets: Map<Element, Set<_TargetObservation>>;// [$85]
 
   // private readonly _modifiersToWatch: Set<Pointer.Modifier>;//[$85]
-  //private readonly _pointerTypeFilter: _PointerTypeFilter;//[$85]
+  // private readonly _pointerTypeFilter: _PointerTypeFilter;//[$85]
 
   private readonly _resolvedOptions: _ResolvedOptions;
 
@@ -613,8 +613,8 @@ class PointerActivityObserver {
     this._callback = callback;
     this._targets = new Map();
     // this._modifiersToWatch = _normalizeModifiers(options.modifiersToWatch);
-    //this._pointerTypeFilter = _createPointerTypeFilter(options.pointerTypeFilter);
-    //this._pointerTypeFilter = _createPointerTypeFilter([PointerDevice.Type.MOUSE, PointerDevice.Type.PEN, PointerDevice.Type.TOUCH]);
+    // this._pointerTypeFilter = _createPointerTypeFilter(options.pointerTypeFilter);
+    // this._pointerTypeFilter = _createPointerTypeFilter([PointerDevice.Type.MOUSE, PointerDevice.Type.PEN, PointerDevice.Type.TOUCH]);
 
     this._resolvedOptions = _resolveOptions(options);
   }
@@ -674,37 +674,37 @@ namespace PointerActivityObserver {
    * The options to customize the `PointerActivityObserver` object.
    */
   export type Options = {
-    //XXX modifiersToWatch?: Array<string>,// PointerEvent発生時にgetModifierState()で検査する対象
+    // XXX modifiersToWatch?: Array<string>,// PointerEvent発生時にgetModifierState()で検査する対象
 
-    //pointerTypeFilter?: Array<string>, // マッチしない場合streamを生成しない（pointerTypeは不変なので生成してからフィルタする必要はない）
+    // pointerTypeFilter?: Array<string>, // マッチしない場合streamを生成しない（pointerTypeは不変なので生成してからフィルタする必要はない）
 
-    //XXX pointerdown,pointermove(,pointerupも？)イベントをキャンセルするか否か
+    // XXX pointerdown,pointermove(,pointerupも？)イベントをキャンセルするか否か
     //    - 中ボタン押下でのスクロール
-    //XXX activity終了時点でpointerはtarget上にあるか検査するか否か
+    // XXX activity終了時点でpointerはtarget上にあるか検査するか否か
     //    → お手軽なのは、
     //      - viewport座標がbounding-box内にあるか判定
     //      - viewport座標をelementsFromPointでヒットテスト
     //      のいずれかだが、いずれもpointerleaveの発火条件とは一致しない
     //      厳密にやるなら後者をtargetの全子孫に対して行う必要がある（ただしelementsFromPointはgetBoundingClientRectより有意に遅い）
-    //XXX activityの生存条件（trueのとき生成し、falseになったら終了する）
-    //XXX mouseButton,penButtonも指定されたもの以外は監視しない？
+    // XXX activityの生存条件（trueのとき生成し、falseになったら終了する）
+    // XXX mouseButton,penButtonも指定されたもの以外は監視しない？
 
     /**
      * If `true`, do not automatically pointer capture for target of the `PointerActivityObserver`.
      */
     noAutoCapture?: boolean;
 
-    //XXX 排他設定（pointer 1つのみ監視）
-    //XXX 監視中にポインターを停止している間、stream追加する/しない の設定
-    //XXX pointerrawupdateを使用するか否か
-    //XXX 合体イベントを分解するか否か
+    // XXX 排他設定（pointer 1つのみ監視）
+    // XXX 監視中にポインターを停止している間、stream追加する/しない の設定
+    // XXX pointerrawupdateを使用するか否か
+    // XXX 合体イベントを分解するか否か
     //      windowで監視している関係上、targetの境界から内側に入る前のイベントも合体される（Chromeでは見かけないがブラウザによる。Firefoxは顕著）
     //        境界外のイベントの除外が必要
     //        - timeStampで除外・・・FirefoxのpointerenterのtimeStampが信用できない
     //        - 座標で除外・・・どこまでやるか
     //            - boundingboxで判定・・・一番早いが、target外辺とboundingboxが一致しない場合（角が丸い場合とか子孫が境界外に出ている場合とか）に対応できない
     //            - targetおよびそのすべての子孫でヒットテスト・・・明確に遅い
-    //XXX visualViewportのscroll,resizeでactivityを終了させるか否か
+    // XXX visualViewportのscroll,resizeでactivityを終了させるか否か
   };
 
 }
