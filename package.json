@@ -1,6 +1,6 @@
 {
   "name": "@i-xi-dev/ui-pointer",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "A PointerActivityObserver object observes pointer activities on a element. The observer generates a PointerActivity object that represents the sequence of PointerEvent objects with the same pointerId.",
   "type": "module",
   "main": "./dist/index.js",
